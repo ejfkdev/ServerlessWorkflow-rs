@@ -1,0 +1,34 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: nested-try-catch
+  version: '0.1.0'
+do:
+  - outerTry:
+      try:
+        - innerTry:
+            try:
+              - failTask:
+                  raise:
+                    error:
+                      type: https://serverlessworkflow.io/spec/1.0.0/errors/validation
+                      status: 400
+                      title: Inner Error
+            catch:
+              errors:
+                with:
+                  type: https://serverlessworkflow.io/spec/1.0.0/errors/validation
+              as: error
+              do:
+                - handleInner:
+                    set:
+                      innerHandled: true
+                      innerTitle: ${$error.title}
+      catch:
+        errors:
+          with:
+            type: https://serverlessworkflow.io/spec/1.0.0/errors/runtime
+        do:
+          - handleOuter:
+              set:
+                outerHandled: true

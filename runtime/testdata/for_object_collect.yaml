@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: for-object-collect
+  version: '0.1.0'
+do:
+  - processItems:
+      for:
+        in: ${ .items }
+        each: item
+        at: index
+      do:
+        - transformItem:
+            set:
+              result: "${ [.result[]] + [{name: $item, position: ($index + 1)}] }"

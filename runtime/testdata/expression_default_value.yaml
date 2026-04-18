@@ -1,0 +1,9 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: expression-default-value
+  version: '0.1.0'
+do:
+  - setDefault:
+      set:
+        result: "${ .missing // \"default\" }"

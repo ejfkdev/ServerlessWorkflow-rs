@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: task-timeout
+  version: '0.1.0'
+do:
+  - waitForTooLong:
+      wait:
+        milliseconds: 50
+      timeout:
+        after: PT0.01S

@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-post
+  version: '0.1.0'
+do:
+  - createPet:
+      call: http
+      with:
+        method: post
+        endpoint:
+          uri: http://localhost:9876/pets
+        body:
+          name: ${.petName}
+          status: available

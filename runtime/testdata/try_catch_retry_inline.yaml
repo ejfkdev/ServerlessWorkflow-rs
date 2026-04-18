@@ -1,0 +1,25 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: try-catch-retry-inline
+  version: '0.1.0'
+do:
+  - tryTask:
+      try:
+        - alwaysFail:
+            raise:
+              error:
+                type: https://serverlessworkflow.io/spec/1.0.0/errors/communication
+                title: Communication Error
+      catch:
+        errors:
+          with:
+            type: communication
+        retry:
+          delay:
+            milliseconds: 10
+          backoff:
+            constant: {}
+          limit:
+            attempt:
+              count: 3

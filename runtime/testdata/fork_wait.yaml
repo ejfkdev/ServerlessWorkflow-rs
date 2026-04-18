@@ -1,0 +1,26 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: fork-wait
+  version: '0.1.0'
+do:
+  - incrParallel:
+      fork:
+        compete: false
+        branches:
+          - helloBranch:
+              do:
+               - waitABit:
+                  wait:
+                    milliseconds: 10
+               - setValue:
+                  set:
+                    value: 1
+          - byeBranch:
+               do:
+                - waitABit:
+                   wait:
+                     milliseconds: 10
+                - setValue:
+                    set:
+                      value: 2

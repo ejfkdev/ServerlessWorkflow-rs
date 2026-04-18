@@ -1,0 +1,20 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-function-with-input
+  version: '0.1.0'
+use:
+  functions:
+    getPetById:
+      call: http
+      with:
+        method: get
+        endpoint:
+          uri: http://localhost:9876/pets/${ .petId }
+do:
+  - getPet:
+      call: getPetById
+      with:
+        petId: 1
+      output:
+        as: .name

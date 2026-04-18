@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: run-shell-echo
+  version: '0.1.0'
+do:
+  - runShell:
+      run:
+        shell:
+          command: 'echo "Hello, anonymous"'
+        return: all

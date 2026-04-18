@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: nested-do
+  version: '0.1.0'
+do:
+  - outerTask:
+      do:
+        - inner1:
+            set:
+              value: 10
+        - inner2:
+            set:
+              doubled: ${ .value * 2 }

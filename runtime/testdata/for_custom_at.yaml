@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: for-custom-at
+  version: '0.1.0'
+do:
+  - processItems:
+      for:
+        in: ${ .items }
+        at: idx
+        each: item
+      do:
+        - logItem:
+            set:
+              result: "${ [.result[]] + [{idx: $idx, item: $item}] }"

@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: for-while
+  version: '0.1.0'
+do:
+  - sumUntil:
+      for:
+        each: item
+        in: .numbers
+      while: ${ .total < 10 }
+      do:
+        - addNumber:
+            set:
+              total: ${ .total + $item }

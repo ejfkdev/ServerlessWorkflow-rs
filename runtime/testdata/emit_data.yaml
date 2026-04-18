@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: emit-data
+  version: '0.1.0'
+do:
+  - emitEvent:
+      emit:
+        event:
+          with:
+            source: https://fake-source.com
+            type: com.fake-source.user.greeted.v1
+            data:
+              greetings: ${ "Hello " + .firstName + " " + .lastName + "!" }

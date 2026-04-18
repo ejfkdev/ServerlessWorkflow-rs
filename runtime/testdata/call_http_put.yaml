@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-put
+  version: '0.1.0'
+do:
+  - updatePet:
+      call: http
+      with:
+        method: put
+        endpoint:
+          uri: http://localhost:9876/pets/1
+        body:
+          name: ${.newName}
+          status: sold

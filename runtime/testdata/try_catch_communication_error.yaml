@@ -1,0 +1,22 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: try-catch-communication-error
+  version: '0.1.0'
+do:
+  - tryCall:
+      try:
+        - callFail:
+            call: http
+            with:
+              method: get
+              endpoint:
+                uri: http://localhost:9876/nonexistent-endpoint
+      catch:
+        errors:
+          with:
+            type: communication
+        do:
+          - handleError:
+              set:
+                recovered: true

@@ -1,0 +1,19 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: switch-then-exit
+  version: '0.1.0'
+do:
+  - checkValue:
+      switch:
+        - exitCase:
+            when: ${ .value == "exit" }
+            then: exit
+        - continueCase:
+            when: ${ .value == "continue" }
+            then: continue
+        - defaultCase:
+            then: end
+  - shouldNotRun:
+      set:
+        ran: true

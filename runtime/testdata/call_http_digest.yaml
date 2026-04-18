@@ -1,0 +1,16 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-digest
+  version: '0.1.0'
+do:
+  - getProtected:
+      call: http
+      with:
+        method: get
+        endpoint:
+          uri: http://localhost:9876/digest-protected
+          authentication:
+            digest:
+              username: admin
+              password: secret123

@@ -1,0 +1,10 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: expression-array-length
+  version: '0.1.0'
+do:
+  - setLength:
+      set:
+        count: "${ (.items | length) }"
+        isEmpty: "${ (.items | length) == 0 }"

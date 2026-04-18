@@ -1,0 +1,38 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: e2e-http-export-switch
+  version: '0.1.0'
+do:
+  - fetchOrder:
+      call: http
+      with:
+        method: get
+        endpoint:
+          uri: http://localhost:PORT/orders/1
+      export:
+        as: "${ {orderStatus: .status} }"
+  - decideAction:
+      switch:
+        - isShipped:
+            when: "${ $context.orderStatus == \"shipped\" }"
+            then: notifyShipped
+        - isPending:
+            when: "${ $context.orderStatus == \"pending\" }"
+            then: notifyPending
+        - fallback:
+            then: notifyUnknown
+  - notifyShipped:
+      set:
+        message: "Your order has been shipped!"
+        notified: true
+      then: end
+  - notifyPending:
+      set:
+        message: "Your order is being processed."
+        notified: true
+      then: end
+  - notifyUnknown:
+      set:
+        message: "Order status unknown."
+        notified: false

@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-patch
+  version: '0.1.0'
+do:
+  - patchUser:
+      call: http
+      with:
+        method: patch
+        endpoint:
+          uri: http://localhost:9876/users/1
+        body:
+          status: ${.newStatus}

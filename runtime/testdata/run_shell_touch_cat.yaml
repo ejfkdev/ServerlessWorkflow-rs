@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: run-shell-touch-cat
+  version: '0.1.0'
+do:
+  - runShell:
+      run:
+        shell:
+          command: echo "hello world"
+          environment:
+            FIRST_NAME: John
+            LAST_NAME: "${.lastName}"
+        return: all

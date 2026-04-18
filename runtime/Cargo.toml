@@ -1,0 +1,37 @@
+[package]
+name = "serverless_workflow_runtime"
+description = "Runtime engine for Serverless Workflow DSL — execute, validate, and orchestrate workflows"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/serverless_workflow_runtime"
+edition.workspace = true
+rust-version.workspace = true
+keywords = ["serverless-workflow", "sdk", "runtime", "workflow-engine"]
+categories = ["asynchronous", "api-bindings", "config"]
+readme = "README.md"
+
+[dependencies]
+serverless_workflow_core = { path = "../core", version = "1.0.0-alpha7" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+jaq-core = "2"
+jaq-std = "2"
+jaq-json = { version = "1", features = ["serde_json"] }
+jaq-interpret = "1"
+uuid = { version = "1", features = ["v4"] }
+jsonschema = "0.18"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "process", "sync", "io-util"] }
+tokio-util = "0.7"
+chrono = "0.4"
+async-trait = "0.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+md-5 = "0.10"
+regex = "1"
+
+[dev-dependencies]
+serde_yaml = "0.9"
+warp = "0.3"
+serverless_workflow_builders = { path = "../builders", version = "1.0.0-alpha7" }

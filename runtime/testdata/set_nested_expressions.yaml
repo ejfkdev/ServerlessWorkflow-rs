@@ -1,0 +1,12 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: set-nested-expressions
+  version: '0.1.0'
+do:
+  - setNested:
+      set:
+        user:
+          fullName: "${ .firstName + \" \" + .lastName }"
+          age: "${ .age }"
+        computed: "${ .x * .y + .z }"

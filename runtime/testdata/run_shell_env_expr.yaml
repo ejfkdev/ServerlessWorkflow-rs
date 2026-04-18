@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: run-shell-env-expr
+  version: '0.1.0'
+do:
+  - runShell:
+      run:
+        shell:
+          command: 'echo "Hello $FIRST_NAME $LAST_NAME!"'
+          environment:
+            FIRST_NAME: "${ .firstName }"
+            LAST_NAME: "${ .lastName }"
+        return: all

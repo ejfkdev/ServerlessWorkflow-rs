@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: expression-string-operations
+  version: '0.1.0'
+do:
+  - setValues:
+      set:
+        upper: "${ .name | ascii_upcase }"
+        lower: "${ .name | ascii_downcase }"
+        split: "${ .sentence | split(\" \") }"

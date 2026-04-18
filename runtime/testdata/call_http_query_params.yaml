@@ -1,0 +1,22 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-query-params
+  version: '0.1.0'
+input:
+  schema:
+    document:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+do:
+  - findPets:
+      call: http
+      with:
+        method: get
+        endpoint: http://localhost:9876/pets
+        query:
+          status: ${.status}

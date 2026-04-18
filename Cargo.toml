@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "builders",
+    "runtime"
+]
+
+[workspace.package]
+version = "1.0.0-alpha7"
+authors = ["The Serverless Workflow Authors <cncf.serverless.workflow@gmail.com>"]
+license = "Apache-2.0"
+homepage = "https://serverlessworkflow.io"
+repository = "https://github.com/ejfdkev/ServerlessWorkflow-rs"
+documentation = "https://docs.rs/serverless_workflow_core"
+edition = "2021"
+rust-version = "1.80"
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
+codegen-units = 1

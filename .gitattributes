@@ -1,0 +1,21 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Ensure YAML files always use LF
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Ensure Rust files always use LF
+*.rs text eol=lf
+*.toml text eol=lf
+
+# Ensure shell scripts use LF
+*.sh text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

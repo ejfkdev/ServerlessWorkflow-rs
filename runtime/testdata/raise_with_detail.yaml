@@ -1,0 +1,13 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: raise-with-detail
+  version: '0.1.0'
+do:
+  - raiseError:
+      raise:
+        error:
+          type: https://serverlessworkflow.io/spec/1.0.0/errors/validation
+          status: 400
+          title: Validation Error
+          detail: "Missing required field: email"

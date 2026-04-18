@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: for-filter-collect
+  version: '0.1.0'
+do:
+  - filterItems:
+      for:
+        in: ${ .numbers }
+        each: num
+      do:
+        - checkEven:
+            set:
+              evens: "${ if $num % 2 == 0 then [.evens[]] + [$num] else .evens end }"

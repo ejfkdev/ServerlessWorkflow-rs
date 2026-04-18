@@ -1,0 +1,23 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: try-catch-compensate
+  version: '0.1.0'
+do:
+  - tryTask:
+      try:
+        - failTask:
+            raise:
+              error:
+                type: https://serverlessworkflow.io/spec/1.0.0/errors/runtime
+                status: 500
+                title: Runtime Error
+      catch:
+        errors:
+          with:
+            type: runtime
+        do:
+          - compensate:
+              set:
+                compensated: true
+                originalTask: failTask

@@ -1,0 +1,17 @@
+document:
+  name: wait-duration-iso8601
+  dsl: '1.0.0'
+  namespace: default
+  version: '0.1.0'
+do:
+  - prepareWaitExample:
+      set:
+        phase: started
+        waitExpression: PT0.01S
+  - waitOneSecond:
+      wait: PT0.01S
+  - completeWaitExample:
+      set:
+        phase: completed
+        previousPhase: "${ .phase }"
+        waitExpression: "${ .waitExpression }"

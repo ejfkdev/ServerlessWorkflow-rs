@@ -1,0 +1,17 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-post-expr
+  version: '0.1.0'
+do:
+  - postUser:
+      call: http
+      with:
+        method: post
+        endpoint:
+          uri: http://localhost:9876/users
+        body:
+          firstName: ${.name}
+          lastName: ${.surname}
+      output:
+        as: .firstName

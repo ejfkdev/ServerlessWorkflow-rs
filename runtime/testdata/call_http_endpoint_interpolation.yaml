@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-endpoint-interpolation
+  version: '0.1.0'
+do:
+  - getPet:
+      call: http
+      with:
+        method: get
+        endpoint: ${ "http://localhost:9876/pets/\(.petId)" }

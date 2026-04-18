@@ -1,0 +1,9 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: task-expression
+  version: '0.1.0'
+do:
+  - useExpression:
+      set:
+        taskName: ${$task.name}

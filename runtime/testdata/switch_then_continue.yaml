@@ -1,0 +1,16 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: switch-then-continue
+  version: '0.1.0'
+do:
+  - checkValue:
+      switch:
+        - skipCase:
+            when: ${ .action == "skip" }
+            then: continue
+        - defaultCase:
+            then: end
+  - shouldRun:
+      set:
+        ran: true

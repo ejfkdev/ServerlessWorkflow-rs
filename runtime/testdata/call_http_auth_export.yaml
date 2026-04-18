@@ -1,0 +1,24 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-basic-secret-auth-export
+  version: '0.1.0'
+use:
+  secrets:
+    - mySecret
+do:
+  - getProtected:
+      call: http
+      with:
+        method: get
+        endpoint:
+          uri: http://localhost:9876/protected
+          authentication:
+            basic:
+              use: mySecret
+      export:
+        as: "${ $authorization }"
+  - verifyAuth:
+      set:
+        authScheme: "${ $context.scheme }"
+        authParam: "${ $context.parameter }"

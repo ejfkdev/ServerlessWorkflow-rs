@@ -1,0 +1,19 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: export-conditional
+  version: '0.1.0'
+do:
+  - initialize:
+      set:
+        counter: 0
+      export:
+        as: '${ if .items == null then {items: []} else . end }'
+  - addItem:
+      set:
+        counter: ${.counter + 1}
+      export:
+        as: '${ .items += ["item1"] | . }'
+  - verifyContext:
+      set:
+        contextItems: ${$context.items}

@@ -1,0 +1,5 @@
+# Cargo build configuration
+# Note: mold linker is not supported on macOS.
+# If using Linux with mold installed, uncomment:
+# [target.x86_64-unknown-linux-gnu]
+# rustflags = ["-C", "link-arg=-fuse-ld=mold"]

@@ -1,0 +1,22 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-try-catch-404
+  version: '0.1.0'
+do:
+  - tryGetPet:
+      try:
+        - getPet:
+            call: http
+            with:
+              method: get
+              endpoint:
+                uri: http://localhost:9876/notfound
+      catch:
+        errors:
+          with:
+            type: https://serverlessworkflow.io/spec/1.0.0/errors/communication
+        do:
+          - setRecovered:
+              set:
+                recovered: true

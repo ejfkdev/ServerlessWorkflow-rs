@@ -1,0 +1,10 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: runtime-expression
+  version: '0.1.0'
+do:
+  - useExpression:
+      set:
+        id: ${$workflow.id}
+        version: ${$runtime.version}

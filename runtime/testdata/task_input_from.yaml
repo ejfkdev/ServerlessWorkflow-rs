@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: task-input-from
+  version: '0.1.0'
+do:
+  - transformInput:
+      input:
+        from: "${ .data }"
+      set:
+        result: "${ .value }"

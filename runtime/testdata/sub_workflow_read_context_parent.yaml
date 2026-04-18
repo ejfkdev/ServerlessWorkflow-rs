@@ -1,0 +1,17 @@
+document:
+  dsl: '1.0.0'
+  namespace: default
+  name: parent
+  version: '1.0.0'
+
+do:
+  - sayHello:
+      run:
+        workflow:
+          namespace: default
+          name: set-into-context
+          version: '1.0.0'
+          input:
+            userId: '123'
+            username: 'alice'
+            password: 'secret'

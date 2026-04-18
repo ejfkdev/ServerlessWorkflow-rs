@@ -1,0 +1,15 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: for-custom-each-at
+  version: '0.1.0'
+do:
+  - processItems:
+      for:
+        in: ${ .items }
+        each: fruit
+        at: fruitIndex
+      do:
+        - collectItem:
+            set:
+              results: "${ .results + [{name: $fruit, index: $fruitIndex}] }"

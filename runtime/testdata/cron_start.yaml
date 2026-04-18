@@ -1,0 +1,11 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: cron-start
+  version: '0.1.0'
+schedule:
+  cron: '*/5 * * * *'
+do:
+  - setPhase:
+      set:
+        phase: started

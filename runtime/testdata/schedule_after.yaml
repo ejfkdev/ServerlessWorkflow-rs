@@ -1,0 +1,12 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: schedule-after
+  version: '0.1.0'
+schedule:
+  after:
+    milliseconds: 10
+do:
+  - setPhase:
+      set:
+        phase: completed

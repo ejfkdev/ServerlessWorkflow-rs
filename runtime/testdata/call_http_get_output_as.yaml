@@ -1,0 +1,14 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: call-http-get-output-as
+  version: '0.1.0'
+do:
+  - getPetName:
+      call: http
+      with:
+        method: get
+        endpoint:
+          uri: http://localhost:9876/pets/1
+      output:
+        as: .name

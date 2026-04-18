@@ -1,0 +1,16 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: switch-export
+  version: '0.1.0'
+do:
+  - setColor:
+      switch:
+        - red: { when: ".color == \"red\"", then: continue }
+        - default: { then: continue }
+      export:
+        as:
+          matched: true
+  - setResult:
+      set:
+        result: "${ $context.matched }"
