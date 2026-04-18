@@ -3,6 +3,8 @@ use crate::task_runner::{create_task_runner, OwnedTaskSupport, TaskRunner, TaskS
 use serde_json::Value;
 use serverless_workflow_core::models::task::{ForkTaskDefinition, TaskDefinition};
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Runner for Fork tasks - executes branches concurrently
 pub struct ForkTaskRunner {
@@ -54,6 +56,23 @@ impl TaskRunner for ForkTaskRunner {
 }
 
 impl ForkTaskRunner {
+    /// Creates a future that runs a single branch task in an owned context
+    fn spawn_branch_future(
+        branch_name: String,
+        branch_task: TaskDefinition,
+        workflow: WorkflowDefinition,
+        input: Value,
+        support: &mut TaskSupport<'_>,
+    ) -> Pin<Box<dyn Future<Output = WorkflowResult<Value>> + Send + 'static>> {
+        let owned_support = OwnedTaskSupport::from_support(support);
+        Box::pin(async move {
+            let runner = create_task_runner(&branch_name, &branch_task, &workflow)?;
+            let mut owned = owned_support;
+            let mut task_support = owned.as_task_support();
+            runner.run(input, &mut task_support).await
+        })
+    }
+
     /// Non-compete mode: run all branches concurrently, collect all results
     async fn run_concurrent(
         &self,
@@ -63,20 +82,14 @@ impl ForkTaskRunner {
         let mut handles = Vec::new();
 
         for (branch_name, branch_task) in &self.branch_tasks {
-            let branch_name = branch_name.clone();
-            let branch_task = branch_task.clone();
-            let workflow = self.workflow.clone();
-            let input_clone = input.clone();
-            let owned_support = OwnedTaskSupport::from_support(support);
-
-            let handle = tokio::spawn(async move {
-                let runner = create_task_runner(&branch_name, &branch_task, &workflow)?;
-                let mut owned = owned_support;
-                let mut task_support = owned.as_task_support();
-                runner.run(input_clone, &mut task_support).await
-            });
-
-            handles.push(handle);
+            let future = Self::spawn_branch_future(
+                branch_name.clone(),
+                branch_task.clone(),
+                self.workflow.clone(),
+                input.clone(),
+                support,
+            );
+            handles.push(tokio::spawn(future));
         }
 
         let mut results = Vec::new();
@@ -106,18 +119,14 @@ impl ForkTaskRunner {
         let mut set = tokio::task::JoinSet::new();
 
         for (branch_name, branch_task) in &self.branch_tasks {
-            let branch_name = branch_name.clone();
-            let branch_task = branch_task.clone();
-            let workflow = self.workflow.clone();
-            let input_clone = input.clone();
-            let owned_support = OwnedTaskSupport::from_support(support);
-
-            set.spawn(async move {
-                let runner = create_task_runner(&branch_name, &branch_task, &workflow)?;
-                let mut owned = owned_support;
-                let mut task_support = owned.as_task_support();
-                runner.run(input_clone, &mut task_support).await
-            });
+            let future = Self::spawn_branch_future(
+                branch_name.clone(),
+                branch_task.clone(),
+                self.workflow.clone(),
+                input.clone(),
+                support,
+            );
+            set.spawn(future);
         }
 
         while let Some(result) = set.join_next().await {
