@@ -55,22 +55,19 @@ pub(crate) async fn apply_authentication(
     // Apply basic authentication
     let mut authorization: Option<(String, String)> = None;
     if let Some(ref basic) = resolved_policy.basic {
-        if let Some(ref username_expr) = basic.username {
-            let username = evaluate_expression_str(username_expr, input, vars, task_name)?;
-            let password = basic
-                .password
-                .as_deref()
-                .map(|p| evaluate_expression_str(p, input, vars, task_name))
-                .transpose()?
-                .unwrap_or_default();
+        let (auth_scheme, creds) = apply_credentials_auth(
+            "Basic",
+            &basic.username,
+            &basic.password,
+            basic.use_.as_deref(),
+            input,
+            vars,
+            task_name,
+        )
+        .await?;
+        if let Some((username, password)) = creds {
             let parameter = format!("{}:{}", username, password);
-            authorization = Some(("Basic".to_string(), parameter));
-            builder = builder.basic_auth(username, Some(password));
-        } else if let Some(ref secret_name) = basic.use_ {
-            // Look up credentials from $secret.<secretName>
-            let (username, password) = lookup_secret_credentials(secret_name, vars, task_name)?;
-            let parameter = format!("{}:{}", username, password);
-            authorization = Some(("Basic".to_string(), parameter));
+            authorization = Some((auth_scheme, parameter));
             builder = builder.basic_auth(username, Some(password));
         }
     }
@@ -91,24 +88,22 @@ pub(crate) async fn apply_authentication(
 
     // Apply digest authentication
     if let Some(ref digest) = resolved_policy.digest {
-        if let Some(ref username_expr) = digest.username {
-            let username = evaluate_expression_str(username_expr, input, vars, task_name)?;
-            let password = digest
-                .password
-                .as_deref()
-                .map(|p| evaluate_expression_str(p, input, vars, task_name))
-                .transpose()?
-                .unwrap_or_default();
+        let (auth_scheme, creds) = apply_credentials_auth(
+            "Digest",
+            &digest.username,
+            &digest.password,
+            digest.use_.as_deref(),
+            input,
+            vars,
+            task_name,
+        )
+        .await?;
+        if let Some((username, password)) = creds {
             // Digest auth requires a two-step flow (pre-flight + retry with digest header).
             // We apply basic_auth as a fallback here — the actual digest flow is handled
             // in the response processing code when a 401 with WWW-Authenticate: Digest is received.
             let parameter = format!("{}:{}", username, password);
-            authorization = Some(("Digest".to_string(), parameter));
-            builder = builder.basic_auth(username, Some(password));
-        } else if let Some(ref secret_name) = digest.use_ {
-            let (username, password) = lookup_secret_credentials(secret_name, vars, task_name)?;
-            let parameter = format!("{}:{}", username, password);
-            authorization = Some(("Digest".to_string(), parameter));
+            authorization = Some((auth_scheme, parameter));
             builder = builder.basic_auth(username, Some(password));
         }
     }
@@ -128,6 +123,34 @@ pub(crate) async fn apply_authentication(
     }
 
     Ok((builder, authorization))
+}
+
+/// Applies credential-based authentication (Basic or Digest) by extracting
+/// username/password either from inline expressions or a secret reference.
+/// Returns the auth scheme name and optional (username, password) credentials.
+async fn apply_credentials_auth(
+    scheme: &str,
+    username_expr: &Option<String>,
+    password_expr: &Option<String>,
+    secret_ref: Option<&str>,
+    input: &Value,
+    vars: &std::collections::HashMap<String, Value>,
+    task_name: &str,
+) -> WorkflowResult<(String, Option<(String, String)>)> {
+    if let Some(ref username) = username_expr {
+        let username_val = evaluate_expression_str(username, input, vars, task_name)?;
+        let password_val = password_expr
+            .as_deref()
+            .map(|p| evaluate_expression_str(p, input, vars, task_name))
+            .transpose()?
+            .unwrap_or_default();
+        Ok((scheme.to_string(), Some((username_val, password_val))))
+    } else if let Some(secret_name) = secret_ref {
+        let (username_val, password_val) = lookup_secret_credentials(secret_name, vars, task_name)?;
+        Ok((scheme.to_string(), Some((username_val, password_val))))
+    } else {
+        Ok((scheme.to_string(), None))
+    }
 }
 
 /// Looks up a secret object from $secret.<secretName>
