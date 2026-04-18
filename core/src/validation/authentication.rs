@@ -1,7 +1,14 @@
-use crate::models::authentication::*;
+use crate::models::authentication::{
+    AuthenticationPolicyDefinition, BasicAuthenticationSchemeDefinition,
+    BearerAuthenticationSchemeDefinition, DigestAuthenticationSchemeDefinition,
+    OAuth2AuthenticationClientDefinition, OAuth2AuthenticationEndpointsDefinition,
+    OAuth2AuthenticationRequestDefinition, OAuth2AuthenticationSchemeDefinition,
+    OpenIDConnectSchemeDefinition,
+};
 use super::{ValidationResult, ValidationRule};
 use super::enum_validators::{
-    validate_oauth2_grant_type, validate_oauth2_client_auth_method, validate_oauth2_request_encoding,
+    validate_oauth2_client_auth_method, validate_oauth2_grant_type,
+    validate_oauth2_request_encoding,
 };
 use super::one_of_validators::validate_auth_policy_one_of;
 
@@ -61,97 +68,99 @@ pub fn validate_digest_auth(
     }
 }
 
+/// Shared validation for OAuth2-like authentication schemes (OAuth2 and OIDC)
+fn validate_oauth2_like_auth(
+    scheme_name: &str,
+    use_: &Option<String>,
+    authority: &Option<String>,
+    grant: &Option<String>,
+    client: &Option<OAuth2AuthenticationClientDefinition>,
+    endpoints: &Option<OAuth2AuthenticationEndpointsDefinition>,
+    scopes: &Option<Vec<String>>,
+    audiences: &Option<Vec<String>>,
+    issuers: &Option<Vec<String>>,
+    request: &Option<OAuth2AuthenticationRequestDefinition>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    let has_use = use_.as_ref().is_some_and(|s| !s.is_empty());
+    let has_properties = authority.as_ref().is_some_and(|s| !s.is_empty())
+        || grant.as_ref().is_some_and(|s| !s.is_empty())
+        || client.is_some()
+        || endpoints.is_some()
+        || scopes.is_some()
+        || audiences.is_some()
+        || issuers.is_some();
+
+    if has_use && has_properties {
+        result.add_error(
+            &format!("{}.{}", prefix, scheme_name),
+            ValidationRule::MutualExclusion,
+            &format!("{} auth: 'use' and inline properties are mutually exclusive", scheme_name),
+        );
+    }
+    if !has_use && !has_properties {
+        result.add_error(
+            &format!("{}.{}", prefix, scheme_name),
+            ValidationRule::Required,
+            &format!("{} auth: either 'use' or inline properties must be set", scheme_name),
+        );
+    }
+    if let Some(ref grant) = grant {
+        validate_oauth2_grant_type(grant, &format!("{}.{}", prefix, scheme_name), result);
+    }
+    if let Some(ref client) = client {
+        if let Some(ref auth_method) = client.authentication {
+            validate_oauth2_client_auth_method(auth_method, &format!("{}.{}", prefix, scheme_name), result);
+        }
+    }
+    if let Some(ref request) = request {
+        validate_oauth2_request_encoding(&request.encoding, &format!("{}.{}", prefix, scheme_name), result);
+    }
+}
+
 /// Validates an OAuth2 authentication scheme for mutual exclusivity
-/// OAuth2 must have either `use` (secret reference) OR properties (authority/grant/client/etc.), not both
-/// At least one of `use` or properties must be set
 pub fn validate_oauth2_auth(
     oauth2: &OAuth2AuthenticationSchemeDefinition,
     prefix: &str,
     result: &mut ValidationResult,
 ) {
-    let has_use = oauth2.use_.as_ref().is_some_and(|s| !s.is_empty());
-    let has_properties = oauth2.authority.as_ref().is_some_and(|s| !s.is_empty())
-        || oauth2.grant.as_ref().is_some_and(|s| !s.is_empty())
-        || oauth2.client.is_some()
-        || oauth2.endpoints.is_some()
-        || oauth2.scopes.is_some()
-        || oauth2.audiences.is_some()
-        || oauth2.issuers.is_some();
-
-    if has_use && has_properties {
-        result.add_error(
-            &format!("{}.oauth2", prefix),
-            ValidationRule::MutualExclusion,
-            "oauth2 auth: 'use' and inline properties are mutually exclusive",
-        );
-    }
-    if !has_use && !has_properties {
-        result.add_error(
-            &format!("{}.oauth2", prefix),
-            ValidationRule::Required,
-            "oauth2 auth: either 'use' or inline properties must be set",
-        );
-    }
-    // Validate grant type if set (matches Go SDK's oneof validation)
-    if let Some(ref grant) = oauth2.grant {
-        validate_oauth2_grant_type(grant, &format!("{}.oauth2", prefix), result);
-    }
-    // Validate client authentication method if set
-    if let Some(ref client) = oauth2.client {
-        if let Some(ref auth_method) = client.authentication {
-            validate_oauth2_client_auth_method(auth_method, &format!("{}.oauth2", prefix), result);
-        }
-    }
-    // Validate request encoding if set
-    if let Some(ref request) = oauth2.request {
-        validate_oauth2_request_encoding(&request.encoding, &format!("{}.oauth2", prefix), result);
-    }
+    validate_oauth2_like_auth(
+        "oauth2",
+        &oauth2.use_,
+        &oauth2.authority,
+        &oauth2.grant,
+        &oauth2.client,
+        &oauth2.endpoints,
+        &oauth2.scopes,
+        &oauth2.audiences,
+        &oauth2.issuers,
+        &oauth2.request,
+        prefix,
+        result,
+    );
 }
 
 /// Validates an OIDC authentication scheme for mutual exclusivity
-/// OIDC must have either `use` (secret reference) OR properties (authority/grant/client/etc.), not both
-/// At least one of `use` or properties must be set
 pub fn validate_oidc_auth(
     oidc: &OpenIDConnectSchemeDefinition,
     prefix: &str,
     result: &mut ValidationResult,
 ) {
-    let has_use = oidc.use_.as_ref().is_some_and(|s| !s.is_empty());
-    let has_properties = oidc.authority.as_ref().is_some_and(|s| !s.is_empty())
-        || oidc.grant.as_ref().is_some_and(|s| !s.is_empty())
-        || oidc.client.is_some()
-        || oidc.scopes.is_some()
-        || oidc.audiences.is_some()
-        || oidc.issuers.is_some();
-
-    if has_use && has_properties {
-        result.add_error(
-            &format!("{}.oidc", prefix),
-            ValidationRule::MutualExclusion,
-            "oidc auth: 'use' and inline properties are mutually exclusive",
-        );
-    }
-    if !has_use && !has_properties {
-        result.add_error(
-            &format!("{}.oidc", prefix),
-            ValidationRule::Required,
-            "oidc auth: either 'use' or inline properties must be set",
-        );
-    }
-    // Validate grant type if set (matches Go SDK's oneof validation)
-    if let Some(ref grant) = oidc.grant {
-        validate_oauth2_grant_type(grant, &format!("{}.oidc", prefix), result);
-    }
-    // Validate client authentication method if set
-    if let Some(ref client) = oidc.client {
-        if let Some(ref auth_method) = client.authentication {
-            validate_oauth2_client_auth_method(auth_method, &format!("{}.oidc", prefix), result);
-        }
-    }
-    // Validate request encoding if set
-    if let Some(ref request) = oidc.request {
-        validate_oauth2_request_encoding(&request.encoding, &format!("{}.oidc", prefix), result);
-    }
+    validate_oauth2_like_auth(
+        "oidc",
+        &oidc.use_,
+        &oidc.authority,
+        &oidc.grant,
+        &oidc.client,
+        &None, // OIDC doesn't have endpoints
+        &oidc.scopes,
+        &oidc.audiences,
+        &oidc.issuers,
+        &oidc.request,
+        prefix,
+        result,
+    );
 }
 
 /// Validates an authentication policy definition
