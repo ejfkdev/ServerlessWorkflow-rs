@@ -102,50 +102,23 @@ impl DoTaskRunner {
 
             // Determine flow directive from task execution
             let directive = if let TaskDefinition::Switch(switch_task) = task {
-                // Switch tasks: process input/output/export, then evaluate conditions
+                // Switch tasks: evaluate conditions to get then directive
                 let common = &switch_task.common;
-
-                support.context.emit_event(WorkflowEvent::TaskStarted {
-                    instance_id: support.context.instance_id().to_string(),
-                    task_name: name.to_string(),
-                });
                 support.set_task_status(name, StatusPhase::Running);
-                support.context.set_task_name(name);
-                support.context.set_task_started_at();
-                support.context.set_task_raw_input(&output);
 
-                // Process task input
-                let task_input =
-                    support.process_task_input(common.input.as_ref(), &output, name)?;
+                // Process input for switch
+                let task_input = support.process_task_input(common.input.as_ref(), &output, name)?;
 
                 // Evaluate switch conditions
                 let then_str = self
                     .evaluate_switch(&task_input, support, name, switch_task)
                     .await?;
 
-                // The switch output is the matched case's then value (or the input if no match)
-                // For now, the output of a switch is the input (switch doesn't transform data)
-                let switch_output = task_input;
+                // Switch output is the input (switch doesn't transform data)
+                output = support
+                    .execute_task_lifecycle(name, common, &output, task_input)
+                    .await?;
 
-                support.set_task_raw_output(&switch_output);
-
-                // Process task output
-                let switch_output =
-                    support.process_task_output(common.output.as_ref(), &switch_output, name)?;
-
-                // Process task export
-                support.process_task_export(common.export.as_ref(), &switch_output, name)?;
-
-                // Update the loop's output with the transformed switch output
-                output = switch_output;
-
-                support.context.clear_authorization();
-                support.set_task_status(name, StatusPhase::Completed);
-                support.context.emit_event(WorkflowEvent::TaskCompleted {
-                    instance_id: support.context.instance_id().to_string(),
-                    task_name: name.to_string(),
-                    output: output.clone(),
-                });
                 FlowDirective::from_then(&then_str)
             } else {
                 // Regular tasks: run the task, then check its `then` field
@@ -200,7 +173,7 @@ impl DoTaskRunner {
             .position(|(name, _)| name == target)
     }
 
-    /// Runs a single task with input/output/export processing
+    /// Runs a single task with input/output/export/timeout processing
     async fn run_single_task(
         &self,
         input: &Value,
@@ -208,63 +181,12 @@ impl DoTaskRunner {
         runner: &dyn TaskRunner,
         common: &TaskDefinitionFields,
     ) -> WorkflowResult<Value> {
-        let task_name = runner.task_name();
-
-        support.set_task_started_at();
-        support.set_task_raw_input(input);
-        support.set_task_name(task_name);
-
-        // Emit task started event
-        support.emit_event(WorkflowEvent::TaskStarted {
-            instance_id: support.context.instance_id().to_string(),
-            task_name: task_name.to_string(),
-        });
-
-        // Process task input
-        let task_input = support.process_task_input(common.input.as_ref(), input, task_name)?;
-
-        // Execute the task (with optional timeout)
-        let output = if let Some(timeout) = common.timeout.as_ref() {
-            let vars = support.get_vars();
-            let duration = crate::utils::parse_duration_with_context(
-                timeout,
-                &task_input,
-                &vars,
-                task_name,
-                Some(support.workflow),
-            )?;
-            match tokio::time::timeout(duration, runner.run(task_input, support)).await {
-                Ok(result) => result?,
-                Err(_) => {
-                    return Err(WorkflowError::timeout(
-                        format!("task '{}' timed out after {:?}", task_name, duration),
-                        task_name,
-                    ));
-                }
-            }
-        } else {
-            runner.run(task_input, support).await?
-        };
-
-        support.set_task_raw_output(&output);
-
-        // Process task output
-        let output = support.process_task_output(common.output.as_ref(), &output, task_name)?;
-
-        // Process task export
-        support.process_task_export(common.export.as_ref(), &output, task_name)?;
-
-        // Clear per-task authorization context after export
-        support.context.clear_authorization();
-
-        // Emit task completed event
-        support.emit_event(WorkflowEvent::TaskCompleted {
-            instance_id: support.context.instance_id().to_string(),
-            task_name: task_name.to_string(),
-            output: output.clone(),
-        });
-
-        Ok(output)
+        let raw_output = support
+            .run_task_with_input_and_timeout(runner.task_name(), common, input, runner)
+            .await?;
+        support
+            .execute_task_lifecycle(runner.task_name(), common, input, raw_output)
+            .await
     }
 
     /// Evaluates a switch task and returns the matched then directive

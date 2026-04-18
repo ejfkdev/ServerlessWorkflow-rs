@@ -1,5 +1,5 @@
 use crate::context::WorkflowContext;
-use crate::error::WorkflowResult;
+use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::{
     evaluate_optional_expr, traverse_and_evaluate_bool, traverse_and_evaluate_obj,
 };
@@ -11,9 +11,12 @@ use crate::tasks::*;
 use serde_json::Value;
 use serverless_workflow_core::models::input::InputDataModelDefinition;
 use serverless_workflow_core::models::output::OutputDataModelDefinition;
-use serverless_workflow_core::models::task::TaskDefinition;
+use serverless_workflow_core::models::task::{TaskDefinition, TaskDefinitionFields};
+use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Owned task support for concurrent branch execution (e.g., fork)
 /// Unlike `TaskSupport` which borrows its context, this owns both
@@ -225,6 +228,79 @@ impl<'a> TaskSupport<'a> {
 
         self.set_instance_ctx(result);
         Ok(())
+    }
+
+    /// Completes the task lifecycle after execution: output/export processing and cleanup.
+    /// Must be called after `run_task_with_input_and_timeout` or equivalent execution.
+    pub async fn execute_task_lifecycle(
+        &mut self,
+        task_name: &str,
+        common: &TaskDefinitionFields,
+        input: &Value,
+        raw_output: Value,
+    ) -> WorkflowResult<Value> {
+        self.set_task_raw_output(&raw_output);
+
+        // Process task output
+        let output = self.process_task_output(common.output.as_ref(), &raw_output, task_name)?;
+
+        // Process task export
+        self.process_task_export(common.export.as_ref(), &output, task_name)?;
+
+        // Clear per-task authorization context after export
+        self.context.clear_authorization();
+
+        self.emit_event(WorkflowEvent::TaskCompleted {
+            instance_id: self.context.instance_id().to_string(),
+            task_name: task_name.to_string(),
+            output: output.clone(),
+        });
+
+        Ok(output)
+    }
+
+    /// Processes task input and handles timeout-wrapped execution.
+    /// Returns the raw task output (before output/export processing).
+    pub async fn run_task_with_input_and_timeout(
+        &mut self,
+        task_name: &str,
+        common: &TaskDefinitionFields,
+        input: &Value,
+        runner: &dyn TaskRunner,
+    ) -> WorkflowResult<Value> {
+        // Set context before execution (needed for $task.name etc.)
+        self.set_task_started_at();
+        self.set_task_raw_input(input);
+        self.set_task_name(task_name);
+
+        self.emit_event(WorkflowEvent::TaskStarted {
+            instance_id: self.context.instance_id().to_string(),
+            task_name: task_name.to_string(),
+        });
+
+        // Process task input
+        let task_input = self.process_task_input(common.input.as_ref(), input, task_name)?;
+
+        // Execute the task (with optional timeout)
+        if let Some(timeout) = common.timeout.as_ref() {
+            let vars = self.get_vars();
+            let duration = crate::utils::parse_duration_with_context(
+                timeout,
+                &task_input,
+                &vars,
+                task_name,
+                Some(self.workflow),
+            )?;
+            match tokio::time::timeout(duration, runner.run(task_input, self)).await {
+                Ok(result) => result,
+                Err(_) => Err(WorkflowError::timeout(
+                    format!("task '{}' timed out after {:?}", task_name, duration),
+                    task_name,
+                )),
+            }
+        } else {
+            runner.run(task_input, self).await
+        }
     }
 }
 
