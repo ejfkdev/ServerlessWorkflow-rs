@@ -1,5 +1,5 @@
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{evaluate_jq, prepare_expression, traverse_and_evaluate};
+use crate::expression::prepare_expression;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
@@ -22,21 +22,19 @@ impl SetTaskRunner {
 #[async_trait::async_trait]
 impl TaskRunner for SetTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-
         match &self.set_value {
             SetValue::Map(map) => {
                 let mut result = serde_json::Map::new();
                 for (k, v) in map {
                     let mut evaluated = v.clone();
-                    traverse_and_evaluate(&mut evaluated, &input, &vars)?;
+                    support.eval_traverse(&mut evaluated, &input)?;
                     result.insert(k.clone(), evaluated);
                 }
                 Ok(Value::Object(result))
             }
             SetValue::Expression(expr) => {
                 let sanitized = prepare_expression(expr);
-                let result = evaluate_jq(&sanitized, &input, &vars)?;
+                let result = support.eval_jq(&sanitized, &input, &self.name)?;
                 match result {
                     Value::Object(map) => Ok(Value::Object(map)),
                     other => Err(WorkflowError::runtime(

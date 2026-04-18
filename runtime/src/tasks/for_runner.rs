@@ -1,5 +1,5 @@
-use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{evaluate_jq, prepare_expression, traverse_and_evaluate_bool};
+use crate::error::WorkflowResult;
+use crate::expression::prepare_expression;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
@@ -41,12 +41,9 @@ impl ForTaskRunner {
 #[async_trait::async_trait]
 impl TaskRunner for ForTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-
         // Evaluate the 'in' expression to get the collection
         let in_expr = prepare_expression(&self.in_expr);
-        let collection = evaluate_jq(&in_expr, &input, &vars)
-            .map_err(|e| WorkflowError::expression(format!("{}", e), &self.name))?;
+        let collection = support.eval_jq(&in_expr, &input, &self.name)?;
 
         // Apply for-input transformation once before iteration starts
         // This matches Java SDK behavior where task input.from is applied once to the for-loop's overall input
@@ -72,9 +69,8 @@ impl TaskRunner for ForTaskRunner {
                     // Check while condition BEFORE removing local vars ($item, $index)
                     // so that while expressions can reference them
                     let should_break = if let Some(ref while_expr) = self.while_expr {
-                        let vars = support.get_vars();
                         let should_continue =
-                            traverse_and_evaluate_bool(while_expr, &for_output, &vars)?;
+                            support.eval_bool(while_expr, &for_output)?;
                         !should_continue
                     } else {
                         false

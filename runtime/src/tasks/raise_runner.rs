@@ -1,5 +1,4 @@
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::evaluate_jq;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
@@ -62,13 +61,12 @@ impl TaskRunner for RaiseTaskRunner {
                 Some("Validation Error".to_string()),
             )),
             OneOfErrorDefinitionOrReference::Error(def) => {
-                let vars = support.get_vars();
                 // Evaluate detail expression if present
                 let detail_str = match &def.detail {
                     Some(detail) => {
                         if is_strict_expr(detail) {
                             let expr = sanitize_expr(detail);
-                            let detail_val = evaluate_jq(&expr, &input, &vars)
+                            let detail_val = support.eval_jq(&expr, &input, &self.name)
                                 .unwrap_or(Value::String(detail.clone()));
                             detail_val
                                 .as_str()
@@ -87,7 +85,7 @@ impl TaskRunner for RaiseTaskRunner {
                         Some(title) => {
                             if is_strict_expr(title) {
                                 let expr = sanitize_expr(title);
-                                let title_val = evaluate_jq(&expr, &input, &vars)
+                                let title_val = support.eval_jq(&expr, &input, &self.name)
                                     .unwrap_or(Value::String(title.clone()));
                                 Some(
                                     title_val

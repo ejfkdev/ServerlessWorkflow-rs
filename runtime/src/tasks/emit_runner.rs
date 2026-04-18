@@ -1,6 +1,5 @@
 use crate::error::WorkflowResult;
 use crate::events::CloudEvent;
-use crate::expression::traverse_and_evaluate;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::task::EmitTaskDefinition;
@@ -26,13 +25,11 @@ impl EmitTaskRunner {
 #[async_trait::async_trait]
 impl TaskRunner for EmitTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-
         // Evaluate event data expressions
         let mut event_data =
             crate::error::serialize_to_value(&self.task.emit.event, "emit event data", &self.name)?;
 
-        traverse_and_evaluate(&mut event_data, &input, &vars)?;
+        support.eval_traverse(&mut event_data, &input)?;
 
         // The emit task returns the input unchanged (events are side effects).
         // The evaluated event data is available in the task's raw output for downstream use.

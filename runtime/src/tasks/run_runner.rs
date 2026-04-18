@@ -1,5 +1,4 @@
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::evaluate_expression_str;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::task::{
@@ -108,13 +107,7 @@ impl RunTaskRunner {
         // Determine sub-workflow input: use workflow.input if provided, otherwise pass current input
         let sub_input = if let Some(ref workflow_input) = workflow_def.input {
             // Evaluate expressions in the input object
-            let vars = support.get_vars();
-            crate::expression::traverse_and_evaluate_obj(
-                Some(workflow_input),
-                input,
-                &vars,
-                &self.name,
-            )?
+            support.eval_obj(Some(workflow_input), input, &self.name)?
         } else {
             input.clone()
         };
@@ -149,10 +142,8 @@ impl RunTaskRunner {
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-
         // Evaluate command expression if needed
-        let command = evaluate_expression_str(&shell.command, input, &vars, &self.name)?;
+        let command = support.eval_str(&shell.command, input, &self.name)?;
 
         // Check await flag — if false, spawn and return null immediately
         let await_flag = self.task.run.await_.unwrap_or(true);
@@ -174,14 +165,14 @@ impl RunTaskRunner {
                 OneOfRunArguments::Map(map) => {
                     for (key, value) in map {
                         // Evaluate the key as a potential expression
-                        let evaluated_key = evaluate_expression_str(key, input, &vars, &self.name)?;
+                        let evaluated_key = support.eval_str(key, input, &self.name)?;
 
                         // Value can be a string (literal or expression), or null (key-only positional arg)
                         match value {
                             Value::String(s) => {
                                 // Evaluate the value as a potential expression
                                 let evaluated_value =
-                                    evaluate_expression_str(s, input, &vars, &self.name)?;
+                                    support.eval_str(s, input, &self.name)?;
                                 // Combine key + value: e.g., "--user" + "john" → "--user john"
                                 parts.push(shell_escape(&evaluated_key));
                                 if !evaluated_value.is_empty() {
@@ -203,7 +194,7 @@ impl RunTaskRunner {
                 }
                 OneOfRunArguments::Array(arr) => {
                     for arg in arr {
-                        let evaluated = evaluate_expression_str(arg, input, &vars, &self.name)?;
+                        let evaluated = support.eval_str(arg, input, &self.name)?;
                         parts.push(shell_escape(&evaluated));
                     }
                 }
@@ -219,7 +210,7 @@ impl RunTaskRunner {
         // Add environment variables
         if let Some(ref env) = shell.environment {
             for (key, value) in env {
-                let evaluated_value = evaluate_expression_str(value, input, &vars, &self.name)?;
+                let evaluated_value = support.eval_str(value, input, &self.name)?;
                 cmd.env(key, evaluated_value);
             }
         }

@@ -44,8 +44,7 @@ pub fn resolve_duration_with_context(
 #[async_trait::async_trait]
 impl TaskRunner for WaitTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-        let wait_duration = resolve_duration_with_context(&self.duration_expr, &input, &vars)?;
+        let wait_duration = support.eval_duration(&self.duration_expr, &input, &self.name)?;
 
         if wait_duration.as_millis() == 0 {
             return Ok(input);

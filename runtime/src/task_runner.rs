@@ -1,7 +1,8 @@
 use crate::context::WorkflowContext;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::{
-    evaluate_optional_expr, traverse_and_evaluate_bool, traverse_and_evaluate_obj,
+    evaluate_optional_expr, traverse_and_evaluate, traverse_and_evaluate_bool,
+    traverse_and_evaluate_obj,
 };
 use crate::handler::HandlerRegistry;
 use crate::json_schema::validate_schema;
@@ -134,6 +135,53 @@ impl<'a> TaskSupport<'a> {
     /// Gets all variables for JQ expression evaluation
     pub fn get_vars(&self) -> HashMap<String, Value> {
         self.context.get_vars()
+    }
+
+    /// Evaluates a JQ expression against the given input using current context vars
+    pub fn eval_jq(&self, expr: &str, input: &Value, task_name: &str) -> WorkflowResult<Value> {
+        let vars = self.get_vars();
+        crate::expression::evaluate_jq(expr, input, &vars)
+            .map_err(|e| crate::error::WorkflowError::expression(format!("{}", e), task_name))
+    }
+
+    /// Evaluates a boolean expression (e.g., when/if conditions)
+    pub fn eval_bool(&self, expr: &str, input: &Value) -> WorkflowResult<bool> {
+        let vars = self.get_vars();
+        crate::expression::traverse_and_evaluate_bool(expr, input, &vars)
+    }
+
+    /// Evaluates an expression string, resolving runtime expressions
+    pub fn eval_str(&self, expr: &str, input: &Value, task_name: &str) -> WorkflowResult<String> {
+        let vars = self.get_vars();
+        crate::expression::evaluate_expression_str(expr, input, &vars, task_name)
+    }
+
+    /// Recursively traverses a JSON structure and evaluates all runtime expressions in-place
+    pub fn eval_traverse(&self, node: &mut Value, input: &Value) -> WorkflowResult<()> {
+        let vars = self.get_vars();
+        traverse_and_evaluate(node, input, &vars)
+    }
+
+    /// Evaluates an optional input `from` expression into a Value (for task input processing)
+    pub fn eval_obj(
+        &self,
+        from: Option<&Value>,
+        input: &Value,
+        task_name: &str,
+    ) -> WorkflowResult<Value> {
+        let vars = self.get_vars();
+        traverse_and_evaluate_obj(from, input, &vars, task_name)
+    }
+
+    /// Resolves a duration expression with current context vars
+    pub fn eval_duration(
+        &self,
+        expr: &serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression,
+        input: &Value,
+        task_name: &str,
+    ) -> WorkflowResult<std::time::Duration> {
+        let vars = self.get_vars();
+        crate::utils::resolve_duration_expr(expr, input, &vars, task_name)
     }
 
     /// Gets the handler registry for custom call/run handlers

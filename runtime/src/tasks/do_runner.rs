@@ -1,5 +1,4 @@
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::traverse_and_evaluate_bool;
 use crate::listener::WorkflowEvent;
 use crate::status::StatusPhase;
 use crate::task_runner::{create_task_runner, TaskRunner, TaskSupport};
@@ -208,8 +207,7 @@ impl DoTaskRunner {
                     }
                 }
                 Some(when_expr) => {
-                    let vars = support.get_vars();
-                    let result = traverse_and_evaluate_bool(when_expr, input, &vars)
+                    let result = support.eval_bool(when_expr, input)
                         .map_err(|e| WorkflowError::expression(format!("{}", e), task_name))?;
                     if result {
                         return case_def.then.clone().ok_or_else(|| {
