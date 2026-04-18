@@ -1,5 +1,4 @@
 use crate::error::WorkflowResult;
-use crate::expression::prepare_expression;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
@@ -42,8 +41,7 @@ impl ForTaskRunner {
 impl TaskRunner for ForTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
         // Evaluate the 'in' expression to get the collection
-        let in_expr = prepare_expression(&self.in_expr);
-        let collection = support.eval_jq(&in_expr, &input, &self.name)?;
+        let collection = support.eval_jq_expr(&self.in_expr, &input, &self.name)?;
 
         // Apply for-input transformation once before iteration starts
         // This matches Java SDK behavior where task input.from is applied once to the for-loop's overall input

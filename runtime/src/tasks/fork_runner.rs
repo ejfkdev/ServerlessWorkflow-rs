@@ -82,7 +82,7 @@ impl ForkTaskRunner {
         let mut results = Vec::new();
         for handle in handles {
             let result = handle.await.map_err(|e| {
-                WorkflowError::runtime(format!("fork branch panicked: {}", e), &self.name, "")
+                WorkflowError::runtime_simple(format!("fork branch panicked: {}", e), &self.name)
             })??;
             results.push(result);
         }
@@ -135,10 +135,9 @@ impl ForkTaskRunner {
         }
 
         // All branches failed
-        Err(WorkflowError::runtime(
+        Err(WorkflowError::runtime_simple(
             "all fork branches failed",
             &self.name,
-            "",
         ))
     }
 }

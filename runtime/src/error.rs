@@ -149,6 +149,11 @@ impl WorkflowError {
         }
     }
 
+    /// Creates a runtime error without an instance (defaults to empty string)
+    pub fn runtime_simple(message: impl Into<String>, task: impl Into<String>) -> Self {
+        Self::runtime(message, task, "")
+    }
+
     /// Creates a timeout error
     /// Per the Serverless Workflow spec, timeout errors have status 408
     pub fn timeout(message: impl Into<String>, task: impl Into<String>) -> Self {

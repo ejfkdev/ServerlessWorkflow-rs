@@ -89,10 +89,9 @@ impl DoTaskRunner {
                 });
                 support.context.wait_for_resume().await;
                 if support.context.is_cancelled() {
-                    return Err(WorkflowError::runtime(
+                    return Err(WorkflowError::runtime_simple(
                         "workflow cancelled while suspended",
                         name,
-                        "",
                     ));
                 }
             }
@@ -151,10 +150,9 @@ impl DoTaskRunner {
                         index = target_index;
                     }
                     None => {
-                        return Err(WorkflowError::runtime(
+                        return Err(WorkflowError::runtime_simple(
                             format!("switch/goto target '{}' not found in task list", target),
                             &self.task_name,
-                            "",
                         ));
                     }
                 },

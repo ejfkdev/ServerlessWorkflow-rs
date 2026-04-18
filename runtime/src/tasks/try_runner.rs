@@ -53,32 +53,9 @@ impl TaskRunner for TryTaskRunner {
                 // Build error context for when/exceptWhen evaluation
                 let error_value = error.to_value();
 
-                // Check when condition (evaluated against error context)
-                if let Some(ref when_expr) = self.catch.when {
-                    let vars = support.get_vars();
-                    let should_catch = crate::expression::traverse_and_evaluate_bool(
-                        when_expr,
-                        &error_value,
-                        &vars,
-                    )
-                    .unwrap_or(false);
-                    if !should_catch {
-                        return Err(error);
-                    }
-                }
-
-                // Check exceptWhen condition (evaluated against error context)
-                if let Some(ref except_when_expr) = self.catch.except_when {
-                    let vars = support.get_vars();
-                    let should_except = crate::expression::traverse_and_evaluate_bool(
-                        except_when_expr,
-                        &error_value,
-                        &vars,
-                    )
-                    .unwrap_or(false);
-                    if should_except {
-                        return Err(error);
-                    }
+                // Check when/exceptWhen conditions
+                if !evaluates_when_allowed(support, self.catch.when.as_deref(), self.catch.except_when.as_deref(), &error_value) {
+                    return Err(error);
                 }
 
                 // Handle retry if configured
@@ -252,32 +229,9 @@ impl TryTaskRunner {
                 Err(e) => {
                     // Check retry policy's when/except_when conditions against error context
                     let error_value = e.to_value();
-                    let vars = support.get_vars();
 
-                    // Check when condition - only retry if expression evaluates to true
-                    if let Some(ref when_expr) = policy.when {
-                        let should_retry = crate::expression::traverse_and_evaluate_bool(
-                            when_expr,
-                            &error_value,
-                            &vars,
-                        )
-                        .unwrap_or(false);
-                        if !should_retry {
-                            return Err(e);
-                        }
-                    }
-
-                    // Check except_when condition - do NOT retry if expression evaluates to true
-                    if let Some(ref except_when_expr) = policy.except_when {
-                        let should_except = crate::expression::traverse_and_evaluate_bool(
-                            except_when_expr,
-                            &error_value,
-                            &vars,
-                        )
-                        .unwrap_or(false);
-                        if should_except {
-                            return Err(e);
-                        }
+                    if !evaluates_when_allowed(support, policy.when.as_deref(), policy.except_when.as_deref(), &error_value) {
+                        return Err(e);
                     }
 
                     if attempt == max_attempts {
@@ -288,7 +242,7 @@ impl TryTaskRunner {
             }
         }
 
-        Err(WorkflowError::runtime("retry exhausted", &self.name, ""))
+        Err(WorkflowError::runtime_simple("retry exhausted", &self.name))
     }
 
     /// Calculates delay with backoff strategy
@@ -337,6 +291,30 @@ impl TryTaskRunner {
 
         base_delay_ms
     }
+}
+
+/// Evaluates when/except_when conditions against error context.
+/// Returns true if conditions allow proceeding (catch or retry is allowed),
+/// false if conditions block it (should propagate error).
+fn evaluates_when_allowed(
+    support: &TaskSupport<'_>,
+    when: Option<&str>,
+    except_when: Option<&str>,
+    error_value: &Value,
+) -> bool {
+    if let Some(when_expr) = when {
+        let should_proceed = support.eval_bool(when_expr, error_value).unwrap_or(false);
+        if !should_proceed {
+            return false;
+        }
+    }
+    if let Some(except_when_expr) = except_when {
+        let should_except = support.eval_bool(except_when_expr, error_value).unwrap_or(false);
+        if should_except {
+            return false;
+        }
+    }
+    true
 }
 
 #[cfg(test)]

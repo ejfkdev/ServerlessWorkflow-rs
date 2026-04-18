@@ -4,13 +4,12 @@ mod digest;
 mod tests;
 
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{
-    evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj,
-};
+use crate::expression::{evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj};
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::call::CallTaskDefinition;
 use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
+use std::collections::HashMap;
 
 use auth::apply_authentication;
 use digest::{extract_digest_info, parse_digest_challenge};
@@ -100,10 +99,9 @@ impl CallTaskRunner {
                 let config = crate::error::serialize_to_value(task, "call config", &self.name)?;
                 handler.handle(&self.name, &config, input).await
             }
-            None => Err(WorkflowError::runtime(
+            None => Err(WorkflowError::runtime_simple(
                 format!("{} calls require a custom CallHandler (register one via WorkflowRunner::with_call_handler())", call_type),
                 &self.name,
-                "",
             )),
         }
     }
@@ -138,10 +136,9 @@ impl CallTaskRunner {
                 .and_then(|u| u.functions.as_ref())
                 .and_then(|fns| fns.get(func_name))
                 .ok_or_else(|| {
-                    WorkflowError::runtime(
+                    WorkflowError::runtime_simple(
                         format!("function '{}' not found in workflow definitions or registered catalogs", func_name),
                         &self.name,
-                        "",
                     )
                 })?
                 .clone()
@@ -153,14 +150,8 @@ impl CallTaskRunner {
                 Some(_) => input.clone(),
                 None => serde_json::json!({}),
             };
-            let vars = support.get_vars();
             for (key, value) in with_params {
-                let evaluated = crate::expression::traverse_and_evaluate_obj(
-                    Some(value),
-                    input,
-                    &vars,
-                    &self.name,
-                )?;
+                let evaluated = support.eval_obj(Some(value), input, &self.name)?;
                 if let Some(obj) = base.as_object_mut() {
                     obj.insert(key.clone(), evaluated);
                 }
@@ -182,15 +173,13 @@ impl CallTaskRunner {
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let vars = support.get_vars();
-
         // Extract and evaluate the endpoint URI
         let endpoint = match &http_task.with.endpoint {
             OneOfEndpointDefinitionOrUri::Uri(uri) => {
-                evaluate_expression_str(uri, input, &vars, &self.name)?
+                support.eval_str(uri, input, &self.name)?
             }
             OneOfEndpointDefinitionOrUri::Endpoint(def) => {
-                evaluate_expression_str(&def.uri, input, &vars, &self.name)?
+                support.eval_str(&def.uri, input, &self.name)?
             }
         };
 
@@ -214,7 +203,7 @@ impl CallTaskRunner {
             let duration = crate::utils::parse_duration_with_context(
                 timeout,
                 input,
-                &vars,
+                &support.get_vars(),
                 &self.name,
                 Some(support.workflow),
             )?;
@@ -222,10 +211,9 @@ impl CallTaskRunner {
         }
 
         let client = client_builder.build().map_err(|e| {
-            WorkflowError::runtime(
+            WorkflowError::runtime_simple(
                 format!("failed to build HTTP client: {}", e),
                 &self.name,
-                "",
             )
         })?;
 
@@ -238,6 +226,7 @@ impl CallTaskRunner {
         };
 
         // Extract digest auth info (if any) for two-step digest flow
+        let vars = support.get_vars();
         let digest_info = auth_source.as_ref().and_then(|auth_policy| {
             let auth_definitions = support
                 .workflow

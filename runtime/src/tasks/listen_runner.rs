@@ -1,6 +1,5 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::events::{CloudEvent, EventBus};
-use crate::expression::traverse_and_evaluate_bool;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::event::{
@@ -91,8 +90,7 @@ impl ListenTaskRunner {
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(false) => Ok(false),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(true) => Ok(true),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Expression(expr) => {
-                let vars = support.get_vars();
-                traverse_and_evaluate_bool(expr, input, &vars)
+                support.eval_bool(expr, input)
             }
             OneOfEventConsumptionStrategyDefinitionOrExpression::Strategy(strategy) => {
                 // Check if the until strategy is satisfied by the consumed events
@@ -231,19 +229,17 @@ impl ListenTaskRunner {
                             }
                         }
                         None => {
-                            return Err(WorkflowError::runtime(
+                            return Err(WorkflowError::runtime_simple(
                                 "event bus closed while listening".to_string(),
                                 &self.name,
-                                "",
                             ));
                         }
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    return Err(WorkflowError::runtime(
+                    return Err(WorkflowError::runtime_simple(
                         "workflow cancelled while listening for events".to_string(),
                         &self.name,
-                        "",
                     ));
                 }
             }
@@ -359,10 +355,9 @@ impl ListenTaskRunner {
 impl TaskRunner for ListenTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
         let event_bus = support.clone_event_bus().ok_or_else(|| {
-            WorkflowError::runtime(
+            WorkflowError::runtime_simple(
                 "listen task requires an EventBus (configure one via WorkflowRunner::with_event_bus())".to_string(),
                 &self.name,
-                "",
             )
         })?;
 

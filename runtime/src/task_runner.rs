@@ -16,8 +16,6 @@ use serverless_workflow_core::models::task::{TaskDefinition, TaskDefinitionField
 use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
 
 /// Owned task support for concurrent branch execution (e.g., fork)
 /// Unlike `TaskSupport` which borrows its context, this owns both
@@ -142,6 +140,13 @@ impl<'a> TaskSupport<'a> {
         let vars = self.get_vars();
         crate::expression::evaluate_jq(expr, input, &vars)
             .map_err(|e| crate::error::WorkflowError::expression(format!("{}", e), task_name))
+    }
+
+    /// Evaluates a raw JQ expression string (with `${...}` wrapper) after sanitization.
+    /// This combines `prepare_expression()` + `eval_jq()` into one call.
+    pub fn eval_jq_expr(&self, raw_expr: &str, input: &Value, task_name: &str) -> WorkflowResult<Value> {
+        let sanitized = crate::expression::prepare_expression(raw_expr);
+        self.eval_jq(&sanitized, input, task_name)
     }
 
     /// Evaluates a boolean expression (e.g., when/if conditions)
@@ -284,7 +289,7 @@ impl<'a> TaskSupport<'a> {
         &mut self,
         task_name: &str,
         common: &TaskDefinitionFields,
-        input: &Value,
+        _input: &Value,
         raw_output: Value,
     ) -> WorkflowResult<Value> {
         self.set_task_raw_output(&raw_output);

@@ -1,5 +1,4 @@
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::prepare_expression;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use serde_json::Value;
 use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
@@ -33,14 +32,12 @@ impl TaskRunner for SetTaskRunner {
                 Ok(Value::Object(result))
             }
             SetValue::Expression(expr) => {
-                let sanitized = prepare_expression(expr);
-                let result = support.eval_jq(&sanitized, &input, &self.name)?;
+                let result = support.eval_jq_expr(expr, &input, &self.name)?;
                 match result {
                     Value::Object(map) => Ok(Value::Object(map)),
-                    other => Err(WorkflowError::runtime(
+                    other => Err(WorkflowError::runtime_simple(
                         format!("expected map output from set expression, got: {}", other),
                         &self.name,
-                        "",
                     )),
                 }
             }

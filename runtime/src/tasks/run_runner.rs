@@ -71,10 +71,9 @@ impl RunTaskRunner {
         let handler = support.get_handler_registry().get_run_handler(run_type);
         match handler {
             Some(handler) => handler.handle(&self.name, config, input).await,
-            None => Err(WorkflowError::runtime(
+            None => Err(WorkflowError::runtime_simple(
                 format!("{} process requires a custom RunHandler (register one via WorkflowRunner::with_run_handler())", run_type),
                 &self.name,
-                "",
             )),
         }
     }
@@ -94,13 +93,12 @@ impl RunTaskRunner {
                 &workflow_def.version,
             )
             .ok_or_else(|| {
-                WorkflowError::runtime(
+                WorkflowError::runtime_simple(
                     format!(
                         "sub-workflow '{}/{}/{}' not found in registry",
                         workflow_def.namespace, workflow_def.name, workflow_def.version
                     ),
                     &self.name,
-                    "",
                 )
             })?;
 
@@ -223,10 +221,9 @@ impl RunTaskRunner {
         }
 
         let output = cmd.output().await.map_err(|e| {
-            WorkflowError::runtime(
+            WorkflowError::runtime_simple(
                 format!("failed to execute shell command '{}': {}", command, e),
                 &self.name,
-                "",
             )
         })?;
 
@@ -239,7 +236,7 @@ impl RunTaskRunner {
             let return_type = self.task.run.return_.as_deref().unwrap_or("stdout");
             // Only error if return type is not explicitly set to capture the error
             if return_type != "all" && return_type != "code" && return_type != "stderr" {
-                return Err(WorkflowError::runtime(
+                return Err(WorkflowError::runtime_simple(
                     format!(
                         "shell command '{}' failed with exit code {}: {}",
                         command,
@@ -247,7 +244,6 @@ impl RunTaskRunner {
                         stderr.trim()
                     ),
                     &self.name,
-                    "",
                 ));
             }
         }

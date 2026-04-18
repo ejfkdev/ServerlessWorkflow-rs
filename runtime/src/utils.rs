@@ -55,40 +55,36 @@ pub fn parse_duration_with_context(
         }
         OneOfTimeoutDefinitionOrReference::Reference(ref_name) => {
             let workflow = workflow.ok_or_else(|| {
-                WorkflowError::runtime(
+                WorkflowError::runtime_simple(
                     "referenced timeout requires workflow context",
                     task_name,
-                    "",
                 )
             })?;
             let use_ = workflow.use_.as_ref().ok_or_else(|| {
-                WorkflowError::runtime(
+                WorkflowError::runtime_simple(
                     format!(
                         "referenced timeout '{}' not found: no use definitions",
                         ref_name
                     ),
                     task_name,
-                    "",
                 )
             })?;
             let timeouts = use_.timeouts.as_ref().ok_or_else(|| {
-                WorkflowError::runtime(
+                WorkflowError::runtime_simple(
                     format!(
                         "referenced timeout '{}' not found: no timeouts defined",
                         ref_name
                     ),
                     task_name,
-                    "",
                 )
             })?;
             let timeout_def = timeouts.get(ref_name).ok_or_else(|| {
-                WorkflowError::runtime(
+                WorkflowError::runtime_simple(
                     format!(
                         "referenced timeout '{}' not found in workflow.use.timeouts",
                         ref_name
                     ),
                     task_name,
-                    "",
                 )
             })?;
             resolve_duration_expr(&timeout_def.after, input, vars, task_name)

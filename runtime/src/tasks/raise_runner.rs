@@ -6,6 +6,28 @@ use serverless_workflow_core::models::expression::{is_strict_expr, sanitize_expr
 use serverless_workflow_core::models::task::RaiseTaskDefinition;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
+/// Evaluates an optional strict expression string, returning the evaluated string result.
+/// If the expression is a strict JQ expression (`${...}`), it is sanitized and evaluated;
+/// on evaluation failure, falls back to the raw string. Non-strict strings are returned as-is.
+fn eval_strict_expr(
+    s: &str,
+    input: &Value,
+    support: &TaskSupport<'_>,
+    task_name: &str,
+) -> String {
+    if is_strict_expr(s) {
+        let expr = sanitize_expr(s);
+        let val = support
+            .eval_jq(&expr, input, task_name)
+            .unwrap_or_else(|_| Value::String(s.to_string()));
+        val.as_str()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| format!("{}", val))
+    } else {
+        s.to_string()
+    }
+}
+
 /// Runner for Raise tasks - raises structured errors
 pub struct RaiseTaskRunner {
     name: String,
@@ -62,44 +84,17 @@ impl TaskRunner for RaiseTaskRunner {
             )),
             OneOfErrorDefinitionOrReference::Error(def) => {
                 // Evaluate detail expression if present
-                let detail_str = match &def.detail {
-                    Some(detail) => {
-                        if is_strict_expr(detail) {
-                            let expr = sanitize_expr(detail);
-                            let detail_val = support.eval_jq(&expr, &input, &self.name)
-                                .unwrap_or(Value::String(detail.clone()));
-                            detail_val
-                                .as_str()
-                                .map(|s| s.to_string())
-                                .unwrap_or_else(|| format!("{}", detail_val))
-                        } else {
-                            detail.clone()
-                        }
-                    }
-                    None => String::new(),
-                };
+                let detail_str = def
+                    .detail
+                    .as_deref()
+                    .map(|d| eval_strict_expr(d, &input, support, &self.name))
+                    .unwrap_or_default();
 
-                // Evaluate title expression if present (only strict expressions are evaluated)
-                let title_str = {
-                    match &def.title {
-                        Some(title) => {
-                            if is_strict_expr(title) {
-                                let expr = sanitize_expr(title);
-                                let title_val = support.eval_jq(&expr, &input, &self.name)
-                                    .unwrap_or(Value::String(title.clone()));
-                                Some(
-                                    title_val
-                                        .as_str()
-                                        .map(|s| s.to_string())
-                                        .unwrap_or_else(|| format!("{}", title_val)),
-                                )
-                            } else {
-                                Some(title.clone())
-                            }
-                        }
-                        None => None,
-                    }
-                };
+                // Evaluate title expression if present
+                let title_str = def
+                    .title
+                    .as_deref()
+                    .map(|t| eval_strict_expr(t, &input, support, &self.name));
 
                 // Use error definition's instance if set, otherwise task reference
                 let instance = def

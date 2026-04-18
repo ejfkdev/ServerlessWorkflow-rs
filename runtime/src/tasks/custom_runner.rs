@@ -34,10 +34,9 @@ impl TaskRunner for CustomTaskRunner {
                 let config = crate::error::serialize_to_value(&self.task, "custom task config", &self.name)?;
                 handler.handle(&self.name, task_type, &config, &input).await
             }
-            None => Err(WorkflowError::runtime(
+            None => Err(WorkflowError::runtime_simple(
                 format!("custom task '{}' requires a CustomTaskHandler (register one via WorkflowRunner::with_custom_task_handler())", task_type),
                 &self.name,
-                "",
             )),
         }
     }
