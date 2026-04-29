@@ -22,7 +22,7 @@ jaq-std = "2"
 jaq-json = { version = "1", features = ["serde_json"] }
 jaq-interpret = "1"
 uuid = { version = "1", features = ["v4"] }
-jsonschema = "0.18"
+jsonschema = "0.46"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "process", "sync", "io-util"] }
 tokio-util = "0.7"
 chrono = "0.4"
