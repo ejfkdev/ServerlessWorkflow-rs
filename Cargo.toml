@@ -15,7 +15,7 @@ license = "Apache-2.0"
 homepage = "https://serverlessworkflow.io"
 repository = "https://github.com/ejfkdev/ServerlessWorkflow-rs"
 edition = "2021"
-rust-version = "1.80"
+rust-version = "1.85"
 readme = "README.md"
 
 [profile.release]
