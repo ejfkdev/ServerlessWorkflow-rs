@@ -1,0 +1,38 @@
+# Reusable workflow to publish crates to crates.io
+# Triggered by the release workflow after a successful release
+name: Publish to crates.io
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        description: "The dist plan JSON"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  packages: write
+
+jobs:
+  publish-crates:
+    name: Publish crates
+    runs-on: ubuntu-22.04
+    env:
+      PLAN: ${{ inputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-dist
+        shell: bash
+        run: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh | sh"
+      - name: Publish crates
+        shell: bash
+        run: |
+          # Parse the plan to get the list of crates to publish
+          # dist handles the ordering and dependency resolution
+          dist publish --plan-json "$PLAN"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
