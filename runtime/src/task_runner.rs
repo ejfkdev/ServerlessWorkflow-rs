@@ -1,9 +1,6 @@
 use crate::context::WorkflowContext;
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{
-    traverse_and_evaluate,
-    traverse_and_evaluate_obj,
-};
+use crate::expression::{traverse_and_evaluate, traverse_and_evaluate_obj};
 use crate::handler::HandlerRegistry;
 use crate::json_schema::validate_schema;
 use crate::listener::WorkflowEvent;
@@ -97,7 +94,9 @@ impl<'a> TaskSupport<'a> {
 
     /// Sets the task reference from a task name using JSON Pointer
     pub fn set_task_reference_from_name(&mut self, name: &str) -> WorkflowResult<()> {
-        let reference = self.context.get_workflow_json()
+        let reference = self
+            .context
+            .get_workflow_json()
             .and_then(|json| crate::json_pointer::generate_json_pointer_from_value(json, name).ok())
             .unwrap_or_else(|| format!("/{}", name));
         self.context.set_task_reference(&reference);
@@ -154,7 +153,12 @@ impl<'a> TaskSupport<'a> {
 
     /// Evaluates a raw JQ expression string (with `${...}` wrapper) after sanitization.
     /// This combines `prepare_expression()` + `eval_jq()` into one call.
-    pub fn eval_jq_expr(&self, raw_expr: &str, input: &Value, task_name: &str) -> WorkflowResult<Value> {
+    pub fn eval_jq_expr(
+        &self,
+        raw_expr: &str,
+        input: &Value,
+        task_name: &str,
+    ) -> WorkflowResult<Value> {
         let sanitized = crate::expression::prepare_expression(raw_expr);
         self.eval_jq(&sanitized, input, task_name)
     }
@@ -318,13 +322,19 @@ impl<'a> TaskSupport<'a> {
 
         // Process task output
         let output = self.process_task_output_with_vars(
-            common.output.as_ref(), &raw_output, task_name, &vars,
+            common.output.as_ref(),
+            &raw_output,
+            task_name,
+            &vars,
         )?;
 
         // Process task export (same expression evaluation as output)
         if common.export.is_some() {
             let export_result = self.process_task_output_with_vars(
-                common.export.as_ref(), &output, task_name, &vars,
+                common.export.as_ref(),
+                &output,
+                task_name,
+                &vars,
             )?;
             self.set_instance_ctx(export_result);
         }

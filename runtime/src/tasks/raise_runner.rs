@@ -1,6 +1,6 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::task_name_impl;
 
 use serde_json::Value;
 use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
@@ -11,12 +11,7 @@ use serverless_workflow_core::models::workflow::WorkflowDefinition;
 /// Evaluates an optional strict expression string, returning the evaluated string result.
 /// If the expression is a strict JQ expression (`${...}`), it is evaluated via `eval_jq_expr`;
 /// on evaluation failure, falls back to the raw string. Non-strict strings are returned as-is.
-fn eval_strict_expr(
-    s: &str,
-    input: &Value,
-    support: &TaskSupport<'_>,
-    task_name: &str,
-) -> String {
+fn eval_strict_expr(s: &str, input: &Value, support: &TaskSupport<'_>, task_name: &str) -> String {
     if is_strict_expr(s) {
         let val = support
             .eval_jq_expr(s, input, task_name)

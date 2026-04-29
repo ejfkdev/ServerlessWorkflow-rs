@@ -1,41 +1,41 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_task_timeout() {
-        let result = run_workflow_from_yaml(&testdata("task_timeout.yaml"), json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "timeout");
-    }
+#[tokio::test]
+async fn test_runner_task_timeout() {
+    let result = run_workflow_from_yaml(&testdata("task_timeout.yaml"), json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "timeout");
+}
 
-    // === Task Timeout with Try-Catch ===
+// === Task Timeout with Try-Catch ===
 
-    #[tokio::test]
-    async fn test_runner_task_timeout_try_catch() {
-        let output = run_workflow_from_yaml(&testdata("task_timeout_try_catch.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["timedOut"], json!(true));
-    }
-
-    // === Shell: await false (fire-and-forget) ===
-
-    #[tokio::test]
-    async fn test_runner_task_input_from() {
-        let output = run_workflow_from_yaml(
-            &testdata("task_input_from.yaml"),
-            json!({"data": {"value": 42}}),
-        )
+#[tokio::test]
+async fn test_runner_task_timeout_try_catch() {
+    let output = run_workflow_from_yaml(&testdata("task_timeout_try_catch.yaml"), json!({}))
         .await
         .unwrap();
-        assert_eq!(output["result"], json!(42));
-    }
+    assert_eq!(output["timedOut"], json!(true));
+}
 
-    // === Expression: nested object construction ===
+// === Shell: await false (fire-and-forget) ===
 
-    #[tokio::test]
-    async fn test_runner_task_timeout_reference() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_input_from() {
+    let output = run_workflow_from_yaml(
+        &testdata("task_input_from.yaml"),
+        json!({"data": {"value": 42}}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["result"], json!(42));
+}
+
+// === Expression: nested object construction ===
+
+#[tokio::test]
+async fn test_runner_task_timeout_reference() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -50,19 +50,19 @@ do:
       wait: PT5S
       timeout: shortTimeout
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "timeout");
-    }
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "timeout");
+}
 
-    // === Task timeout: reference with try-catch ===
+// === Task timeout: reference with try-catch ===
 
-    #[tokio::test]
-    async fn test_runner_task_timeout_reference_try_catch() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_timeout_reference_try_catch() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -87,15 +87,15 @@ do:
               set:
                 timedOut: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["timedOut"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["timedOut"], json!(true));
+}
 
-    // === Task with both input.from and output.as ===
+// === Task with both input.from and output.as ===
 
-    #[tokio::test]
-    async fn test_runner_task_input_from_and_output_as() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_input_from_and_output_as() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -110,15 +110,17 @@ do:
       output:
         as: .result
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"rawNumber": 21})).await.unwrap();
-        assert_eq!(output, json!(42));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"rawNumber": 21}))
+        .await
+        .unwrap();
+    assert_eq!(output, json!(42));
+}
 
-    // === Do within For loop (composite nesting) ===
+// === Do within For loop (composite nesting) ===
 
-    #[tokio::test]
-    async fn test_runner_task_input_schema_valid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_input_schema_valid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -139,13 +141,15 @@ do:
       set:
         doubled: "${ .count * 2 }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"count": 5})).await.unwrap();
-        assert_eq!(output["doubled"], json!(10));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"count": 5}))
+        .await
+        .unwrap();
+    assert_eq!(output["doubled"], json!(10));
+}
 
-    #[tokio::test]
-    async fn test_runner_task_input_schema_invalid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_input_schema_invalid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -166,18 +170,18 @@ do:
       set:
         doubled: "${ .count * 2 }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Missing required field 'count'
-        let result = runner.run(json!({"name": "test"})).await;
-        assert!(result.is_err());
-    }
+    // Missing required field 'count'
+    let result = runner.run(json!({"name": "test"})).await;
+    assert!(result.is_err());
+}
 
-    // === Task output schema validation ===
+// === Task output schema validation ===
 
-    #[tokio::test]
-    async fn test_runner_task_output_schema_valid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_output_schema_valid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -198,13 +202,13 @@ do:
             required:
               - result
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!("success"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!("success"));
+}
 
-    #[tokio::test]
-    async fn test_runner_task_output_schema_invalid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_output_schema_invalid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -225,18 +229,18 @@ do:
             required:
               - count
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // count is number but schema expects string
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    // count is number but schema expects string
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Task export schema validation ===
+// === Task export schema validation ===
 
-    #[tokio::test]
-    async fn test_runner_task_export_schema_valid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_export_schema_valid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -261,13 +265,15 @@ do:
       set:
         result: "${ $context.exportedKey }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"inputKey": "hello"})).await.unwrap();
-        assert_eq!(output["result"], json!("hello"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"inputKey": "hello"}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!("hello"));
+}
 
-    #[tokio::test]
-    async fn test_runner_task_export_schema_invalid() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_task_export_schema_invalid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -292,33 +298,33 @@ do:
       set:
         result: "${ $context.exportedKey }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // exportedKey is 123 (number) but schema requires string
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    // exportedKey is 123 (number) but schema requires string
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    #[tokio::test]
-    async fn test_runner_task_output_schema_dynamic_valid() {
-        let output = run_workflow_from_yaml(
-            &testdata("task_output_schema_with_dynamic_value.yaml"),
-            json!({"taskInputKey": "validValue"}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["finalOutputKey"], json!("validValue"));
-    }
+#[tokio::test]
+async fn test_runner_task_output_schema_dynamic_valid() {
+    let output = run_workflow_from_yaml(
+        &testdata("task_output_schema_with_dynamic_value.yaml"),
+        json!({"taskInputKey": "validValue"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["finalOutputKey"], json!("validValue"));
+}
 
-    #[tokio::test]
-    async fn test_runner_task_output_schema_dynamic_invalid() {
-        // taskInputKey is a number but output schema requires string
-        let result = run_workflow_from_yaml(
-            &testdata("task_output_schema_with_dynamic_value.yaml"),
-            json!({"taskInputKey": 123}),
-        )
-        .await;
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_task_output_schema_dynamic_invalid() {
+    // taskInputKey is a number but output schema requires string
+    let result = run_workflow_from_yaml(
+        &testdata("task_output_schema_with_dynamic_value.yaml"),
+        json!({"taskInputKey": 123}),
+    )
+    .await;
+    assert!(result.is_err());
+}
 
-    // === Expression: conditional in set value ===
+// === Expression: conditional in set value ===

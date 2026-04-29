@@ -581,8 +581,7 @@ fn test_task_definition_run_dispatch() {
 
 #[test]
 fn test_task_definition_call_dispatch() {
-    let json =
-        r#"{"call": "http", "with": {"method": "GET", "endpoint": "http://example.com"}}"#;
+    let json = r#"{"call": "http", "with": {"method": "GET", "endpoint": "http://example.com"}}"#;
     let task: TaskDefinition = serde_json::from_str(json).unwrap();
     assert!(matches!(task, TaskDefinition::Call(_)));
 }
@@ -1192,7 +1191,9 @@ fn test_listen_task_with_until_condition() {
     assert!(task.listen.to.until.is_some());
     let until = task.listen.to.until.as_ref().unwrap();
     match **until {
-        crate::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Expression(ref expr) => {
+        crate::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Expression(
+            ref expr,
+        ) => {
             assert_eq!(expr, "workflow.data.condition == true");
         }
         _ => panic!("Expected Expression variant for until"),
@@ -1213,9 +1214,7 @@ fn test_listen_task_with_until_disabled() {
     let task: ListenTaskDefinition = serde_json::from_str(json).unwrap();
     let until = task.listen.to.until.as_ref().unwrap();
     match **until {
-        crate::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(
-            val,
-        ) => {
+        crate::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(val) => {
             assert!(!val);
         }
         _ => panic!("Expected Bool variant for until"),

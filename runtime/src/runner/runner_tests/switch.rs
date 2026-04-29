@@ -1,156 +1,155 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_switch_match_red() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_match.yaml"),
-            json!({"color": "red", "colors": []}),
-        )
+#[tokio::test]
+async fn test_runner_switch_match_red() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_match.yaml"),
+        json!({"color": "red", "colors": []}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["colors"], json!(["red"]));
+}
+
+#[tokio::test]
+async fn test_runner_switch_match_green() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_match.yaml"),
+        json!({"color": "green", "colors": []}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["colors"], json!(["green"]));
+}
+
+#[tokio::test]
+async fn test_runner_switch_match_blue() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_match.yaml"),
+        json!({"color": "blue", "colors": []}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["colors"], json!(["blue"]));
+}
+
+// === Switch With Default ===
+
+#[tokio::test]
+async fn test_runner_switch_default() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_with_default.yaml"),
+        json!({"color": "yellow", "colors": []}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["colors"], json!(["default"]));
+}
+
+// === For Loop: Colors ===
+
+#[tokio::test]
+async fn test_runner_switch_then_loop() {
+    let output = run_workflow_from_yaml(&testdata("switch_then_loop.yaml"), json!({"count": 1}))
         .await
         .unwrap();
-        assert_eq!(output["colors"], json!(["red"]));
-    }
+    assert_eq!(output["count"], json!(6));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_match_green() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_match.yaml"),
-            json!({"color": "green", "colors": []}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["colors"], json!(["green"]));
-    }
+// === Switch Then String ===
 
-    #[tokio::test]
-    async fn test_runner_switch_match_blue() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_match.yaml"),
-            json!({"color": "blue", "colors": []}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["colors"], json!(["blue"]));
-    }
+#[tokio::test]
+async fn test_runner_switch_then_string_electronic() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_string.yaml"),
+        json!({"orderType": "electronic"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["validate"], json!(true));
+    assert_eq!(output["status"], json!("fulfilled"));
+}
 
-    // === Switch With Default ===
+#[tokio::test]
+async fn test_runner_switch_then_string_physical() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_string.yaml"),
+        json!({"orderType": "physical"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["inventory"], json!("clear"));
+    assert_eq!(output["items"], json!(1));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_default() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_with_default.yaml"),
-            json!({"color": "yellow", "colors": []}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["colors"], json!(["default"]));
-    }
+#[tokio::test]
+async fn test_runner_switch_then_string_default() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_string.yaml"),
+        json!({"orderType": "unknown"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["log"], json!("warn"));
+    assert_eq!(output["message"], json!("something's wrong"));
+}
 
-    // === For Loop: Colors ===
+// === Direct WorkflowRunner test (no YAML) ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_loop() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_then_loop.yaml"), json!({"count": 1}))
-                .await
-                .unwrap();
-        assert_eq!(output["count"], json!(6));
-    }
+#[tokio::test]
+async fn test_runner_switch_then_exit() {
+    let output =
+        run_workflow_from_yaml(&testdata("switch_then_exit.yaml"), json!({"value": "exit"}))
+            .await
+            .unwrap();
+    // exit should stop the current composite task (do block)
+    // shouldNotRun should NOT execute
+    assert!(output.get("ran").is_none());
+}
 
-    // === Switch Then String ===
+#[tokio::test]
+async fn test_runner_switch_then_end() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_exit.yaml"),
+        json!({"value": "other"}),
+    )
+    .await
+    .unwrap();
+    // default then: end should stop the workflow
+    assert!(output.get("ran").is_none());
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_then_string_electronic() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_string.yaml"),
-            json!({"orderType": "electronic"}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["validate"], json!(true));
-        assert_eq!(output["status"], json!("fulfilled"));
-    }
+// === Switch then continue ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_string_physical() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_string.yaml"),
-            json!({"orderType": "physical"}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["inventory"], json!("clear"));
-        assert_eq!(output["items"], json!(1));
-    }
+#[tokio::test]
+async fn test_runner_switch_then_continue() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_continue.yaml"),
+        json!({"action": "skip"}),
+    )
+    .await
+    .unwrap();
+    // then: continue should proceed to the next task
+    assert_eq!(output["ran"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_then_string_default() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_string.yaml"),
-            json!({"orderType": "unknown"}),
-        )
-        .await
-        .unwrap();
-        assert_eq!(output["log"], json!("warn"));
-        assert_eq!(output["message"], json!("something's wrong"));
-    }
+#[tokio::test]
+async fn test_runner_switch_then_continue_default() {
+    let output = run_workflow_from_yaml(
+        &testdata("switch_then_continue.yaml"),
+        json!({"action": "other"}),
+    )
+    .await
+    .unwrap();
+    // default case then: end should stop the workflow
+    assert!(output.get("ran").is_none());
+}
 
-    // === Direct WorkflowRunner test (no YAML) ===
+// === HTTP Call: output response with output.as ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_exit() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_then_exit.yaml"), json!({"value": "exit"}))
-                .await
-                .unwrap();
-        // exit should stop the current composite task (do block)
-        // shouldNotRun should NOT execute
-        assert!(output.get("ran").is_none());
-    }
-
-    #[tokio::test]
-    async fn test_runner_switch_then_end() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_exit.yaml"),
-            json!({"value": "other"}),
-        )
-        .await
-        .unwrap();
-        // default then: end should stop the workflow
-        assert!(output.get("ran").is_none());
-    }
-
-    // === Switch then continue ===
-
-    #[tokio::test]
-    async fn test_runner_switch_then_continue() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_continue.yaml"),
-            json!({"action": "skip"}),
-        )
-        .await
-        .unwrap();
-        // then: continue should proceed to the next task
-        assert_eq!(output["ran"], json!(true));
-    }
-
-    #[tokio::test]
-    async fn test_runner_switch_then_continue_default() {
-        let output = run_workflow_from_yaml(
-            &testdata("switch_then_continue.yaml"),
-            json!({"action": "other"}),
-        )
-        .await
-        .unwrap();
-        // default case then: end should stop the workflow
-        assert!(output.get("ran").is_none());
-    }
-
-    // === HTTP Call: output response with output.as ===
-
-    #[tokio::test]
-    async fn test_runner_switch_then_goto() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_goto() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -172,59 +171,57 @@ do:
       set:
         color: "RED"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"color": "red"})).await.unwrap();
-        assert_eq!(output["color"], json!("RED"));
-        assert!(output.get("skipped").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"color": "red"}))
+        .await
+        .unwrap();
+    assert_eq!(output["color"], json!("RED"));
+    assert!(output.get("skipped").is_none());
+}
 
-    // === Try-Catch with catch.as error variable ===
+// === Try-Catch with catch.as error variable ===
 
-    #[tokio::test]
-    async fn test_runner_switch_multi_match_a() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 95}))
-                .await
-                .unwrap();
-        assert_eq!(output["grade"], json!("A"));
-        assert_eq!(output["passed"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_switch_multi_match_a() {
+    let output = run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 95}))
+        .await
+        .unwrap();
+    assert_eq!(output["grade"], json!("A"));
+    assert_eq!(output["passed"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_multi_match_b() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 85}))
-                .await
-                .unwrap();
-        assert_eq!(output["grade"], json!("B"));
-        assert_eq!(output["passed"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_switch_multi_match_b() {
+    let output = run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 85}))
+        .await
+        .unwrap();
+    assert_eq!(output["grade"], json!("B"));
+    assert_eq!(output["passed"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_multi_match_c() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 75}))
-                .await
-                .unwrap();
-        assert_eq!(output["grade"], json!("C"));
-        assert_eq!(output["passed"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_switch_multi_match_c() {
+    let output = run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 75}))
+        .await
+        .unwrap();
+    assert_eq!(output["grade"], json!("C"));
+    assert_eq!(output["passed"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_multi_match_f() {
-        let output =
-            run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 50}))
-                .await
-                .unwrap();
-        assert_eq!(output["grade"], json!("F"));
-        assert_eq!(output["passed"], json!(false));
-    }
+#[tokio::test]
+async fn test_runner_switch_multi_match_f() {
+    let output = run_workflow_from_yaml(&testdata("switch_multi_match.yaml"), json!({"score": 50}))
+        .await
+        .unwrap();
+    assert_eq!(output["grade"], json!("F"));
+    assert_eq!(output["passed"], json!(false));
+}
 
-    // === Set: nested expressions (object with computed fields) ===
+// === Set: nested expressions (object with computed fields) ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_goto_multiple() {
-        // Test that switch can goto a task which then continues to another task
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_goto_multiple() {
+    // Test that switch can goto a task which then continues to another task
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -249,16 +246,16 @@ do:
       set:
         final: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // When skip=true: step1 -> step3 -> step4
-        let output = runner.run(json!({"skip": true})).await.unwrap();
-        assert_eq!(output["final"], json!(true));
-    }
+    // When skip=true: step1 -> step3 -> step4
+    let output = runner.run(json!({"skip": true})).await.unwrap();
+    assert_eq!(output["final"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_then_goto_normal() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_goto_normal() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -283,18 +280,18 @@ do:
       set:
         final: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // When skip=false: step1 -> step2 -> step4
-        let output = runner.run(json!({"skip": false})).await.unwrap();
-        assert_eq!(output["final"], json!(true));
-    }
+    // When skip=false: step1 -> step2 -> step4
+    let output = runner.run(json!({"skip": false})).await.unwrap();
+    assert_eq!(output["final"], json!(true));
+}
 
-    // === Nested do: with export context passing ===
+// === Nested do: with export context passing ===
 
-    #[tokio::test]
-    async fn test_runner_switch_goto_switch() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_goto_switch() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -330,19 +327,19 @@ do:
       set:
         access: basic
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Admin with level > 10 → grantAll
-        let output = runner
-            .run(json!({"role": "admin", "level": 15}))
-            .await
-            .unwrap();
-        assert_eq!(output["access"], json!("all"));
-    }
+    // Admin with level > 10 → grantAll
+    let output = runner
+        .run(json!({"role": "admin", "level": 15}))
+        .await
+        .unwrap();
+    assert_eq!(output["access"], json!("all"));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_goto_switch_basic() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_goto_switch_basic() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -378,19 +375,19 @@ do:
       set:
         access: basic
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Admin with level <= 10 → grantBasic
-        let output = runner
-            .run(json!({"role": "admin", "level": 5}))
-            .await
-            .unwrap();
-        assert_eq!(output["access"], json!("basic"));
-    }
+    // Admin with level <= 10 → grantBasic
+    let output = runner
+        .run(json!({"role": "admin", "level": 5}))
+        .await
+        .unwrap();
+    assert_eq!(output["access"], json!("basic"));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_goto_switch_not_admin() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_goto_switch_not_admin() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -426,21 +423,21 @@ do:
       set:
         access: basic
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Not admin → end immediately (no access set)
-        let output = runner
-            .run(json!({"role": "user", "level": 5}))
-            .await
-            .unwrap();
-        assert!(output.get("access").is_none());
-    }
+    // Not admin → end immediately (no access set)
+    let output = runner
+        .run(json!({"role": "user", "level": 5}))
+        .await
+        .unwrap();
+    assert!(output.get("access").is_none());
+}
 
-    // === Try-catch with when as expression ===
+// === Try-catch with when as expression ===
 
-    #[tokio::test]
-    async fn test_runner_switch_age_classification() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_age_classification() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -470,26 +467,30 @@ do:
       set:
         category: minor
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Senior
-        let output = runner.run(json!({"age": 70})).await.unwrap();
-        assert_eq!(output["category"], json!("senior"));
+    // Senior
+    let output = runner.run(json!({"age": 70})).await.unwrap();
+    assert_eq!(output["category"], json!("senior"));
 
-        // Adult
-        let output = run_workflow_yaml(&yaml_str, json!({"age": 30})).await.unwrap();
-        assert_eq!(output["category"], json!("adult"));
+    // Adult
+    let output = run_workflow_yaml(&yaml_str, json!({"age": 30}))
+        .await
+        .unwrap();
+    assert_eq!(output["category"], json!("adult"));
 
-        // Minor
-        let output = run_workflow_yaml(&yaml_str, json!({"age": 10})).await.unwrap();
-        assert_eq!(output["category"], json!("minor"));
-    }
+    // Minor
+    let output = run_workflow_yaml(&yaml_str, json!({"age": 10}))
+        .await
+        .unwrap();
+    assert_eq!(output["category"], json!("minor"));
+}
 
-    // === Set with merge behavior (preserving existing fields) ===
+// === Set with merge behavior (preserving existing fields) ===
 
-    #[tokio::test]
-    async fn test_runner_switch_no_match_no_default() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_no_match_no_default() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -505,16 +506,18 @@ do:
       set:
         continued: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"color": "blue"})).await.unwrap();
-        // No match and no default: switch passes through, next task runs
-        assert_eq!(output["continued"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"color": "blue"}))
+        .await
+        .unwrap();
+    // No match and no default: switch passes through, next task runs
+    assert_eq!(output["continued"], json!(true));
+}
 
-    // === For loop with empty collection ===
+// === For loop with empty collection ===
 
-    #[tokio::test]
-    async fn test_runner_switch_string_comparison() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_string_comparison() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -543,18 +546,22 @@ do:
       set:
         level: guest
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"role": "admin"})).await.unwrap();
-        assert_eq!(output["level"], json!("admin"));
+    let output = run_workflow_yaml(&yaml_str, json!({"role": "admin"}))
+        .await
+        .unwrap();
+    assert_eq!(output["level"], json!("admin"));
 
-        let output = run_workflow_yaml(&yaml_str, json!({"role": "guest"})).await.unwrap();
-        assert_eq!(output["level"], json!("guest"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"role": "guest"}))
+        .await
+        .unwrap();
+    assert_eq!(output["level"], json!("guest"));
+}
 
-    // === For loop: collection with single element ===
+// === For loop: collection with single element ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_goto_backwards() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_goto_backwards() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -576,15 +583,15 @@ do:
         counter: "${ .counter + 1 }"
       then: checkCounter
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["counter"], json!(3));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["counter"], json!(3));
+}
 
-    // === For loop: with at (index) variable and custom name ===
+// === For loop: with at (index) variable and custom name ===
 
-    #[tokio::test]
-    async fn test_runner_switch_goto_forward_skip() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_goto_forward_skip() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -608,20 +615,20 @@ do:
       set:
         done: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // When skip=true: skip step2 and step3
-        let output = runner.run(json!({"skip": true})).await.unwrap();
-        assert_eq!(output["done"], json!(true));
-        assert!(output.get("ran").is_none());
-        assert!(output.get("alsoRan").is_none());
-    }
+    // When skip=true: skip step2 and step3
+    let output = runner.run(json!({"skip": true})).await.unwrap();
+    assert_eq!(output["done"], json!(true));
+    assert!(output.get("ran").is_none());
+    assert!(output.get("alsoRan").is_none());
+}
 
-    // === Nested for with inner export ===
+// === Nested for with inner export ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_end_short_circuit() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_end_short_circuit() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -647,16 +654,18 @@ do:
       set:
         shouldNotReach: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"age": 25})).await.unwrap();
-        assert_eq!(output["category"], json!("adult"));
-        assert!(output.get("shouldNotReach").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"age": 25}))
+        .await
+        .unwrap();
+    assert_eq!(output["category"], json!("adult"));
+    assert!(output.get("shouldNotReach").is_none());
+}
 
-    // === For loop with continue-like behavior (then: continue) ===
+// === For loop with continue-like behavior (then: continue) ===
 
-    #[tokio::test]
-    async fn test_runner_switch_nested_goto_outer() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_nested_goto_outer() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -679,20 +688,22 @@ do:
       set:
         result: low_priority
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"level": "high"})).await.unwrap();
-        assert_eq!(output["result"], json!("high_priority"));
+    let output = run_workflow_yaml(&yaml_str, json!({"level": "high"}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!("high_priority"));
 
-        let workflow2: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner2 = WorkflowRunner::new(workflow2).unwrap();
-        let output2 = runner2.run(json!({"level": "low"})).await.unwrap();
-        assert_eq!(output2["result"], json!("low_priority"));
-    }
+    let workflow2: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
+    let runner2 = WorkflowRunner::new(workflow2).unwrap();
+    let output2 = runner2.run(json!({"level": "low"})).await.unwrap();
+    assert_eq!(output2["result"], json!("low_priority"));
+}
 
-    // === For with early exit via raise in try-catch ===
+// === For with early exit via raise in try-catch ===
 
-    #[tokio::test]
-    async fn test_runner_switch_with_export() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_with_export() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -715,39 +726,39 @@ do:
       set:
         result: "${ $context.level }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
-        assert_eq!(output["result"], json!("high"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"score": 90}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!("high"));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_task_export() {
-        // Tests that export.as on a Switch task itself (not on a Do task) works correctly
-        let output =
-            run_workflow_from_yaml(&testdata("switch_export.yaml"), json!({"color": "red"}))
-                .await
-                .unwrap();
-        // When color==red, switch matches, export.as writes matched=true to $context
-        // setResult uses $context.matched
-        assert_eq!(output["result"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_switch_task_export() {
+    // Tests that export.as on a Switch task itself (not on a Do task) works correctly
+    let output = run_workflow_from_yaml(&testdata("switch_export.yaml"), json!({"color": "red"}))
+        .await
+        .unwrap();
+    // When color==red, switch matches, export.as writes matched=true to $context
+    // setResult uses $context.matched
+    assert_eq!(output["result"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_task_export_default() {
-        // When switch doesn't match any specific case, default case applies
-        let output =
-            run_workflow_from_yaml(&testdata("switch_export.yaml"), json!({"color": "blue"}))
-                .await
-                .unwrap();
-        // color is blue, no case matches, default then:continue runs
-        // export.as still writes matched=true to context (export is unconditional)
-        assert_eq!(output["result"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_switch_task_export_default() {
+    // When switch doesn't match any specific case, default case applies
+    let output = run_workflow_from_yaml(&testdata("switch_export.yaml"), json!({"color": "blue"}))
+        .await
+        .unwrap();
+    // color is blue, no case matches, default then:continue runs
+    // export.as still writes matched=true to context (export is unconditional)
+    assert_eq!(output["result"], json!(true));
+}
 
-    // === For loop with input.from ===
+// === For loop with input.from ===
 
-    #[tokio::test]
-    async fn test_runner_switch_all_false_with_default() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_all_false_with_default() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -770,18 +781,18 @@ do:
       set:
         result: "${ .matched }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // No when matches → default case → continue
-        let _output = runner.run(json!({"type": "unknown"})).await.unwrap();
-        // Switch with default should match
-    }
+    // No when matches → default case → continue
+    let _output = runner.run(json!({"type": "unknown"})).await.unwrap();
+    // Switch with default should match
+}
 
-    // === Expression: path expression (paths with filter) ===
+// === Expression: path expression (paths with filter) ===
 
-    #[tokio::test]
-    async fn test_runner_switch_complex_when() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_complex_when() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -800,20 +811,20 @@ do:
       set:
         classification: "${ if .age < 18 then .minorLabel else .adultLabel end }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"age": 25, "minorLabel": "child", "adultLabel": "grown-up"}))
-            .await
-            .unwrap();
-        assert_eq!(output["classification"], json!("grown-up"));
-    }
+    let output = runner
+        .run(json!({"age": 25, "minorLabel": "child", "adultLabel": "grown-up"}))
+        .await
+        .unwrap();
+    assert_eq!(output["classification"], json!("grown-up"));
+}
 
-    // === Expression: string interpolation ===
+// === Expression: string interpolation ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_continue_next() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_continue_next() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -829,15 +840,17 @@ do:
       set:
         afterSwitch: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"ok": true})).await.unwrap();
-        assert_eq!(output["afterSwitch"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"ok": true}))
+        .await
+        .unwrap();
+    assert_eq!(output["afterSwitch"], json!(true));
+}
 
-    // === Expression: tostring on numbers ===
+// === Expression: tostring on numbers ===
 
-    #[tokio::test]
-    async fn test_runner_switch_no_match_passthrough_continue() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_no_match_passthrough_continue() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -853,18 +866,18 @@ do:
       set:
         passed: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // type != "x", no match, no default → pass through
-        let output = runner.run(json!({"type": "y"})).await.unwrap();
-        assert_eq!(output["passed"], json!(true));
-    }
+    // type != "x", no match, no default → pass through
+    let output = runner.run(json!({"type": "y"})).await.unwrap();
+    assert_eq!(output["passed"], json!(true));
+}
 
-    // === Expression: complex object construction with multiple fields ===
+// === Expression: complex object construction with multiple fields ===
 
-    #[tokio::test]
-    async fn test_runner_switch_then_string_branches() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_then_string_branches() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -894,17 +907,19 @@ do:
       set:
         result: handledDefault
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"type": "B"})).await.unwrap();
-        assert_eq!(output["result"], json!("handledB"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"type": "B"}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!("handledB"));
+}
 
-    // === Batch 5: Unique new DSL pattern tests ===
+// === Batch 5: Unique new DSL pattern tests ===
 
-    // === Expression: ascii_upcase/downcase ===
+// === Expression: ascii_upcase/downcase ===
 
-    #[tokio::test]
-    async fn test_runner_switch_default_continue() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_default_continue() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -923,15 +938,17 @@ do:
       set:
         done: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"type": "X"})).await.unwrap();
-        assert_eq!(output["done"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"type": "X"}))
+        .await
+        .unwrap();
+    assert_eq!(output["done"], json!(true));
+}
 
-    // === Expression: object merge with * ===
+// === Expression: object merge with * ===
 
-    #[tokio::test]
-    async fn test_runner_switch_first_match_wins() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_first_match_wins() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -951,19 +968,19 @@ do:
       set:
         reached: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Score 95 matches isHigh first (score > 50), then:end
-        let output = runner.run(json!({"score": 95})).await.unwrap();
-        assert!(output.get("reached").is_none());
-    }
+    // Score 95 matches isHigh first (score > 50), then:end
+    let output = runner.run(json!({"score": 95})).await.unwrap();
+    assert!(output.get("reached").is_none());
+}
 
-    // === Expression: array concatenation ===
+// === Expression: array concatenation ===
 
-    // Switch: then:end in the middle stops workflow
-    #[tokio::test]
-    async fn test_runner_switch_then_end_mid() {
-        let yaml_str = r#"
+// Switch: then:end in the middle stops workflow
+#[tokio::test]
+async fn test_runner_switch_then_end_mid() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -982,14 +999,16 @@ do:
       set:
         ran: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"stop": true})).await.unwrap();
-        assert!(output.get("ran").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"stop": true}))
+        .await
+        .unwrap();
+    assert!(output.get("ran").is_none());
+}
 
-    // Switch: multiple conditions with complex expressions
-    #[tokio::test]
-    async fn test_runner_switch_complex_conditions() {
-        let yaml_str = r#"
+// Switch: multiple conditions with complex expressions
+#[tokio::test]
+async fn test_runner_switch_complex_conditions() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1012,16 +1031,16 @@ do:
         bonus: true
         score: "${ .score }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
-        // Score 90 → high → then:end → no bonus
-        let output = runner.run(json!({"score": 90})).await.unwrap();
-        assert!(output.get("bonus").is_none());
-    }
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    // Score 90 → high → then:end → no bonus
+    let output = runner.run(json!({"score": 90})).await.unwrap();
+    assert!(output.get("bonus").is_none());
+}
 
-    // Switch: string then with default
-    #[tokio::test]
-    async fn test_runner_switch_then_string_default_v2() {
-        let yaml_str = r#"
+// Switch: string then with default
+#[tokio::test]
+async fn test_runner_switch_then_string_default_v2() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1046,14 +1065,16 @@ do:
         handler: default
         type: "${ .type }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"type": "b"})).await.unwrap();
-        assert_eq!(output["handler"], json!("default"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"type": "b"}))
+        .await
+        .unwrap();
+    assert_eq!(output["handler"], json!("default"));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_numeric_comparison() {
-        // Switch case based on numeric comparison
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_numeric_comparison() {
+    // Switch case based on numeric comparison
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1076,23 +1097,23 @@ do:
       set:
         category: adult
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
+    let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
 
-        let runner = WorkflowRunner::new(workflow.clone()).unwrap();
-        let output = runner.run(json!({"age": 12})).await.unwrap();
-        assert_eq!(output["category"], json!("minor"));
+    let runner = WorkflowRunner::new(workflow.clone()).unwrap();
+    let output = runner.run(json!({"age": 12})).await.unwrap();
+    assert_eq!(output["category"], json!("minor"));
 
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"age": 25})).await.unwrap();
-        assert_eq!(output["category"], json!("adult"));
-    }
+    let runner = WorkflowRunner::new(workflow).unwrap();
+    let output = runner.run(json!({"age": 25})).await.unwrap();
+    assert_eq!(output["category"], json!("adult"));
+}
 
-    // === For loop with object collection ===
+// === For loop with object collection ===
 
-    #[tokio::test]
-    async fn test_runner_switch_goto_multiple_targets() {
-        // Switch that jumps to different named tasks
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_goto_multiple_targets() {
+    // Switch that jumps to different named tasks
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1121,29 +1142,29 @@ do:
       set:
         handled: unknown
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
+    let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
 
-        let runner = WorkflowRunner::new(workflow.clone()).unwrap();
-        let output = runner.run(json!({"type": "A"})).await.unwrap();
-        assert_eq!(output["handled"], json!("A"));
+    let runner = WorkflowRunner::new(workflow.clone()).unwrap();
+    let output = runner.run(json!({"type": "A"})).await.unwrap();
+    assert_eq!(output["handled"], json!("A"));
 
-        let runner = WorkflowRunner::new(workflow.clone()).unwrap();
-        let output = runner.run(json!({"type": "B"})).await.unwrap();
-        assert_eq!(output["handled"], json!("B"));
+    let runner = WorkflowRunner::new(workflow.clone()).unwrap();
+    let output = runner.run(json!({"type": "B"})).await.unwrap();
+    assert_eq!(output["handled"], json!("B"));
 
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"type": "C"})).await.unwrap();
-        assert_eq!(output["handled"], json!("unknown"));
-    }
+    let runner = WorkflowRunner::new(workflow).unwrap();
+    let output = runner.run(json!({"type": "C"})).await.unwrap();
+    assert_eq!(output["handled"], json!("unknown"));
+}
 
-    // === For loop with at (index variable) and output.as ===
+// === For loop with at (index variable) and output.as ===
 
-    #[tokio::test]
-    async fn test_runner_switch_output_as_exports_transformed() {
-        // Verify that switch task's output.as + export.as work together
-        // The fix ensures process_task_output result is used for process_task_export
-        // (previously `let _ =` discarded the transformed output)
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_output_as_exports_transformed() {
+    // Verify that switch task's output.as + export.as work together
+    // The fix ensures process_task_output result is used for process_task_export
+    // (previously `let _ =` discarded the transformed output)
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1163,17 +1184,19 @@ do:
       set:
         exported: '${ $context }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
-        // output.as: .score → 90, export.as: '.' → $context = 90
-        // Without the fix, $context would be {"score": 90} (the untransformed output)
-        assert_eq!(output["exported"], json!(90));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"score": 90}))
+        .await
+        .unwrap();
+    // output.as: .score → 90, export.as: '.' → $context = 90
+    // Without the fix, $context would be {"score": 90} (the untransformed output)
+    assert_eq!(output["exported"], json!(90));
+}
 
-    #[tokio::test]
-    async fn test_runner_switch_output_as_propagates_to_next_task() {
-        // Verify that switch task's output.as transformation propagates to the next task
-        // (previously switch output was not updating the loop's `output` variable)
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_switch_output_as_propagates_to_next_task() {
+    // Verify that switch task's output.as transformation propagates to the next task
+    // (previously switch output was not updating the loop's `output` variable)
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1191,17 +1214,19 @@ do:
       set:
         received: '${ . }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
-        // output.as: .score → 90 is propagated to next task
-        // Without the fix, next task would receive {"score": 90} (the untransformed input)
-        assert_eq!(output["received"], json!(90));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"score": 90}))
+        .await
+        .unwrap();
+    // output.as: .score → 90 is propagated to next task
+    // Without the fix, next task would receive {"score": 90} (the untransformed input)
+    assert_eq!(output["received"], json!(90));
+}
 
-    // --- Go SDK: switch_match.yaml ---
-    // Switch with then:goto + then:end on target tasks
-    #[tokio::test]
-    async fn test_e2e_switch_match_red() {
-        let yaml_str = r#"
+// --- Go SDK: switch_match.yaml ---
+// Switch with then:goto + then:end on target tasks
+#[tokio::test]
+async fn test_e2e_switch_match_red() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -1232,13 +1257,15 @@ do:
         colors: '${ .colors + [ "blue" ] }'
       then: end
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"color": "red"})).await.unwrap();
-        assert_eq!(output["colors"], json!(["red"]));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"color": "red"}))
+        .await
+        .unwrap();
+    assert_eq!(output["colors"], json!(["red"]));
+}
 
-    #[tokio::test]
-    async fn test_e2e_switch_match_green() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_e2e_switch_match_green() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -1269,15 +1296,17 @@ do:
         colors: '${ .colors + [ "blue" ] }'
       then: end
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"color": "green"})).await.unwrap();
-        assert_eq!(output["colors"], json!(["green"]));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"color": "green"}))
+        .await
+        .unwrap();
+    assert_eq!(output["colors"], json!(["green"]));
+}
 
-    // --- Go SDK: switch_with_default.yaml ---
-    // Switch with fallback case (no `when`)
-    #[tokio::test]
-    async fn test_e2e_switch_with_default() {
-        let yaml_str = r#"
+// --- Go SDK: switch_with_default.yaml ---
+// Switch with fallback case (no `when`)
+#[tokio::test]
+async fn test_e2e_switch_with_default() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -1307,18 +1336,18 @@ do:
         colors: '${ .colors + [ "default" ] }'
       then: end
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // "yellow" doesn't match red or green, so fallback is used
-        let output = runner.run(json!({"color": "yellow"})).await.unwrap();
-        assert_eq!(output["colors"], json!(["default"]));
-    }
+    // "yellow" doesn't match red or green, so fallback is used
+    let output = runner.run(json!({"color": "yellow"})).await.unwrap();
+    assert_eq!(output["colors"], json!(["default"]));
+}
 
-    // --- Java SDK: switch-then-string.yaml ---
-    // Switch with then:goto + then:exit pattern
-    #[tokio::test]
-    async fn test_e2e_switch_then_string_electronic() {
-        let yaml_str = r#"
+// --- Java SDK: switch-then-string.yaml ---
+// Switch with then:goto + then:exit pattern
+#[tokio::test]
+async fn test_e2e_switch_then_string_electronic() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1351,19 +1380,19 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"orderType": "electronic"}))
-            .await
-            .unwrap();
-        assert_eq!(output["validate"], json!(true));
-        assert_eq!(output["status"], json!("fulfilled"));
-    }
+    let output = runner
+        .run(json!({"orderType": "electronic"}))
+        .await
+        .unwrap();
+    assert_eq!(output["validate"], json!(true));
+    assert_eq!(output["status"], json!("fulfilled"));
+}
 
-    #[tokio::test]
-    async fn test_e2e_switch_then_string_physical() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_e2e_switch_then_string_physical() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1396,15 +1425,17 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"orderType": "physical"})).await.unwrap();
-        assert_eq!(output["inventory"], json!("clear"));
-        assert_eq!(output["items"], json!(1));
-        assert_eq!(output["address"], json!("Elmer St"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"orderType": "physical"}))
+        .await
+        .unwrap();
+    assert_eq!(output["inventory"], json!("clear"));
+    assert_eq!(output["items"], json!(1));
+    assert_eq!(output["address"], json!("Elmer St"));
+}
 
-    #[tokio::test]
-    async fn test_e2e_switch_then_string_unknown() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_e2e_switch_then_string_unknown() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1437,16 +1468,18 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"orderType": "digital"})).await.unwrap();
-        assert_eq!(output["log"], json!("warn"));
-        assert_eq!(output["message"], json!("something's wrong"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"orderType": "digital"}))
+        .await
+        .unwrap();
+    assert_eq!(output["log"], json!("warn"));
+    assert_eq!(output["message"], json!("something's wrong"));
+}
 
-    // --- Java SDK: switch-then-loop.yaml ---
-    // Switch creating a loop: then:inc for count<6
-    #[tokio::test]
-    async fn test_e2e_switch_then_loop() {
-        let yaml_str = r#"
+// --- Java SDK: switch-then-loop.yaml ---
+// Switch creating a loop: then:inc for count<6
+#[tokio::test]
+async fn test_e2e_switch_then_loop() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1465,7 +1498,9 @@ do:
         - default:
             then: exit
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"count": 0})).await.unwrap();
-        // Loop: count goes 0→1→2→3→4→5→6, then exit when count=6 (not <6)
-        assert_eq!(output["count"], json!(6));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"count": 0}))
+        .await
+        .unwrap();
+    // Loop: count goes 0→1→2→3→4→5→6, then exit when count=6 (not <6)
+    assert_eq!(output["count"], json!(6));
+}

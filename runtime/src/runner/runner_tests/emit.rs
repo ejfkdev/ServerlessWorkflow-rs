@@ -1,57 +1,57 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_emit_event() {
-        let output = run_workflow_from_yaml(&testdata("emit_event.yaml"), json!({}))
-            .await
-            .unwrap();
-        // Emit returns input unchanged
-        assert_eq!(output, json!({}));
-    }
-
-    // === Lifecycle CloudEvent publishing ===
-
-    #[tokio::test]
-    async fn test_runner_emit_out() {
-        let output = run_workflow_from_yaml(&testdata("emit_out.yaml"), json!({}))
-            .await
-            .unwrap();
-        // Emit without data returns input unchanged
-        assert_eq!(output, json!({}));
-    }
-
-    // === Emit: With input expression in data ===
-
-    #[tokio::test]
-    async fn test_runner_emit_doctor() {
-        let output =
-            run_workflow_from_yaml(&testdata("emit_doctor.yaml"), json!({"temperature": 38.5}))
-                .await
-                .unwrap();
-        // Emit with expression in data
-        assert_eq!(output, json!({"temperature": 38.5}));
-    }
-
-    // === Emit: With data containing expressions ===
-
-    #[tokio::test]
-    async fn test_runner_emit_data() {
-        let output = run_workflow_from_yaml(
-            &testdata("emit_data.yaml"),
-            json!({"firstName": "John", "lastName": "Doe"}),
-        )
+#[tokio::test]
+async fn test_runner_emit_event() {
+    let output = run_workflow_from_yaml(&testdata("emit_event.yaml"), json!({}))
         .await
         .unwrap();
-        // Emit returns input unchanged (event is emitted as side effect)
-        assert_eq!(output["firstName"], json!("John"));
-        assert_eq!(output["lastName"], json!("Doe"));
-    }
+    // Emit returns input unchanged
+    assert_eq!(output, json!({}));
+}
 
-    // === Try-Catch: Retry inline policy ===
+// === Lifecycle CloudEvent publishing ===
 
-    #[tokio::test]
-    async fn test_runner_emit_structured_event() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_out() {
+    let output = run_workflow_from_yaml(&testdata("emit_out.yaml"), json!({}))
+        .await
+        .unwrap();
+    // Emit without data returns input unchanged
+    assert_eq!(output, json!({}));
+}
+
+// === Emit: With input expression in data ===
+
+#[tokio::test]
+async fn test_runner_emit_doctor() {
+    let output =
+        run_workflow_from_yaml(&testdata("emit_doctor.yaml"), json!({"temperature": 38.5}))
+            .await
+            .unwrap();
+    // Emit with expression in data
+    assert_eq!(output, json!({"temperature": 38.5}));
+}
+
+// === Emit: With data containing expressions ===
+
+#[tokio::test]
+async fn test_runner_emit_data() {
+    let output = run_workflow_from_yaml(
+        &testdata("emit_data.yaml"),
+        json!({"firstName": "John", "lastName": "Doe"}),
+    )
+    .await
+    .unwrap();
+    // Emit returns input unchanged (event is emitted as side effect)
+    assert_eq!(output["firstName"], json!("John"));
+    assert_eq!(output["lastName"], json!("Doe"));
+}
+
+// === Try-Catch: Retry inline policy ===
+
+#[tokio::test]
+async fn test_runner_emit_structured_event() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -75,16 +75,16 @@ do:
       set:
         emitted: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // Emit returns input unchanged, then set adds emitted field
-        assert_eq!(output["emitted"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // Emit returns input unchanged, then set adds emitted field
+    assert_eq!(output["emitted"], json!(true));
+}
 
-    // === Switch: then goto continues at specific task ===
+// === Switch: then goto continues at specific task ===
 
-    #[tokio::test]
-    async fn test_runner_emit_with_source_and_type() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_with_source_and_type() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -103,20 +103,20 @@ do:
       set:
         emitted: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"domain": "petstore.com", "orderId": "12345"}))
-            .await
-            .unwrap();
-        assert_eq!(output["emitted"], json!(true));
-    }
+    let output = runner
+        .run(json!({"domain": "petstore.com", "orderId": "12345"}))
+        .await
+        .unwrap();
+    assert_eq!(output["emitted"], json!(true));
+}
 
-    // === Wait with ISO8601 duration in different formats ===
+// === Wait with ISO8601 duration in different formats ===
 
-    #[tokio::test]
-    async fn test_runner_emit_multiple_events() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_multiple_events() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -143,15 +143,15 @@ do:
       set:
         done: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["done"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["done"], json!(true));
+}
 
-    // === Do: then:end ends only current do level ===
+// === Do: then:end ends only current do level ===
 
-    #[tokio::test]
-    async fn test_runner_emit_with_data_expr_v2() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_with_data_expr_v2() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -167,16 +167,18 @@ do:
       set:
         emitted: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"value": 42})).await.unwrap();
-        assert_eq!(output["emitted"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"value": 42}))
+        .await
+        .unwrap();
+    assert_eq!(output["emitted"], json!(true));
+}
 
-    // === Try-catch: retry exhausted propagates error ===
+// === Try-catch: retry exhausted propagates error ===
 
-    #[tokio::test]
-    async fn test_runner_emit_doctor_data() {
-        // Matches Java SDK's emit-doctor.yaml - emit with data expression
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_doctor_data() {
+    // Matches Java SDK's emit-doctor.yaml - emit with data expression
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -192,15 +194,17 @@ do:
             data:
               temperature: '${.temperature}'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"temperature": 38.5})).await.unwrap();
-        // Emit task returns the input unchanged
-        assert_eq!(output["temperature"], json!(38.5));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"temperature": 38.5}))
+        .await
+        .unwrap();
+    // Emit task returns the input unchanged
+    assert_eq!(output["temperature"], json!(38.5));
+}
 
-    #[tokio::test]
-    async fn test_runner_emit_with_data_and_type() {
-        // Emit event with specific type and data
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_emit_with_data_and_type() {
+    // Emit event with specific type and data
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -217,9 +221,11 @@ do:
       set:
         done: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"message": "hello"})).await.unwrap();
-        // Emit doesn't change output, next task runs
-        assert_eq!(output["done"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"message": "hello"}))
+        .await
+        .unwrap();
+    // Emit doesn't change output, next task runs
+    assert_eq!(output["done"], json!(true));
+}
 
-    // === Secret missing error test ===
+// === Secret missing error test ===

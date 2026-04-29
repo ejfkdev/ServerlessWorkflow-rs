@@ -1,7 +1,7 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::status::StatusPhase;
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::task_name_impl;
 
 use serde_json::Value;
 use serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression;
@@ -142,7 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_wait_returns_input_unchanged() {
-                use serde_json::json;
+        use serde_json::json;
         use serverless_workflow_core::models::task::TaskDefinitionFields;
         use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
@@ -162,7 +162,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_wait_zero_duration() {
-                use serde_json::json;
+        use serde_json::json;
         use serverless_workflow_core::models::task::TaskDefinitionFields;
         use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
@@ -182,7 +182,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_wait_with_iso8601_string() {
-                use serde_json::json;
+        use serde_json::json;
         use serverless_workflow_core::models::task::TaskDefinitionFields;
         use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
@@ -203,7 +203,7 @@ mod tests {
     #[tokio::test]
     async fn test_wait_then_set() {
         // Matches Java SDK's wait-set.yaml - wait then set
-                use crate::tasks::DoTaskRunner;
+        use crate::tasks::DoTaskRunner;
         use serde_json::json;
         use serverless_workflow_core::models::map::Map;
         use serverless_workflow_core::models::task::{
@@ -243,7 +243,7 @@ mod tests {
     async fn test_wait_preserves_and_references_prior_values() {
         // Matches Go SDK's wait_duration_iso8601.yaml
         // set phase=started, waitExpression=PT1S → wait PT0.01S → set phase=completed, previousPhase=${ .phase }, waitExpression=${ .waitExpression }
-                use crate::tasks::DoTaskRunner;
+        use crate::tasks::DoTaskRunner;
         use serde_json::json;
         use serverless_workflow_core::models::map::Map;
         use serverless_workflow_core::models::task::{
@@ -304,7 +304,7 @@ mod tests {
         // Matches Go SDK's context cancellation pattern:
         // When the cancellation token is triggered, wait should return a timeout error
         // instead of blocking unconditionally.
-                use serde_json::json;
+        use serde_json::json;
         use serverless_workflow_core::models::task::TaskDefinitionFields;
         use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
@@ -336,7 +336,7 @@ mod tests {
     #[tokio::test]
     async fn test_wait_cancellation_during_wait() {
         // Test that cancelling while waiting returns timeout error promptly
-                use serde_json::json;
+        use serde_json::json;
         use serverless_workflow_core::models::task::TaskDefinitionFields;
         use serverless_workflow_core::models::workflow::WorkflowDefinition;
 

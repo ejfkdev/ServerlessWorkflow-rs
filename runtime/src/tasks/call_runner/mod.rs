@@ -5,9 +5,11 @@ mod digest;
 mod tests;
 
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj};
+use crate::expression::{
+    evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj,
+};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{define_simple_task_runner};
+use crate::tasks::define_simple_task_runner;
 use serde_json::Value;
 use serverless_workflow_core::models::call::CallTaskDefinition;
 use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
@@ -138,9 +140,7 @@ impl CallTaskRunner {
     ) -> WorkflowResult<Value> {
         // Extract and evaluate the endpoint URI
         let endpoint = match &http_task.with.endpoint {
-            OneOfEndpointDefinitionOrUri::Uri(uri) => {
-                support.eval_str(uri, input, &self.name)?
-            }
+            OneOfEndpointDefinitionOrUri::Uri(uri) => support.eval_str(uri, input, &self.name)?,
             OneOfEndpointDefinitionOrUri::Endpoint(def) => {
                 support.eval_str(&def.uri, input, &self.name)?
             }
@@ -174,10 +174,7 @@ impl CallTaskRunner {
         }
 
         let client = client_builder.build().map_err(|e| {
-            WorkflowError::runtime_simple(
-                format!("failed to build HTTP client: {}", e),
-                &self.name,
-            )
+            WorkflowError::runtime_simple(format!("failed to build HTTP client: {}", e), &self.name)
         })?;
 
         let mut request_builder = build_request(&client, &method, &endpoint, &self.name)?;
@@ -254,7 +251,10 @@ impl CallTaskRunner {
                     parse_digest_challenge(www_authenticate),
                     digest_info.as_ref(),
                 ) {
-                    use digest::{build_digest_auth_header, compute_digest_response, DigestAuthParams, DigestHeaderParams, rand_nonce};
+                    use digest::{
+                        build_digest_auth_header, compute_digest_response, rand_nonce,
+                        DigestAuthParams, DigestHeaderParams,
+                    };
 
                     let cnonce = format!("{:08x}", rand_nonce());
                     let nc = "00000001";
@@ -318,9 +318,10 @@ impl CallTaskRunner {
         let status = response.status();
         if status.is_client_error() || status.is_server_error() {
             let status_code = status.as_u16();
-            let body_text = response.text().await.unwrap_or_else(|e| {
-                format!("<failed to read response body: {}>", e)
-            });
+            let body_text = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<failed to read response body: {}>", e));
             return Err(WorkflowError::communication_with_status(
                 format!(
                     "HTTP request returned error status {}: {}",

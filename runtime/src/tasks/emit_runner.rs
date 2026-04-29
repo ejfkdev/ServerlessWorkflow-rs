@@ -1,8 +1,8 @@
-use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::events::CloudEvent;
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{define_simple_task_runner};
+use crate::tasks::define_simple_task_runner;
+use crate::tasks::task_name_impl;
 use serde_json::Value;
 use serverless_workflow_core::models::task::EmitTaskDefinition;
 
@@ -39,10 +39,7 @@ impl TaskRunner for EmitTaskRunner {
                 .and_then(|v| v.as_str())
                 .unwrap_or("/serverless-workflow")
                 .to_string();
-            let data = event_data
-                .get("data")
-                .cloned()
-                .unwrap_or(Value::Null);
+            let data = event_data.get("data").cloned().unwrap_or(Value::Null);
 
             let mut cloud_event = CloudEvent::new(&event_type, data);
             cloud_event = cloud_event.with_source(&source);
@@ -52,10 +49,15 @@ impl TaskRunner for EmitTaskRunner {
                 .get("id")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| format!("evt-{}", std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis()));
+                .unwrap_or_else(|| {
+                    format!(
+                        "evt-{}",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_millis()
+                    )
+                });
             cloud_event = cloud_event.with_attribute("id", Value::String(id));
 
             let time = event_data
@@ -69,13 +71,16 @@ impl TaskRunner for EmitTaskRunner {
 
             // Add optional CloudEvent attributes
             if let Some(subject) = event_data.get("subject").and_then(|v| v.as_str()) {
-                cloud_event = cloud_event.with_attribute("subject", Value::String(subject.to_string()));
+                cloud_event =
+                    cloud_event.with_attribute("subject", Value::String(subject.to_string()));
             }
             if let Some(dct) = event_data.get("datacontenttype").and_then(|v| v.as_str()) {
-                cloud_event = cloud_event.with_attribute("datacontenttype", Value::String(dct.to_string()));
+                cloud_event =
+                    cloud_event.with_attribute("datacontenttype", Value::String(dct.to_string()));
             }
             if let Some(ds) = event_data.get("dataschema").and_then(|v| v.as_str()) {
-                cloud_event = cloud_event.with_attribute("dataschema", Value::String(ds.to_string()));
+                cloud_event =
+                    cloud_event.with_attribute("dataschema", Value::String(ds.to_string()));
             }
 
             event_bus.publish(cloud_event).await;

@@ -1,7 +1,7 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{DoTaskRunner};
+use crate::tasks::task_name_impl;
+use crate::tasks::DoTaskRunner;
 use serde_json::Value;
 use serverless_workflow_core::models::retry::{
     JitterDefinition, OneOfRetryPolicyDefinitionOrReference, RetryAttemptLimitDefinition,
@@ -53,7 +53,12 @@ impl TaskRunner for TryTaskRunner {
                 let error_value = error.to_value();
 
                 // Check when/exceptWhen conditions
-                if !evaluates_when_allowed(support, self.catch.when.as_deref(), self.catch.except_when.as_deref(), &error_value) {
+                if !evaluates_when_allowed(
+                    support,
+                    self.catch.when.as_deref(),
+                    self.catch.except_when.as_deref(),
+                    &error_value,
+                ) {
                     return Err(error);
                 }
 
@@ -131,10 +136,18 @@ impl TryTaskRunner {
             filter.map_or(true, |f| actual == Some(f))
         }
 
-        if !matches_opt_value(props.status.as_ref(), error.status()) { return false; }
-        if !matches_opt_str(props.title.as_ref(), error.title()) { return false; }
-        if !matches_opt_str(props.detail.as_ref(), error.detail()) { return false; }
-        if !matches_opt_str(props.instance.as_ref(), error.instance()) { return false; }
+        if !matches_opt_value(props.status.as_ref(), error.status()) {
+            return false;
+        }
+        if !matches_opt_str(props.title.as_ref(), error.title()) {
+            return false;
+        }
+        if !matches_opt_str(props.detail.as_ref(), error.detail()) {
+            return false;
+        }
+        if !matches_opt_str(props.instance.as_ref(), error.instance()) {
+            return false;
+        }
 
         true
     }
@@ -213,7 +226,12 @@ impl TryTaskRunner {
                     // Check retry policy's when/except_when conditions against error context
                     let error_value = e.to_value();
 
-                    if !evaluates_when_allowed(support, policy.when.as_deref(), policy.except_when.as_deref(), &error_value) {
+                    if !evaluates_when_allowed(
+                        support,
+                        policy.when.as_deref(),
+                        policy.except_when.as_deref(),
+                        &error_value,
+                    ) {
                         return Err(e);
                     }
 
@@ -314,7 +332,9 @@ fn evaluates_when_allowed(
         }
     }
     if let Some(except_when_expr) = except_when {
-        let should_except = support.eval_bool(except_when_expr, error_value).unwrap_or(false);
+        let should_except = support
+            .eval_bool(except_when_expr, error_value)
+            .unwrap_or(false);
         if should_except {
             return false;
         }
@@ -543,7 +563,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1063,7 +1085,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1107,7 +1131,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1147,7 +1173,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1204,7 +1232,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1255,7 +1285,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1304,7 +1336,9 @@ mod tests {
             when: None,
             except_when: None,
             as_: None,
-            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+                retry,
+            ))),
             do_: None,
         };
 
@@ -1335,7 +1369,11 @@ mod tests {
         };
         let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
         // delay should be 100 + [10, 50] = [110, 150]
-        assert!(delay >= 110 && delay <= 150, "delay {} should be in [110, 150]", delay);
+        assert!(
+            delay >= 110 && delay <= 150,
+            "delay {} should be in [110, 150]",
+            delay
+        );
     }
 
     #[test]

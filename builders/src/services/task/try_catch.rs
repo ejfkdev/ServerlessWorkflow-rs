@@ -72,9 +72,9 @@ impl<'a> ErrorCatcherDefinitionBuilder<'a> {
     {
         let mut builder = RetryPolicyDefinitionBuilder::new();
         setup(&mut builder);
-        self.parent.catch.retry = Some(OneOfRetryPolicyDefinitionOrReference::Retry(
-            Box::new(builder.build()),
-        ));
+        self.parent.catch.retry = Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(
+            builder.build(),
+        )));
         self
     }
 

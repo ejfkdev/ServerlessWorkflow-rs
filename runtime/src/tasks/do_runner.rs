@@ -1,8 +1,8 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::listener::WorkflowEvent;
 use crate::status::StatusPhase;
 use crate::task_runner::{create_task_runner, TaskRunner, TaskSupport};
+use crate::tasks::task_name_impl;
 
 use serde_json::Value;
 use serverless_workflow_core::models::map::Map;
@@ -107,7 +107,8 @@ impl DoTaskRunner {
                 support.set_task_status(name, StatusPhase::Running);
 
                 // Process input for switch
-                let task_input = support.process_task_input(common.input.as_ref(), &output, name)?;
+                let task_input =
+                    support.process_task_input(common.input.as_ref(), &output, name)?;
 
                 // Evaluate switch conditions
                 let then_str = self
@@ -207,7 +208,8 @@ impl DoTaskRunner {
                     }
                 }
                 Some(when_expr) => {
-                    let result = support.eval_bool(when_expr, input)
+                    let result = support
+                        .eval_bool(when_expr, input)
                         .map_err(|e| WorkflowError::expression(format!("{}", e), task_name))?;
                     if result {
                         return case_def.then.clone().ok_or_else(|| {

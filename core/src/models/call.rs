@@ -61,6 +61,7 @@ string_constants! {
 /// Represents a value that can be any of the supported call task definitions
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum CallTaskDefinition {
     /// Variant holding the definition of an AsyncAPI call
     AsyncAPI(CallAsyncAPIDefinition),

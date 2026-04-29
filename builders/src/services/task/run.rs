@@ -27,7 +27,10 @@ macro_rules! process_variant_method {
             self.builder = Some(ProcessDefinitionBuilder::$variant(Box::default()));
             match &mut self.builder {
                 Some(ProcessDefinitionBuilder::$variant(ref mut builder)) => builder,
-                _ => unreachable!(concat!("Builder should always be set to ", stringify!($variant))),
+                _ => unreachable!(concat!(
+                    "Builder should always be set to ",
+                    stringify!($variant)
+                )),
             }
         }
     };

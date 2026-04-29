@@ -100,7 +100,10 @@ impl<'de> de::Deserialize<'de> for Duration {
 macro_rules! from_unit {
     ($name:ident, $field:ident) => {
         pub fn $name(v: u64) -> Self {
-            Self { $field: Some(v), ..Self::default() }
+            Self {
+                $field: Some(v),
+                ..Self::default()
+            }
         }
     };
 }

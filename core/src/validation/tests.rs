@@ -3,8 +3,8 @@ use crate::models::authentication::*;
 use crate::models::call::*;
 use crate::models::duration::{Duration, OneOfDurationOrIso8601Expression};
 use crate::models::map::Map;
-use crate::models::retry::*;
 use crate::models::resource::ExternalResourceDefinition;
+use crate::models::retry::*;
 use crate::models::schema::SchemaDefinition;
 use crate::models::task::*;
 use crate::models::workflow::*;
@@ -1464,8 +1464,8 @@ fn test_validate_grpc_host_hostname() {
     ));
     workflow.do_.add(
         "callGRPC".to_string(),
-        TaskDefinition::Call(Box::new(CallTaskDefinition::GRPC(
-            Box::new(crate::models::call::CallGRPCDefinition {
+        TaskDefinition::Call(Box::new(CallTaskDefinition::GRPC(Box::new(
+            crate::models::call::CallGRPCDefinition {
                 call: "grpc".to_string(),
                 with: crate::models::call::GRPCArguments {
                     proto: ExternalResourceDefinition {
@@ -1485,7 +1485,9 @@ fn test_validate_grpc_host_hostname() {
                     authentication: None,
                 },
                 common: TaskDefinitionFields::new(),
-            })))));
+            },
+        )))),
+    );
     let result = validate_workflow(&workflow);
     assert!(!result.is_valid(), "invalid GRPC host should fail");
     assert!(result
@@ -1737,8 +1739,8 @@ fn test_validate_grpc_host_required() {
     ));
     workflow.do_.add(
         "callGRPC".to_string(),
-        TaskDefinition::Call(Box::new(CallTaskDefinition::GRPC(
-            Box::new(crate::models::call::CallGRPCDefinition {
+        TaskDefinition::Call(Box::new(CallTaskDefinition::GRPC(Box::new(
+            crate::models::call::CallGRPCDefinition {
                 call: "grpc".to_string(),
                 with: crate::models::call::GRPCArguments {
                     proto: ExternalResourceDefinition {
@@ -1758,7 +1760,9 @@ fn test_validate_grpc_host_required() {
                     authentication: None,
                 },
                 common: TaskDefinitionFields::new(),
-            })))));
+            },
+        )))),
+    );
     let result = validate_workflow(&workflow);
     assert!(!result.is_valid(), "empty GRPC host should fail");
     assert!(result

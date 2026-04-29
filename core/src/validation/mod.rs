@@ -12,22 +12,22 @@ mod tests;
 
 // Re-export all pub items from sub-modules
 pub use authentication::{
-    validate_basic_auth, validate_bearer_auth, validate_digest_auth, validate_oauth2_auth,
-    validate_oidc_auth, validate_auth_policy,
+    validate_auth_policy, validate_basic_auth, validate_bearer_auth, validate_digest_auth,
+    validate_oauth2_auth, validate_oidc_auth,
 };
 pub use document::validate_workflow;
 pub use enum_validators::{
-    validate_asyncapi_protocol, validate_http_output, validate_pull_policy,
-    validate_container_cleanup, validate_script_language, validate_oauth2_client_auth_method,
-    validate_oauth2_request_encoding, validate_oauth2_grant_type, validate_extension_task_type,
-    validate_http_method, validate_container_lifetime,
+    validate_asyncapi_protocol, validate_container_cleanup, validate_container_lifetime,
+    validate_extension_task_type, validate_http_method, validate_http_output,
+    validate_oauth2_client_auth_method, validate_oauth2_grant_type,
+    validate_oauth2_request_encoding, validate_pull_policy, validate_script_language,
 };
 pub use one_of_validators::{
-    validate_auth_policy_one_of, validate_schedule_one_of, validate_process_type_one_of,
-    validate_backoff_one_of, validate_schema_one_of,
+    validate_auth_policy_one_of, validate_backoff_one_of, validate_process_type_one_of,
+    validate_schedule_one_of, validate_schema_one_of,
 };
 pub use task::{
-    validate_task_map, validate_set_task, validate_workflow_process, validate_switch_task,
+    validate_set_task, validate_switch_task, validate_task_map, validate_workflow_process,
 };
 
 /// Represents a validation error
@@ -136,9 +136,17 @@ pub fn is_valid_hostname(hostname: &str) -> bool {
 /// Adds a Required error if empty, or a Hostname error if invalid format.
 pub fn validate_required_hostname(value: &str, field: &str, result: &mut ValidationResult) {
     if value.is_empty() {
-        result.add_error(field, ValidationRule::Required, &format!("{} is required", field));
+        result.add_error(
+            field,
+            ValidationRule::Required,
+            &format!("{} is required", field),
+        );
     } else if !is_valid_hostname(value) {
-        result.add_error(field, ValidationRule::Hostname, &format!("{} must be a valid RFC 1123 hostname", field));
+        result.add_error(
+            field,
+            ValidationRule::Hostname,
+            &format!("{} must be a valid RFC 1123 hostname", field),
+        );
     }
 }
 
@@ -146,9 +154,17 @@ pub fn validate_required_hostname(value: &str, field: &str, result: &mut Validat
 /// Adds a Required error if empty, or a Semver error if invalid format.
 pub fn validate_required_semver(value: &str, field: &str, result: &mut ValidationResult) {
     if value.is_empty() {
-        result.add_error(field, ValidationRule::Required, &format!("{} is required", field));
+        result.add_error(
+            field,
+            ValidationRule::Required,
+            &format!("{} is required", field),
+        );
     } else if !is_valid_semver(value) {
-        result.add_error(field, ValidationRule::Semver, &format!("{} must be a valid semantic version", field));
+        result.add_error(
+            field,
+            ValidationRule::Semver,
+            &format!("{} must be a valid semantic version", field),
+        );
     }
 }
 

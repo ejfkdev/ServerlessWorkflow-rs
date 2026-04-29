@@ -56,10 +56,7 @@ pub enum WorkflowEvent {
         task_name: String,
     },
     /// Workflow status changed
-    WorkflowStatusChanged {
-        instance_id: String,
-        status: String,
-    },
+    WorkflowStatusChanged { instance_id: String, status: String },
 }
 
 impl WorkflowEvent {
@@ -282,7 +279,10 @@ impl CollectingListener {
 
     /// Returns all collected events
     pub fn events(&self) -> Vec<WorkflowEvent> {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Returns the number of collected events
@@ -297,7 +297,10 @@ impl CollectingListener {
 
     /// Clears all collected events
     pub fn clear(&self) {
-        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
     }
 }
 

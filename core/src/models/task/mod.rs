@@ -31,8 +31,8 @@ pub use crate::models::call::CallTaskDefinition;
 // Re-export all public types from sub-modules
 pub use constants::{
     ContainerCleanupPolicy, EventReadMode, ExtensionTarget, FlowDirective, HttpMethod,
-    HttpOutputFormat, OAuth2GrantType, ProcessReturnType, ProcessType, PullPolicy,
-    ScriptLanguage, TaskType,
+    HttpOutputFormat, OAuth2GrantType, ProcessReturnType, ProcessType, PullPolicy, ScriptLanguage,
+    TaskType,
 };
 pub use custom_task::CustomTaskDefinition;
 pub use do_task::DoTaskDefinition;
@@ -40,7 +40,7 @@ pub use emit_task::{EmitTaskDefinition, EventEmissionDefinition};
 pub use flow_directive::{FlowDirectiveType, FlowDirectiveValue};
 pub use for_task::{ForLoopDefinition, ForTaskDefinition};
 pub use fork_task::{BranchingDefinition, ForkTaskDefinition};
-pub use listen_task::{ListenerDefinition, ListenTaskDefinition, SubscriptionIteratorDefinition};
+pub use listen_task::{ListenTaskDefinition, ListenerDefinition, SubscriptionIteratorDefinition};
 pub use raise_task::{RaiseErrorDefinition, RaiseTaskDefinition};
 pub use run_task::{
     ContainerLifetimeDefinition, ContainerProcessDefinition, OneOfRunArguments,

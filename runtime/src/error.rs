@@ -94,10 +94,18 @@ impl ErrorKind {
             ErrorKind::Expression => "https://serverlessworkflow.io/spec/1.0.0/errors/expression",
             ErrorKind::Runtime => "https://serverlessworkflow.io/spec/1.0.0/errors/runtime",
             ErrorKind::Timeout => "https://serverlessworkflow.io/spec/1.0.0/errors/timeout",
-            ErrorKind::Communication => "https://serverlessworkflow.io/spec/1.0.0/errors/communication",
-            ErrorKind::Authentication => "https://serverlessworkflow.io/spec/1.0.0/errors/authentication",
-            ErrorKind::Authorization => "https://serverlessworkflow.io/spec/1.0.0/errors/authorization",
-            ErrorKind::Configuration => "https://serverlessworkflow.io/spec/1.0.0/errors/configuration",
+            ErrorKind::Communication => {
+                "https://serverlessworkflow.io/spec/1.0.0/errors/communication"
+            }
+            ErrorKind::Authentication => {
+                "https://serverlessworkflow.io/spec/1.0.0/errors/authentication"
+            }
+            ErrorKind::Authorization => {
+                "https://serverlessworkflow.io/spec/1.0.0/errors/authorization"
+            }
+            ErrorKind::Configuration => {
+                "https://serverlessworkflow.io/spec/1.0.0/errors/configuration"
+            }
         }
     }
 
@@ -119,7 +127,10 @@ impl ErrorKind {
             .find(|(suffix, _)| {
                 error_type.ends_with(suffix)
                     && (error_type.len() == suffix.len()
-                        || error_type.as_bytes().get(error_type.len() - suffix.len() - 1) == Some(&b'/'))
+                        || error_type
+                            .as_bytes()
+                            .get(error_type.len() - suffix.len() - 1)
+                            == Some(&b'/'))
             })
             .map(|(_, kind)| *kind)
             .unwrap_or(ErrorKind::Runtime)
@@ -160,12 +171,18 @@ impl WorkflowError {
 
     /// Creates a validation error
     pub fn validation(message: impl Into<String>, task: impl Into<String>) -> Self {
-        Self { kind: ErrorKind::Validation, fields: ErrorFields::new(message, task, "") }
+        Self {
+            kind: ErrorKind::Validation,
+            fields: ErrorFields::new(message, task, ""),
+        }
     }
 
     /// Creates an expression error
     pub fn expression(message: impl Into<String>, task: impl Into<String>) -> Self {
-        Self { kind: ErrorKind::Expression, fields: ErrorFields::new(message, task, "") }
+        Self {
+            kind: ErrorKind::Expression,
+            fields: ErrorFields::new(message, task, ""),
+        }
     }
 
     /// Creates a runtime error
@@ -174,7 +191,10 @@ impl WorkflowError {
         task: impl Into<String>,
         instance: impl Into<String>,
     ) -> Self {
-        Self { kind: ErrorKind::Runtime, fields: ErrorFields::new(message, task, instance) }
+        Self {
+            kind: ErrorKind::Runtime,
+            fields: ErrorFields::new(message, task, instance),
+        }
     }
 
     /// Creates a runtime error without an instance (defaults to empty string)
@@ -193,7 +213,10 @@ impl WorkflowError {
 
     /// Creates a communication error
     pub fn communication(message: impl Into<String>, task: impl Into<String>) -> Self {
-        Self { kind: ErrorKind::Communication, fields: ErrorFields::new(message, task, "") }
+        Self {
+            kind: ErrorKind::Communication,
+            fields: ErrorFields::new(message, task, ""),
+        }
     }
 
     /// Creates a communication error with an HTTP status code

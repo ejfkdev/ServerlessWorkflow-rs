@@ -40,9 +40,10 @@ fn create_workflow() {
     )]));
     let mut workflow = WorkflowDefinition::new(document);
     workflow.do_ = Map::new();
-    workflow
-        .do_
-        .add("callTask".to_string(), TaskDefinition::Call(Box::new(call_task)));
+    workflow.do_.add(
+        "callTask".to_string(),
+        TaskDefinition::Call(Box::new(call_task)),
+    );
     workflow
         .do_
         .add("doTask".to_string(), TaskDefinition::Do(do_task));

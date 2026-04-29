@@ -21,8 +21,7 @@ fn eval_optional_expr(
     vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<String> {
-    expr
-        .map(|e| evaluate_expression_str(e, input, vars, task_name))
+    expr.map(|e| evaluate_expression_str(e, input, vars, task_name))
         .transpose()
         .map(|o| o.unwrap_or_default())
 }
@@ -36,8 +35,7 @@ fn eval_required_expr(
     vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<String> {
-    expr
-        .map(|e| evaluate_expression_str(e, input, vars, task_name))
+    expr.map(|e| evaluate_expression_str(e, input, vars, task_name))
         .transpose()?
         .ok_or_else(|| {
             WorkflowError::validation(
@@ -54,13 +52,18 @@ fn resolve_auth_policy<'a>(
     policy: &'a ReferenceableAuthenticationPolicy,
     auth_definitions: Option<&'a AuthDefs>,
     task_name: &str,
-) -> WorkflowResult<&'a serverless_workflow_core::models::authentication::AuthenticationPolicyDefinition> {
+) -> WorkflowResult<
+    &'a serverless_workflow_core::models::authentication::AuthenticationPolicyDefinition,
+> {
     match policy {
         ReferenceableAuthenticationPolicy::Policy(def) => Ok(def),
         ReferenceableAuthenticationPolicy::Reference(ref_ref) => {
             let defs = auth_definitions.ok_or_else(|| {
                 WorkflowError::validation(
-                    format!("authentication reference '{}' but no use.authentications defined", ref_ref.use_),
+                    format!(
+                        "authentication reference '{}' but no use.authentications defined",
+                        ref_ref.use_
+                    ),
                     task_name,
                 )
             })?;
@@ -68,16 +71,20 @@ fn resolve_auth_policy<'a>(
                 Some(ReferenceableAuthenticationPolicy::Policy(def)) => Ok(def),
                 Some(ReferenceableAuthenticationPolicy::Reference(nested)) => {
                     Err(WorkflowError::validation(
-                        format!("nested authentication reference '{}' is not supported", nested.use_),
+                        format!(
+                            "nested authentication reference '{}' is not supported",
+                            nested.use_
+                        ),
                         task_name,
                     ))
                 }
-                None => {
-                    Err(WorkflowError::validation(
-                        format!("authentication reference '{}' not found in use.authentications", ref_ref.use_),
-                        task_name,
-                    ))
-                }
+                None => Err(WorkflowError::validation(
+                    format!(
+                        "authentication reference '{}' not found in use.authentications",
+                        ref_ref.use_
+                    ),
+                    task_name,
+                )),
             }
         }
     }
@@ -338,9 +345,10 @@ async fn fetch_access_token(params: TokenRequestParams, task_name: &str) -> Work
 
     let status = response.status();
     if !status.is_success() {
-        let body_text = response.text().await.unwrap_or_else(|e| {
-            format!("<failed to read response body: {}>", e)
-        });
+        let body_text = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<failed to read response body: {}>", e));
         return Err(WorkflowError::communication(
             format!(
                 "{} token endpoint returned status {}: {}",
@@ -586,7 +594,12 @@ async fn fetch_oauth2_token(
 ) -> WorkflowResult<String> {
     // Build the token endpoint URL from authority + endpoints.token path
     let authority = eval_required_expr(
-        oauth2.authority.as_deref(), "authority", "OAuth2", input, vars, task_name,
+        oauth2.authority.as_deref(),
+        "authority",
+        "OAuth2",
+        input,
+        vars,
+        task_name,
     )?;
     let token_path = oauth2
         .endpoints
@@ -595,7 +608,16 @@ async fn fetch_oauth2_token(
         .unwrap_or("/oauth2/token");
     let token_url = format!("{}{}", authority.trim_end_matches('/'), token_path);
 
-    fetch_token(token_url, OAuthTokenFields::from_oauth2(oauth2), "OAuth2", true, input, vars, task_name).await
+    fetch_token(
+        token_url,
+        OAuthTokenFields::from_oauth2(oauth2),
+        "OAuth2",
+        true,
+        input,
+        vars,
+        task_name,
+    )
+    .await
 }
 
 /// Fetches an OIDC access token — same as OAuth2 but OIDC's authority IS the token endpoint URL
@@ -607,8 +629,22 @@ async fn fetch_oidc_token(
 ) -> WorkflowResult<String> {
     // For OIDC, the authority is the full token endpoint URL
     let token_url = eval_required_expr(
-        oidc.authority.as_deref(), "authority", "OIDC", input, vars, task_name,
+        oidc.authority.as_deref(),
+        "authority",
+        "OIDC",
+        input,
+        vars,
+        task_name,
     )?;
 
-    fetch_token(token_url, OAuthTokenFields::from_oidc(oidc), "OIDC", false, input, vars, task_name).await
+    fetch_token(
+        token_url,
+        OAuthTokenFields::from_oidc(oidc),
+        "OIDC",
+        false,
+        input,
+        vars,
+        task_name,
+    )
+    .await
 }

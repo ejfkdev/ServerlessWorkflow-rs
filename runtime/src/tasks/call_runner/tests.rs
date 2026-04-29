@@ -41,8 +41,7 @@ fn test_call_runner_function_not_found() {
         with: None,
         common: TaskDefinitionFields::default(),
     };
-    let runner =
-        CallTaskRunner::new("funcCall", &CallTaskDefinition::Function(func_task)).unwrap();
+    let runner = CallTaskRunner::new("funcCall", &CallTaskDefinition::Function(func_task)).unwrap();
 
     let workflow = WorkflowDefinition::default();
     let mut context = WorkflowContext::new(&workflow).unwrap();
@@ -249,7 +248,10 @@ async fn test_apply_authentication_sets_authorization_basic() {
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Basic");
     // Parameter is Base64-encoded credentials (matches Java SDK behavior)
-    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("admin:secret123"));
+    assert_eq!(
+        parameter,
+        base64::engine::general_purpose::STANDARD.encode("admin:secret123")
+    );
 }
 
 #[tokio::test]
@@ -292,12 +294,9 @@ async fn test_apply_authentication_sets_authorization_bearer() {
 
 #[tokio::test]
 async fn test_apply_authentication_no_auth_returns_none() {
-    use serverless_workflow_core::models::authentication::{
-        ReferenceableAuthenticationPolicy,
-    };
+    use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
 
-    let policy =
-        ReferenceableAuthenticationPolicy::Policy(Box::default());
+    let policy = ReferenceableAuthenticationPolicy::Policy(Box::default());
 
     let client = reqwest::Client::new();
     let builder = client.get("https://example.com/api");
@@ -357,7 +356,10 @@ async fn test_apply_authentication_basic_with_secret() {
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Basic");
     // Parameter is Base64-encoded credentials, not plaintext
-    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("admin:s3cret"));
+    assert_eq!(
+        parameter,
+        base64::engine::general_purpose::STANDARD.encode("admin:s3cret")
+    );
 }
 
 #[tokio::test]
@@ -471,5 +473,8 @@ async fn test_apply_authentication_digest_with_secret() {
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Digest");
     // Parameter is Base64-encoded credentials, not plaintext
-    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("digestuser:digestpass"));
+    assert_eq!(
+        parameter,
+        base64::engine::general_purpose::STANDARD.encode("digestuser:digestpass")
+    );
 }

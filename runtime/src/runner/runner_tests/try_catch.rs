@@ -1,153 +1,152 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_try_catch_match_status() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_match_status.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_match_status() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_match_status.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === Try-Catch: match by details ===
+// === Try-Catch: match by details ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_match_details() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_match_details.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_match_details() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_match_details.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === Try-Catch: error variable (catch.as) ===
+// === Try-Catch: error variable (catch.as) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_variable() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_error_variable.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["errorMessage"], json!("Javierito was here!"));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_error_variable() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_error_variable.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["errorMessage"], json!("Javierito was here!"));
+}
 
-    // === Try-Catch: match by when condition ===
+// === Try-Catch: match by when condition ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_match_when() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_match_when.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_match_when() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_match_when.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === Try-Catch: not match by status ===
+// === Try-Catch: not match by status ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_not_match_status() {
-        let result =
-            run_workflow_from_yaml(&testdata("try_catch_not_match_status.yaml"), json!({})).await;
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_try_catch_not_match_status() {
+    let result =
+        run_workflow_from_yaml(&testdata("try_catch_not_match_status.yaml"), json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Try-Catch: not match by details ===
+// === Try-Catch: not match by details ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_not_match_details() {
-        let result =
-            run_workflow_from_yaml(&testdata("try_catch_not_match_details.yaml"), json!({})).await;
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_try_catch_not_match_details() {
+    let result =
+        run_workflow_from_yaml(&testdata("try_catch_not_match_details.yaml"), json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Try-Catch: not match by when condition ===
+// === Try-Catch: not match by when condition ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_not_match_when() {
-        let result =
-            run_workflow_from_yaml(&testdata("try_catch_not_match_when.yaml"), json!({})).await;
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_try_catch_not_match_when() {
+    let result =
+        run_workflow_from_yaml(&testdata("try_catch_not_match_when.yaml"), json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === For Loop: collect with input.from ===
+// === For Loop: collect with input.from ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_inline() {
-        let result =
-            run_workflow_from_yaml(&testdata("try_catch_retry_inline.yaml"), json!({})).await;
-        // Retry exhausts all attempts, error propagates
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_try_catch_retry_inline() {
+    let result = run_workflow_from_yaml(&testdata("try_catch_retry_inline.yaml"), json!({})).await;
+    // Retry exhausts all attempts, error propagates
+    assert!(result.is_err());
+}
 
-    // === $task expression variable ===
+// === $task expression variable ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_success() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_retry_success.yaml"), json!({}))
-            .await
-            .unwrap();
-        // Try task succeeds on first attempt, retry not triggered
-        assert_eq!(output["result"], json!("success"));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_retry_success() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_retry_success.yaml"), json!({}))
+        .await
+        .unwrap();
+    // Try task succeeds on first attempt, retry not triggered
+    assert_eq!(output["result"], json!("success"));
+}
 
-    // === Try-Catch: Retry reusable reference ===
+// === Try-Catch: Retry reusable reference ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_reusable() {
-        let result =
-            run_workflow_from_yaml(&testdata("try_catch_retry_reusable.yaml"), json!({})).await;
-        // Retry exhausts all attempts, error propagates
-        assert!(result.is_err());
-    }
+#[tokio::test]
+async fn test_runner_try_catch_retry_reusable() {
+    let result =
+        run_workflow_from_yaml(&testdata("try_catch_retry_reusable.yaml"), json!({})).await;
+    // Retry exhausts all attempts, error propagates
+    assert!(result.is_err());
+}
 
-    // === Secret Expression ($secret variable) ===
+// === Secret Expression ($secret variable) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_compensate() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_compensate.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["compensated"], json!(true));
-        assert_eq!(output["originalTask"], json!("failTask"));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_compensate() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_compensate.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["compensated"], json!(true));
+    assert_eq!(output["originalTask"], json!("failTask"));
+}
 
-    // === Try-Catch: exceptWhen skips catch ===
+// === Try-Catch: exceptWhen skips catch ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_except_when_skips() {
-        // exceptWhen evaluates against error context
-        // .details == "Expected error" != "Skip this error" -> should NOT skip -> catch applies
-        let output = run_workflow_from_yaml(&testdata("try_catch_except_when.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["handled"], json!(true));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_except_when_skips() {
+    // exceptWhen evaluates against error context
+    // .details == "Expected error" != "Skip this error" -> should NOT skip -> catch applies
+    let output = run_workflow_from_yaml(&testdata("try_catch_except_when.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["handled"], json!(true));
+}
 
-    // === Nested Do Tasks ===
+// === Nested Do Tasks ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_inline_exponential() {
-        use std::sync::atomic::{AtomicU32, Ordering};
-        use std::sync::Arc;
-        use warp::Reply;
+#[tokio::test]
+async fn test_runner_try_catch_retry_inline_exponential() {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+    use warp::Reply;
 
-        let attempt_count = Arc::new(AtomicU32::new(0));
-        let attempt_clone = attempt_count.clone();
+    let attempt_count = Arc::new(AtomicU32::new(0));
+    let attempt_clone = attempt_count.clone();
 
-        // Endpoint that fails twice then succeeds
-        let endpoint = warp::path::end().and(warp::get()).map(move || {
-            let count = attempt_clone.fetch_add(1, Ordering::SeqCst);
-            if count < 2 {
-                warp::reply::with_status(
-                    warp::reply::json(&serde_json::json!({"error": "not found"})),
-                    warp::http::StatusCode::NOT_FOUND,
-                )
-                .into_response()
-            } else {
-                warp::reply::json(&serde_json::json!({"status": "ok"})).into_response()
-            }
-        });
+    // Endpoint that fails twice then succeeds
+    let endpoint = warp::path::end().and(warp::get()).map(move || {
+        let count = attempt_clone.fetch_add(1, Ordering::SeqCst);
+        if count < 2 {
+            warp::reply::with_status(
+                warp::reply::json(&serde_json::json!({"error": "not found"})),
+                warp::http::StatusCode::NOT_FOUND,
+            )
+            .into_response()
+        } else {
+            warp::reply::json(&serde_json::json!({"status": "ok"})).into_response()
+        }
+    });
 
-        let port = start_mock_server(endpoint);
+    let port = start_mock_server(endpoint);
 
-        let yaml = format!(
-            r#"
+    let yaml = format!(
+        r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -173,49 +172,49 @@ do:
             attempt:
               count: 5
 "#
-        );
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+    );
+    let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml).unwrap();
+    let runner = WorkflowRunner::new(workflow).unwrap();
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["status"], json!("ok"));
-        // Should have 3 attempts: 2 failures + 1 success
-        let attempts = attempt_count.load(Ordering::SeqCst);
-        assert!(
-            attempts >= 3,
-            "Expected at least 3 attempts, got {}",
-            attempts
-        );
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["status"], json!("ok"));
+    // Should have 3 attempts: 2 failures + 1 success
+    let attempts = attempt_count.load(Ordering::SeqCst);
+    assert!(
+        attempts >= 3,
+        "Expected at least 3 attempts, got {}",
+        attempts
+    );
+}
 
-    // === Try-Catch-Retry: reusable constant backoff ===
+// === Try-Catch-Retry: reusable constant backoff ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_reusable_constant() {
-        use std::sync::atomic::{AtomicU32, Ordering};
-        use std::sync::Arc;
-        use warp::Reply;
+#[tokio::test]
+async fn test_runner_try_catch_retry_reusable_constant() {
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+    use warp::Reply;
 
-        let attempt_count = Arc::new(AtomicU32::new(0));
-        let attempt_clone = attempt_count.clone();
+    let attempt_count = Arc::new(AtomicU32::new(0));
+    let attempt_clone = attempt_count.clone();
 
-        let endpoint = warp::path::end().and(warp::get()).map(move || {
-            let count = attempt_clone.fetch_add(1, Ordering::SeqCst);
-            if count < 1 {
-                warp::reply::with_status(
-                    warp::reply::json(&serde_json::json!({"error": "not found"})),
-                    warp::http::StatusCode::NOT_FOUND,
-                )
-                .into_response()
-            } else {
-                warp::reply::json(&serde_json::json!({"result": "success"})).into_response()
-            }
-        });
+    let endpoint = warp::path::end().and(warp::get()).map(move || {
+        let count = attempt_clone.fetch_add(1, Ordering::SeqCst);
+        if count < 1 {
+            warp::reply::with_status(
+                warp::reply::json(&serde_json::json!({"error": "not found"})),
+                warp::http::StatusCode::NOT_FOUND,
+            )
+            .into_response()
+        } else {
+            warp::reply::json(&serde_json::json!({"result": "success"})).into_response()
+        }
+    });
 
-        let port = start_mock_server(endpoint);
+    let port = start_mock_server(endpoint);
 
-        let yaml = format!(
-            r#"
+    let yaml = format!(
+        r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -245,45 +244,45 @@ do:
             type: https://serverlessworkflow.io/spec/1.0.0/errors/communication
         retry: default
 "#
-        );
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+    );
+    let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml).unwrap();
+    let runner = WorkflowRunner::new(workflow).unwrap();
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["result"], json!("success"));
-        let attempts = attempt_count.load(Ordering::SeqCst);
-        assert!(
-            attempts >= 2,
-            "Expected at least 2 attempts, got {}",
-            attempts
-        );
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["result"], json!("success"));
+    let attempts = attempt_count.load(Ordering::SeqCst);
+    assert!(
+        attempts >= 2,
+        "Expected at least 2 attempts, got {}",
+        attempts
+    );
+}
 
-    // === Sub-workflow: output.as + export.as pattern (Java SDK) ===
+// === Sub-workflow: output.as + export.as pattern (Java SDK) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_communication_error() {
+#[tokio::test]
+async fn test_runner_try_catch_communication_error() {
+    // Server that returns 404 for any path
+    let not_found = warp::any()
+        .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
 
-        // Server that returns 404 for any path
-        let not_found = warp::any()
-            .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
+    let output =
+        run_workflow_with_mock_server("try_catch_communication_error.yaml", not_found, json!({}))
+            .await;
+    assert_eq!(output["recovered"], json!(true));
+}
 
-        let output = run_workflow_with_mock_server("try_catch_communication_error.yaml", not_found, json!({})).await;
-        assert_eq!(output["recovered"], json!(true));
-    }
+// === For Loop: custom at variable ===
 
-    // === For Loop: custom at variable ===
+#[tokio::test]
+async fn test_runner_try_catch_by_status() {
+    let not_found = warp::path("api")
+        .and(warp::path("items"))
+        .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
 
-    #[tokio::test]
-    async fn test_runner_try_catch_by_status() {
+    let port = start_mock_server(not_found);
 
-        let not_found = warp::path("api")
-            .and(warp::path("items"))
-            .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
-
-        let port = start_mock_server(not_found);
-
-        let yaml_str = r#"
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -308,27 +307,27 @@ do:
               set:
                 handled: true
 "#
-        .replace("PORT", &port.to_string());
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["handled"], json!(true));
-    }
+    .replace("PORT", &port.to_string());
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["handled"], json!(true));
+}
 
-    // === HTTP Call: 404 returns input unchanged (non-error mode) ===
+// === HTTP Call: 404 returns input unchanged (non-error mode) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_var_type() {
-        let output = run_workflow_from_yaml(&testdata("try_catch_error_variable.yaml"), json!({}))
-            .await
-            .unwrap();
-        // catch.as stores the error as a variable accessible in catch.do
-        assert_eq!(output["errorMessage"], json!("Javierito was here!"));
-    }
+#[tokio::test]
+async fn test_runner_try_catch_error_var_type() {
+    let output = run_workflow_from_yaml(&testdata("try_catch_error_variable.yaml"), json!({}))
+        .await
+        .unwrap();
+    // catch.as stores the error as a variable accessible in catch.do
+    assert_eq!(output["errorMessage"], json!("Javierito was here!"));
+}
 
-    // === Workflow input transformation with from ===
+// === Workflow input transformation with from ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_multiple_errors() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_multiple_errors() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -352,15 +351,15 @@ do:
               set:
                 caught: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+}
 
-    // === Try-Catch: error variable with details ===
+// === Try-Catch: error variable with details ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_with_details() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_error_with_details() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -386,16 +385,16 @@ do:
                 errorTitle: '${ $err.title }'
                 errorStatus: '${ $err.status }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["errorTitle"], json!("Validation Error"));
-        assert_eq!(output["errorStatus"], json!(400));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["errorTitle"], json!("Validation Error"));
+    assert_eq!(output["errorStatus"], json!(400));
+}
 
-    // === Switch: then goto with multiple jumps ===
+// === Switch: then goto with multiple jumps ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_filter_instance() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_filter_instance() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -420,15 +419,15 @@ do:
               set:
                 caught: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+}
 
-    // === Try-Catch: error filter by instance — not matching ===
+// === Try-Catch: error filter by instance — not matching ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_filter_instance_not_match() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_filter_instance_not_match() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -453,40 +452,40 @@ do:
               set:
                 caught: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Expression: has() function ===
+// === Expression: has() function ===
 
-    #[tokio::test]
-    async fn test_runner_retry_success_on_retry() {
-        use std::sync::atomic::{AtomicUsize, Ordering};
+#[tokio::test]
+async fn test_runner_retry_success_on_retry() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-        let request_count = Arc::new(AtomicUsize::new(0));
-        let count_clone = request_count.clone();
+    let request_count = Arc::new(AtomicUsize::new(0));
+    let count_clone = request_count.clone();
 
-        // Mock server: returns 404 for first 2 requests, then 200
-        let handler = warp::path("pets").map(move || {
-            let count = count_clone.fetch_add(1, Ordering::SeqCst);
-            if count < 2 {
-                warp::reply::with_status(
-                    warp::reply::json(&serde_json::json!({"error": "not found"})),
-                    warp::http::StatusCode::NOT_FOUND,
-                )
-            } else {
-                warp::reply::with_status(
-                    warp::reply::json(&serde_json::json!({"name": "Buddy"})),
-                    warp::http::StatusCode::OK,
-                )
-            }
-        });
+    // Mock server: returns 404 for first 2 requests, then 200
+    let handler = warp::path("pets").map(move || {
+        let count = count_clone.fetch_add(1, Ordering::SeqCst);
+        if count < 2 {
+            warp::reply::with_status(
+                warp::reply::json(&serde_json::json!({"error": "not found"})),
+                warp::http::StatusCode::NOT_FOUND,
+            )
+        } else {
+            warp::reply::with_status(
+                warp::reply::json(&serde_json::json!({"name": "Buddy"})),
+                warp::http::StatusCode::OK,
+            )
+        }
+    });
 
-        let port = start_mock_server(handler);
+    let port = start_mock_server(handler);
 
-        let yaml_str = r#"
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -514,17 +513,17 @@ do:
             attempt:
               count: 5
 "#
-        .replace("PORT", &port.to_string());
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // After 2 retries, the 3rd request should succeed
-        assert_eq!(output["name"], json!("Buddy"));
-    }
+    .replace("PORT", &port.to_string());
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // After 2 retries, the 3rd request should succeed
+    assert_eq!(output["name"], json!("Buddy"));
+}
 
-    // === Shell: arguments with key-value format ===
+// === Shell: arguments with key-value format ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_except_when_match() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_except_when_match() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -549,19 +548,19 @@ do:
               set:
                 caught: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // exceptWhen matches status == 400, so catch should be SKIPPED → error propagates
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().error_type_short(), "validation");
-    }
+    // exceptWhen matches status == 400, so catch should be SKIPPED → error propagates
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().error_type_short(), "validation");
+}
 
-    // === Raise error with dynamic title from expression ===
+// === Raise error with dynamic title from expression ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_reference() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_reference() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -590,18 +589,18 @@ do:
             type: runtime
         retry: myRetry
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Retry exhausts all attempts
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    // Retry exhausts all attempts
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Nested try-catch (inner catches, outer continues) ===
+// === Nested try-catch (inner catches, outer continues) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_catch_do_modifies_input() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_catch_do_modifies_input() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -626,21 +625,21 @@ do:
                 originalName: "${ .name }"
                 recovered: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"name": "Alice", "age": 30}))
-            .await
-            .unwrap();
-        assert_eq!(output["originalName"], json!("Alice"));
-        assert_eq!(output["recovered"], json!(true));
-    }
+    let output = runner
+        .run(json!({"name": "Alice", "age": 30}))
+        .await
+        .unwrap();
+    assert_eq!(output["originalName"], json!("Alice"));
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === Raise error with detail expression ===
+// === Raise error with detail expression ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_type_only() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_type_only() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -664,15 +663,15 @@ do:
               set:
                 caught: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+}
 
-    // === Nested export: export in nested do block ===
+// === Nested export: export in nested do block ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_as_with_status() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_as_with_status() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -698,16 +697,16 @@ do:
                 errorStatus: '${ $err.status }'
                 errorType: '${ $err.type }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["errorStatus"], json!(401));
-        assert_eq!(output["errorType"], json!("authentication"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["errorStatus"], json!(401));
+    assert_eq!(output["errorType"], json!("authentication"));
+}
 
-    // === Set: multiple expressions in single task ===
+// === Set: multiple expressions in single task ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_details_var() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_error_details_var() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -734,16 +733,16 @@ do:
                 errorTitle: '${ $err.title }'
                 errorDetail: '${ $err.details }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["errorTitle"], json!("Bad Request"));
-        assert_eq!(output["errorDetail"], json!("Missing email field"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["errorTitle"], json!("Bad Request"));
+    assert_eq!(output["errorDetail"], json!("Missing email field"));
+}
 
-    // === For loop: while with custom at/each variables ===
+// === For loop: while with custom at/each variables ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_when_filter_accepts() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_when_filter_accepts() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -768,13 +767,13 @@ do:
               set:
                 handled: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["handled"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["handled"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_when_filter_rejects() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_when_filter_rejects() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -799,18 +798,18 @@ do:
               set:
                 handled: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // when condition doesn't match (400 < 500), so catch is skipped and error propagates
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    // when condition doesn't match (400 < 500), so catch is skipped and error propagates
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Expression: alternative operator chaining ===
+// === Expression: alternative operator chaining ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_as_variable_in_catch_do() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_as_variable_in_catch_do() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -837,23 +836,23 @@ do:
                 errorStatus: "${ $err.status }"
                 recovered: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // $err.type contains the full URI or short name depending on error definition
-        let err_type = output["errorType"].as_str().unwrap();
-        assert!(
-            err_type.contains("validation"),
-            "Expected validation in error type, got: {}",
-            err_type
-        );
-        assert_eq!(output["errorStatus"], json!(400));
-        assert_eq!(output["recovered"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // $err.type contains the full URI or short name depending on error definition
+    let err_type = output["errorType"].as_str().unwrap();
+    assert!(
+        err_type.contains("validation"),
+        "Expected validation in error type, got: {}",
+        err_type
+    );
+    assert_eq!(output["errorStatus"], json!(400));
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === Expression: object construction with multiple fields ===
+// === Expression: object construction with multiple fields ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_exponential_backoff() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_exponential_backoff() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -882,27 +881,27 @@ do:
             attempt:
               count: 3
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let start = std::time::Instant::now();
-        let result = runner.run(json!({})).await;
-        let elapsed = start.elapsed();
-        // Should fail after 3 attempts with exponential backoff
-        assert!(result.is_err());
-        // With exponential backoff: 0ms (first) + 10ms (second) + 40ms (third) ≈ 50ms+
-        // Allow generous tolerance since we just want to verify it retries
-        assert!(
-            elapsed.as_millis() >= 10,
-            "Should take at least 10ms with retry delay, got {}ms",
-            elapsed.as_millis()
-        );
-    }
+    let start = std::time::Instant::now();
+    let result = runner.run(json!({})).await;
+    let elapsed = start.elapsed();
+    // Should fail after 3 attempts with exponential backoff
+    assert!(result.is_err());
+    // With exponential backoff: 0ms (first) + 10ms (second) + 40ms (third) ≈ 50ms+
+    // Allow generous tolerance since we just want to verify it retries
+    assert!(
+        elapsed.as_millis() >= 10,
+        "Should take at least 10ms with retry delay, got {}ms",
+        elapsed.as_millis()
+    );
+}
 
-    // === Try-catch with retry and linear backoff ===
+// === Try-catch with retry and linear backoff ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_linear_backoff() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_linear_backoff() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -932,26 +931,26 @@ do:
             attempt:
               count: 3
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let start = std::time::Instant::now();
-        let result = runner.run(json!({})).await;
-        let elapsed = start.elapsed();
-        assert!(result.is_err());
-        // With linear backoff: 0ms (first) + 10ms (second) + 20ms (third) ≈ 30ms+
-        assert!(
-            elapsed.as_millis() >= 10,
-            "Should take at least 10ms with retry delay, got {}ms",
-            elapsed.as_millis()
-        );
-    }
+    let start = std::time::Instant::now();
+    let result = runner.run(json!({})).await;
+    let elapsed = start.elapsed();
+    assert!(result.is_err());
+    // With linear backoff: 0ms (first) + 10ms (second) + 20ms (third) ≈ 30ms+
+    assert!(
+        elapsed.as_millis() >= 10,
+        "Should take at least 10ms with retry delay, got {}ms",
+        elapsed.as_millis()
+    );
+}
 
-    // === Try-catch with retry that eventually succeeds ===
+// === Try-catch with retry that eventually succeeds ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_succeeds_eventually() {
-        // Test that retry reference from use.retries works
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_succeeds_eventually() {
+    // Test that retry reference from use.retries works
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -980,20 +979,20 @@ do:
             type: runtime
         retry: myRetry
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Should fail after 3 attempts using referenced retry policy
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "runtime");
-    }
+    // Should fail after 3 attempts using referenced retry policy
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "runtime");
+}
 
-    // === Fork compete: verify winning branch output ===
+// === Fork compete: verify winning branch output ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_catch_when() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_catch_when() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1017,19 +1016,19 @@ do:
               set:
                 caught: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // validation error doesn't match communication filter → propagates
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().error_type_short(), "validation");
-    }
+    // validation error doesn't match communication filter → propagates
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().error_type_short(), "validation");
+}
 
-    // === Try-catch with catch.when rejecting ===
+// === Try-catch with catch.when rejecting ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_catch_when_rejects() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_catch_when_rejects() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1054,18 +1053,18 @@ do:
               set:
                 caught: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // shouldCatch=false → catch.when rejects → error propagates
-        let result = runner.run(json!({"shouldCatch": false})).await;
-        assert!(result.is_err());
-    }
+    // shouldCatch=false → catch.when rejects → error propagates
+    let result = runner.run(json!({"shouldCatch": false})).await;
+    assert!(result.is_err());
+}
 
-    // === Fork compete with output.as ===
+// === Fork compete with output.as ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_as_status() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_as_status() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1091,16 +1090,16 @@ do:
                 caught: true
                 errorStatus: "${ $err.status }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-        assert_eq!(output["errorStatus"], json!(400));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+    assert_eq!(output["errorStatus"], json!(400));
+}
 
-    // === Export with nested object construction ===
+// === Export with nested object construction ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_modify_continue() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_modify_continue() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1132,16 +1131,16 @@ do:
         final: "${ .value }"
         wasRecovered: "${ .recovered }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["final"], json!(0));
-        assert_eq!(output["wasRecovered"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["final"], json!(0));
+    assert_eq!(output["wasRecovered"], json!(true));
+}
 
-    // === Expression: deep object update ===
+// === Expression: deep object update ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_swallow_error() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_swallow_error() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1167,16 +1166,16 @@ do:
       set:
         value: after
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // Error caught without catch.do — output preserved from before the error
-        assert_eq!(output["value"], json!("after"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // Error caught without catch.do — output preserved from before the error
+    assert_eq!(output["value"], json!("after"));
+}
 
-    // === Expression: select with nested conditions ===
+// === Expression: select with nested conditions ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_all() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_all() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1199,17 +1198,17 @@ do:
                 caught: true
                 errType: "${ $err.type }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-        assert!(output["errType"].as_str().unwrap().contains("runtime"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+    assert!(output["errType"].as_str().unwrap().contains("runtime"));
+}
 
-    // === Raise: all error types via reference ===
+// === Raise: all error types via reference ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_exhausted() {
-        // After retry limit is exhausted, the error propagates out
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_exhausted() {
+    // After retry limit is exhausted, the error propagates out
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1237,19 +1236,19 @@ do:
             attempt:
               count: 2
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // After retry limit, error propagates
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-    }
+    // After retry limit, error propagates
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+}
 
-    // === Expression: length on various types ===
+// === Expression: length on various types ===
 
-    // Try-catch: catch.do modifies output and continues
-    #[tokio::test]
-    async fn test_runner_try_catch_catch_do_export() {
-        let yaml_str = r#"
+// Try-catch: catch.do modifies output and continues
+#[tokio::test]
+async fn test_runner_try_catch_catch_do_export() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1276,15 +1275,15 @@ do:
         done: true
         recovered: "${ .recovered }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["recovered"], json!(true));
-        assert_eq!(output["done"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["recovered"], json!(true));
+    assert_eq!(output["done"], json!(true));
+}
 
-    // Try-catch: nested try-catch, inner catches, outer continues
-    #[tokio::test]
-    async fn test_runner_try_catch_nested_inner_catches() {
-        let yaml_str = r#"
+// Try-catch: nested try-catch, inner catches, outer continues
+#[tokio::test]
+async fn test_runner_try_catch_nested_inner_catches() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1324,16 +1323,16 @@ do:
         innerErrType: "${ .innerErr }"
         noOuterRecovery: "${ .outerRecovered == null }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["innerOk"], json!(true));
-        assert_eq!(output["innerErrType"], json!("validation"));
-        assert_eq!(output["noOuterRecovery"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["innerOk"], json!(true));
+    assert_eq!(output["innerErrType"], json!("validation"));
+    assert_eq!(output["noOuterRecovery"], json!(true));
+}
 
-    // Try-catch: catch with when expression
-    #[tokio::test]
-    async fn test_runner_try_catch_when_expr_v2() {
-        let yaml_str = r#"
+// Try-catch: catch with when expression
+#[tokio::test]
+async fn test_runner_try_catch_when_expr_v2() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1363,15 +1362,15 @@ do:
       set:
         wasCaught: "${ .caught }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["wasCaught"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["wasCaught"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_variable_java_pattern() {
-        // Matches Java SDK's try-catch-error-variable.yaml
-        // catch with as: caughtError, then use $caughtError.details in set
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_error_variable_java_pattern() {
+    // Matches Java SDK's try-catch-error-variable.yaml
+    // catch with as: caughtError, then use $caughtError.details in set
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1393,15 +1392,15 @@ do:
               set:
                 errorMessage: '${$caughtError.details}'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["errorMessage"], json!("Javierito was here!"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["errorMessage"], json!("Javierito was here!"));
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_match_when_java_pattern() {
-        // Matches Java SDK's try-catch-match-when.yaml
-        // catch with when: ${ .status == 503 } expression
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_match_when_java_pattern() {
+    // Matches Java SDK's try-catch-match-when.yaml
+    // catch with when: ${ .status == 503 } expression
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1422,15 +1421,15 @@ do:
               set:
                 recovered: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_not_match_when_java_pattern() {
-        // Matches Java SDK's try-catch-not-match-when.yaml
-        // catch with when: ${ .status == 400 } but error has status 503 - should not match
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_not_match_when_java_pattern() {
+    // Matches Java SDK's try-catch-not-match-when.yaml
+    // catch with when: ${ .status == 400 } but error has status 503 - should not match
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1451,17 +1450,17 @@ do:
               set:
                 recovered: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
-        let result = runner.run(json!({})).await;
-        // When catch when doesn't match, the error propagates
-        assert!(result.is_err());
-    }
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let result = runner.run(json!({})).await;
+    // When catch when doesn't match, the error propagates
+    assert!(result.is_err());
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_match_details_java_pattern() {
-        // Matches Java SDK's try-catch-match-details.yaml
-        // catch with errors.with.details matching error detail
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_match_details_java_pattern() {
+    // Matches Java SDK's try-catch-match-details.yaml
+    // catch with errors.with.details matching error detail
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1487,15 +1486,15 @@ do:
               set:
                 recovered: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    #[tokio::test]
-    async fn test_runner_try_catch_not_match_details_java_pattern() {
-        // Matches Java SDK's try-catch-not-match-details.yaml
-        // catch with errors.with.details that doesn't match the actual error detail
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_not_match_details_java_pattern() {
+    // Matches Java SDK's try-catch-not-match-details.yaml
+    // catch with errors.with.details that doesn't match the actual error detail
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1521,19 +1520,19 @@ do:
               set:
                 recovered: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
-        let result = runner.run(json!({})).await;
-        // Details don't match, error propagates
-        assert!(result.is_err());
-    }
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let result = runner.run(json!({})).await;
+    // Details don't match, error propagates
+    assert!(result.is_err());
+}
 
-    // === Shell return: code on failing command (Java SDK echo-exitcode.yaml pattern) ===
+// === Shell return: code on failing command (Java SDK echo-exitcode.yaml pattern) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_retry_use_reference() {
-        // Go SDK pattern - try with retry referencing use.retries definition
-        // When retries are exhausted, the error propagates
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_retry_use_reference() {
+    // Go SDK pattern - try with retry referencing use.retries definition
+    // When retries are exhausted, the error propagates
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1561,20 +1560,20 @@ do:
             type: communication
         retry: myRetry
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
-        // After 2 retries, the error still propagates (always raises)
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "communication");
-    }
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    // After 2 retries, the error still propagates (always raises)
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "communication");
+}
 
-    // === Export with multiple context variables (accumulated via merge) ===
+// === Export with multiple context variables (accumulated via merge) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_when_rejects_propagates() {
-        // catch.when expression evaluates to false → error propagates
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_when_rejects_propagates() {
+    // catch.when expression evaluates to false → error propagates
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1595,18 +1594,18 @@ do:
               set:
                 recovered: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
-        let result = runner.run(json!({})).await;
-        // catch.when requires .status == 404, but error has status 400 → propagates
-        assert!(result.is_err());
-    }
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let result = runner.run(json!({})).await;
+    // catch.when requires .status == 404, but error has status 400 → propagates
+    assert!(result.is_err());
+}
 
-    // === Call function reference with use.functions (Go/Java SDK pattern) ===
+// === Call function reference with use.functions (Go/Java SDK pattern) ===
 
-    #[tokio::test]
-    async fn test_runner_try_catch_error_variable_full() {
-        // Java SDK's try-catch-error-variable.yaml - catch as: caughtError + reference $caughtError
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_try_catch_error_variable_full() {
+    // Java SDK's try-catch-error-variable.yaml - catch as: caughtError + reference $caughtError
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1631,17 +1630,17 @@ do:
               set:
                 errorMessage: '${ $caughtError.details }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["errorMessage"], json!("test error occurred"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["errorMessage"], json!("test error occurred"));
+}
 
-    // === Schedule cron pattern ===
+// === Schedule cron pattern ===
 
-    /// Test try-catch-match-status with type AND status combo — Java SDK's try-catch-match-status.yaml
-    /// Catch error by both type and status matching
-    #[tokio::test]
-    async fn test_runner_try_catch_match_status_and_type() {
-        let yaml = r#"
+/// Test try-catch-match-status with type AND status combo — Java SDK's try-catch-match-status.yaml
+/// Catch error by both type and status matching
+#[tokio::test]
+async fn test_runner_try_catch_match_status_and_type() {
+    let yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -1665,11 +1664,11 @@ do:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(yaml).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+    let workflow: WorkflowDefinition = serde_yaml::from_str(yaml).unwrap();
+    let runner = WorkflowRunner::new(workflow).unwrap();
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["recovered"], json!(true));
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["recovered"], json!(true));
+}
 
-    // === E2E: Shell + Set — command result processing ===
+// === E2E: Shell + Set — command result processing ===

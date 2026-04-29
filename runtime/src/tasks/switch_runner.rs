@@ -1,6 +1,6 @@
-use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::task_name_impl;
 
 use serde_json::Value;
 use serverless_workflow_core::models::task::SwitchTaskDefinition;

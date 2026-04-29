@@ -392,7 +392,8 @@ impl WorkflowContext {
 
     /// Gets the serialized workflow JSON value (for json_pointer resolution)
     pub fn get_workflow_json(&self) -> Option<&Value> {
-        self.workflow_descriptor.as_object()
+        self.workflow_descriptor
+            .as_object()
             .and_then(|obj| obj.get("definition"))
     }
 
@@ -425,11 +426,23 @@ impl WorkflowContext {
 
     // ---- Secret Manager ----
 
-    arc_accessors!(secret_manager, set_secret_manager, get_secret_manager, clone_secret_manager, dyn SecretManager);
+    arc_accessors!(
+        secret_manager,
+        set_secret_manager,
+        get_secret_manager,
+        clone_secret_manager,
+        dyn SecretManager
+    );
 
     // ---- Execution Listener ----
 
-    arc_accessors!(listener, set_listener, get_listener, clone_listener, dyn WorkflowExecutionListener);
+    arc_accessors!(
+        listener,
+        set_listener,
+        get_listener,
+        clone_listener,
+        dyn WorkflowExecutionListener
+    );
 
     // ---- Event Emission ----
 
@@ -452,7 +465,13 @@ impl WorkflowContext {
 
     // ---- Event Bus ----
 
-    option_accessors!(event_bus, set_event_bus, get_event_bus, clone_event_bus, SharedEventBus);
+    option_accessors!(
+        event_bus,
+        set_event_bus,
+        get_event_bus,
+        clone_event_bus,
+        SharedEventBus
+    );
 
     // ---- Sub-Workflow Registry ----
 
@@ -637,7 +656,10 @@ impl WorkflowContext {
                 self.instance_ctx.clone().unwrap_or(Value::Null),
             );
             vars.insert(vars::TASK.to_string(), self.task_descriptor.clone());
-            vars.insert(vars::WORKFLOW.to_string(), (*self.workflow_descriptor).clone());
+            vars.insert(
+                vars::WORKFLOW.to_string(),
+                (*self.workflow_descriptor).clone(),
+            );
             vars.insert(
                 vars::RUNTIME.to_string(),
                 runtime_info::runtime_info_value().clone(),

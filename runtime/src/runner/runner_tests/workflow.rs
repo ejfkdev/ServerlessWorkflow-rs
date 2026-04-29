@@ -1,66 +1,65 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_schema_valid() {
-        let output = run_workflow_from_yaml(
-            &testdata("workflow_input_schema.yaml"),
-            json!({"key": "testValue"}),
-        )
+#[tokio::test]
+async fn test_runner_workflow_input_schema_valid() {
+    let output = run_workflow_from_yaml(
+        &testdata("workflow_input_schema.yaml"),
+        json!({"key": "testValue"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["outputKey"], json!("testValue"));
+}
+
+#[tokio::test]
+async fn test_runner_workflow_input_schema_invalid() {
+    let result = run_workflow_from_yaml(
+        &testdata("workflow_input_schema.yaml"),
+        json!({"wrongKey": "testValue"}),
+    )
+    .await;
+    assert!(result.is_err());
+}
+
+// === Switch Then Loop ===
+
+#[tokio::test]
+async fn test_runner_workflow_output_schema_valid() {
+    let output = run_workflow_from_yaml(&testdata("workflow_output_schema.yaml"), json!({}))
         .await
         .unwrap();
-        assert_eq!(output["outputKey"], json!("testValue"));
-    }
+    assert_eq!(output["result"], json!("success"));
+}
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_schema_invalid() {
-        let result = run_workflow_from_yaml(
-            &testdata("workflow_input_schema.yaml"),
-            json!({"wrongKey": "testValue"}),
-        )
-        .await;
-        assert!(result.is_err());
-    }
+// === Workflow Output Schema: invalid ===
 
-    // === Switch Then Loop ===
+#[tokio::test]
+async fn test_runner_workflow_output_schema_invalid() {
+    let result =
+        run_workflow_from_yaml(&testdata("workflow_output_schema_invalid.yaml"), json!({})).await;
+    assert!(
+        result.is_err(),
+        "Expected error due to output schema validation failure"
+    );
+}
 
-    #[tokio::test]
-    async fn test_runner_workflow_output_schema_valid() {
-        let output = run_workflow_from_yaml(&testdata("workflow_output_schema.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["result"], json!("success"));
-    }
+// === HTTP Call: with custom headers ===
 
-    // === Workflow Output Schema: invalid ===
+#[tokio::test]
+async fn test_runner_workflow_output_as() {
+    let output = run_workflow_from_yaml(&testdata("workflow_output_as.yaml"), json!({}))
+        .await
+        .unwrap();
+    // output.as: .result should extract just the result value
+    assert_eq!(output, json!("hello"));
+}
 
-    #[tokio::test]
-    async fn test_runner_workflow_output_schema_invalid() {
-        let result =
-            run_workflow_from_yaml(&testdata("workflow_output_schema_invalid.yaml"), json!({}))
-                .await;
-        assert!(
-            result.is_err(),
-            "Expected error due to output schema validation failure"
-        );
-    }
+// === Nested try-catch ===
 
-    // === HTTP Call: with custom headers ===
-
-    #[tokio::test]
-    async fn test_runner_workflow_output_as() {
-        let output = run_workflow_from_yaml(&testdata("workflow_output_as.yaml"), json!({}))
-            .await
-            .unwrap();
-        // output.as: .result should extract just the result value
-        assert_eq!(output, json!("hello"));
-    }
-
-    // === Nested try-catch ===
-
-    #[tokio::test]
-    async fn test_runner_sub_workflow_output_export_and_set() {
-        // Child workflow: set task with output.as + export.as
-        let child_yaml = r#"
+#[tokio::test]
+async fn test_runner_sub_workflow_output_export_and_set() {
+    // Child workflow: set task with output.as + export.as
+    let child_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -77,10 +76,10 @@ do:
       export:
         as: '.'
 "#;
-        let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
 
-        // Parent workflow: calls child with input, then reads exported context
-        let parent_yaml = r#"
+    // Parent workflow: calls child with input, then reads exported context
+    let parent_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -97,22 +96,22 @@ do:
             userId: '123'
             username: 'alice'
 "#;
-        let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["userId"], json!("123_tested"));
-        assert_eq!(output["username"], json!("alice_tested"));
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["userId"], json!("123_tested"));
+    assert_eq!(output["username"], json!("alice_tested"));
+}
 
-    /// Java SDK's read-context-and-set-sub-workflow pattern
-    /// Child reads $workflow.definition.document.name/version in its expression
-    #[tokio::test]
-    async fn test_runner_sub_workflow_read_context_and_set() {
-        let child_yaml = r#"
+/// Java SDK's read-context-and-set-sub-workflow pattern
+/// Child reads $workflow.definition.document.name/version in its expression
+#[tokio::test]
+async fn test_runner_sub_workflow_read_context_and_set() {
+    let child_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -129,9 +128,9 @@ do:
       export:
         as: '.'
 "#;
-        let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
 
-        let parent_yaml = r#"
+    let parent_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: default
@@ -149,46 +148,46 @@ do:
             username: 'alice'
             password: 'secret'
 "#;
-        let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["updated"]["userId"], json!("123_tested"));
-        assert_eq!(output["updated"]["username"], json!("alice_tested"));
-        assert_eq!(output["updated"]["password"], json!("secret_tested"));
-        // Verify $workflow context is correct inside the sub-workflow
-        let detail = output["detail"].as_str();
-        assert!(
-            detail.is_some(),
-            "detail field missing, output: {:?}",
-            output
-        );
-        assert!(detail.unwrap().contains("set-into-context"));
-        assert!(detail.unwrap().contains("1.0.0"));
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["updated"]["userId"], json!("123_tested"));
+    assert_eq!(output["updated"]["username"], json!("alice_tested"));
+    assert_eq!(output["updated"]["password"], json!("secret_tested"));
+    // Verify $workflow context is correct inside the sub-workflow
+    let detail = output["detail"].as_str();
+    assert!(
+        detail.is_some(),
+        "detail field missing, output: {:?}",
+        output
+    );
+    assert!(detail.unwrap().contains("set-into-context"));
+    assert!(detail.unwrap().contains("1.0.0"));
+}
 
-    // === HTTP Call: OIDC client_credentials ===
+// === HTTP Call: OIDC client_credentials ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_transform() {
-        let output = run_workflow_from_yaml(
-            &testdata("conditional_logic_input_from.yaml"),
-            json!({"localWeather": {"temperature": 30}}),
-        )
-        .await
-        .unwrap();
-        // input.from should transform the input
-        assert_eq!(output["weather"], json!("hot"));
-    }
+#[tokio::test]
+async fn test_runner_workflow_input_transform() {
+    let output = run_workflow_from_yaml(
+        &testdata("conditional_logic_input_from.yaml"),
+        json!({"localWeather": {"temperature": 30}}),
+    )
+    .await
+    .unwrap();
+    // input.from should transform the input
+    assert_eq!(output["weather"], json!("hot"));
+}
 
-    // === Fork: compete mode returns first completed branch ===
+// === Fork: compete mode returns first completed branch ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_output_complex_transform() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_output_complex_transform() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -205,16 +204,16 @@ do:
 output:
   as: "${ {topScorer: .items[0].name, count: (.items | length)} }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["topScorer"], json!("Alice"));
-        assert_eq!(output["count"], json!(2));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["topScorer"], json!("Alice"));
+    assert_eq!(output["count"], json!(2));
+}
 
-    // === Workflow input: complex transformation ===
+// === Workflow input: complex transformation ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_complex_transform() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_input_complex_transform() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -227,20 +226,20 @@ do:
       set:
         result: "${ .name + \" is \" + (.age | tostring) }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"rawName": "Alice", "rawAge": 30}))
-            .await
-            .unwrap();
-        assert_eq!(output["result"], json!("Alice is 30"));
-    }
+    let output = runner
+        .run(json!({"rawName": "Alice", "rawAge": 30}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!("Alice is 30"));
+}
 
-    // === Workflow timeout: workflow exceeds timeout ===
+// === Workflow timeout: workflow exceeds timeout ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_timeout_exceeded() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_timeout_exceeded() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -252,19 +251,19 @@ do:
   - slowTask:
       wait: PT5S
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "timeout");
-    }
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "timeout");
+}
 
-    // === Workflow timeout: completes within timeout ===
+// === Workflow timeout: completes within timeout ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_timeout_not_exceeded() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_timeout_not_exceeded() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -277,15 +276,15 @@ do:
       set:
         result: done
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!("done"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!("done"));
+}
 
-    // === Workflow timeout: reference to reusable timeout ===
+// === Workflow timeout: reference to reusable timeout ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_timeout_reference() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_timeout_reference() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -300,19 +299,19 @@ do:
   - slowTask:
       wait: PT5S
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err();
-        assert_eq!(err.error_type_short(), "timeout");
-    }
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert_eq!(err.error_type_short(), "timeout");
+}
 
-    // === Workflow timeout with try-catch ===
+// === Workflow timeout with try-catch ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_timeout_try_catch() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_timeout_try_catch() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -334,19 +333,19 @@ do:
               set:
                 timedOut: true
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        // Workflow-level timeout is applied outside try-catch, so it should still timeout
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().error_type_short(), "timeout");
-    }
+    // Workflow-level timeout is applied outside try-catch, so it should still timeout
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().error_type_short(), "timeout");
+}
 
-    // === Workflow timeout: dynamic expression ===
+// === Workflow timeout: dynamic expression ===
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_from_output_as() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_input_from_output_as() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -362,50 +361,50 @@ do:
         name: "${ .name }"
         age: "${ .age }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"rawName": "Alice", "rawAge": 30}))
-            .await
-            .unwrap();
-        assert_eq!(output["greeting"], json!("Hello Alice"));
-        assert_eq!(output["yearsOld"], json!(30));
-    }
-
-    // === Try-catch: retry with reference to reusable retry policy ===
-
-    #[tokio::test]
-    async fn test_runner_workflow_input_output_schema_combined() {
-        // Use testdata file for valid input, verify it works with both input+output schema
-        let output = run_workflow_from_yaml(
-            &testdata("workflow_input_schema.yaml"),
-            json!({"key": "test"}),
-        )
+    let output = runner
+        .run(json!({"rawName": "Alice", "rawAge": 30}))
         .await
         .unwrap();
-        assert_eq!(output["outputKey"], json!("test"));
-    }
+    assert_eq!(output["greeting"], json!("Hello Alice"));
+    assert_eq!(output["yearsOld"], json!(30));
+}
 
-    #[tokio::test]
-    async fn test_runner_workflow_input_output_schema_invalid_input() {
-        // Verify existing testdata file rejects invalid input
-        let result = run_workflow_from_yaml(
-            &testdata("workflow_input_schema.yaml"),
-            json!({"wrongKey": "testValue"}),
-        )
-        .await;
-        assert!(
-            result.is_err(),
-            "Should fail with missing required field 'key'"
-        );
-    }
+// === Try-catch: retry with reference to reusable retry policy ===
 
-    // === Nested do with then:exit continues at outer scope ===
+#[tokio::test]
+async fn test_runner_workflow_input_output_schema_combined() {
+    // Use testdata file for valid input, verify it works with both input+output schema
+    let output = run_workflow_from_yaml(
+        &testdata("workflow_input_schema.yaml"),
+        json!({"key": "test"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(output["outputKey"], json!("test"));
+}
 
-    // Workflow: input.from + output.as combined
-    #[tokio::test]
-    async fn test_runner_workflow_input_output_combo() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_input_output_schema_invalid_input() {
+    // Verify existing testdata file rejects invalid input
+    let result = run_workflow_from_yaml(
+        &testdata("workflow_input_schema.yaml"),
+        json!({"wrongKey": "testValue"}),
+    )
+    .await;
+    assert!(
+        result.is_err(),
+        "Should fail with missing required field 'key'"
+    );
+}
+
+// === Nested do with then:exit continues at outer scope ===
+
+// Workflow: input.from + output.as combined
+#[tokio::test]
+async fn test_runner_workflow_input_output_combo() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -422,14 +421,16 @@ do:
         x: "${ .x }"
         y: "${ .y }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"a": 3, "b": 7})).await.unwrap();
-        assert_eq!(output["result"], json!(10));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"a": 3, "b": 7}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!(10));
+}
 
-    #[tokio::test]
-    async fn test_runner_workflow_output_as_sequential_colors() {
-        // Go SDK's sequential_set_colors_output_as.yaml pattern
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_workflow_output_as_sequential_colors() {
+    // Go SDK's sequential_set_colors_output_as.yaml pattern
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -448,77 +449,77 @@ do:
 output:
   as: "${ { result: .colors } }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"colors": []})).await.unwrap();
-        // workflow-level output.as transforms the final result
-        assert_eq!(output["result"], json!(["red", "green", "blue"]));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"colors": []}))
+        .await
+        .unwrap();
+    // workflow-level output.as transforms the final result
+    assert_eq!(output["result"], json!(["red", "green", "blue"]));
+}
 
-    #[tokio::test]
-    async fn test_runner_sub_workflow_basic() {
-        // Parent workflow invokes child workflow via run: workflow
-        let parent_yaml = std::fs::read_to_string(testdata("sub_workflow_parent.yaml")).unwrap();
-        let child_yaml = std::fs::read_to_string(testdata("sub_workflow_child.yaml")).unwrap();
+#[tokio::test]
+async fn test_runner_sub_workflow_basic() {
+    // Parent workflow invokes child workflow via run: workflow
+    let parent_yaml = std::fs::read_to_string(testdata("sub_workflow_parent.yaml")).unwrap();
+    let child_yaml = std::fs::read_to_string(testdata("sub_workflow_child.yaml")).unwrap();
 
-        let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
-        let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["counter"], json!(1));
-        assert_eq!(output["greeting"], json!("helloWorld"));
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["counter"], json!(1));
+    assert_eq!(output["greeting"], json!("helloWorld"));
+}
 
-    #[tokio::test]
-    async fn test_runner_sub_workflow_not_found() {
-        // Parent references a sub-workflow that is not registered
-        let parent_yaml = std::fs::read_to_string(testdata("sub_workflow_parent.yaml")).unwrap();
-        let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
+#[tokio::test]
+async fn test_runner_sub_workflow_not_found() {
+    // Parent references a sub-workflow that is not registered
+    let parent_yaml = std::fs::read_to_string(testdata("sub_workflow_parent.yaml")).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent).unwrap();
-        // No child workflow registered — should error
-        let result = runner.run(json!({})).await;
-        assert!(result.is_err());
-        let err = result.unwrap_err().to_string();
-        assert!(
-            err.contains("not found in registry"),
-            "Expected 'not found in registry', got: {}",
-            err
-        );
-    }
+    let runner = WorkflowRunner::new(parent).unwrap();
+    // No child workflow registered — should error
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("not found in registry"),
+        "Expected 'not found in registry', got: {}",
+        err
+    );
+}
 
-    #[tokio::test]
-    async fn test_runner_sub_workflow_with_export() {
-        // Sub-workflow uses output.as and export.as — output should be transformed
-        let parent_yaml =
-            std::fs::read_to_string(testdata("sub_workflow_export_parent.yaml")).unwrap();
-        let child_yaml =
-            std::fs::read_to_string(testdata("sub_workflow_export_child.yaml")).unwrap();
+#[tokio::test]
+async fn test_runner_sub_workflow_with_export() {
+    // Sub-workflow uses output.as and export.as — output should be transformed
+    let parent_yaml = std::fs::read_to_string(testdata("sub_workflow_export_parent.yaml")).unwrap();
+    let child_yaml = std::fs::read_to_string(testdata("sub_workflow_export_child.yaml")).unwrap();
 
-        let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
-        let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let input = json!({
-            "userId": "userId_1",
-            "username": "test",
-            "password": "test"
-        });
-        let output = runner.run(input).await.unwrap();
-        assert_eq!(output["userId"], json!("userId_1_tested"));
-        assert_eq!(output["username"], json!("test_tested"));
-        assert_eq!(output["password"], json!("test_tested"));
-    }
+    let input = json!({
+        "userId": "userId_1",
+        "username": "test",
+        "password": "test"
+    });
+    let output = runner.run(input).await.unwrap();
+    assert_eq!(output["userId"], json!("userId_1_tested"));
+    assert_eq!(output["username"], json!("test_tested"));
+    assert_eq!(output["password"], json!("test_tested"));
+}
 
-    #[tokio::test]
-    async fn test_runner_sub_workflow_inline() {
-        // Test sub-workflow defined inline (no testdata files)
-        let child_yaml = r#"
+#[tokio::test]
+async fn test_runner_sub_workflow_inline() {
+    // Test sub-workflow defined inline (no testdata files)
+    let child_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -529,7 +530,7 @@ do:
       set:
         result: '${ .value * 2 }'
 "#;
-        let parent_yaml = r#"
+    let parent_yaml = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -544,40 +545,44 @@ do:
           version: '1.0.0'
 "#;
 
-        let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
-        let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let output = runner.run(json!({"value": 21})).await.unwrap();
-        assert_eq!(output["result"], json!(42));
-    }
+    let output = runner.run(json!({"value": 21})).await.unwrap();
+    assert_eq!(output["result"], json!(42));
+}
 
-    #[tokio::test]
-    async fn test_runner_sub_workflow_read_context_from_fixtures() {
-        // Test $workflow.definition variable access in sub-workflow using YAML fixtures
-        let parent_yaml =
-            std::fs::read_to_string(testdata("sub_workflow_read_context_parent.yaml")).unwrap();
-        let child_yaml =
-            std::fs::read_to_string(testdata("sub_workflow_read_context_child.yaml")).unwrap();
+#[tokio::test]
+async fn test_runner_sub_workflow_read_context_from_fixtures() {
+    // Test $workflow.definition variable access in sub-workflow using YAML fixtures
+    let parent_yaml =
+        std::fs::read_to_string(testdata("sub_workflow_read_context_parent.yaml")).unwrap();
+    let child_yaml =
+        std::fs::read_to_string(testdata("sub_workflow_read_context_child.yaml")).unwrap();
 
-        let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
-        let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
+    let parent: WorkflowDefinition = serde_yaml::from_str(&parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(&child_yaml).unwrap();
 
-        let runner = WorkflowRunner::new(parent)
-            .unwrap()
-            .with_sub_workflow(child);
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child);
 
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["updated"]["userId"], json!("123_tested"));
-        assert_eq!(output["updated"]["username"], json!("alice_tested"));
-        assert_eq!(output["updated"]["password"], json!("secret_tested"));
-        let detail = output["detail"].as_str();
-        assert!(detail.is_some(), "detail field missing, output: {:?}", output);
-        assert!(detail.unwrap().contains("set-into-context"));
-        assert!(detail.unwrap().contains("1.0.0"));
-    }
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["updated"]["userId"], json!("123_tested"));
+    assert_eq!(output["updated"]["username"], json!("alice_tested"));
+    assert_eq!(output["updated"]["password"], json!("secret_tested"));
+    let detail = output["detail"].as_str();
+    assert!(
+        detail.is_some(),
+        "detail field missing, output: {:?}",
+        output
+    );
+    assert!(detail.unwrap().contains("set-into-context"));
+    assert!(detail.unwrap().contains("1.0.0"));
+}
 
-    // ---- CallHandler and RunHandler Tests ----
+// ---- CallHandler and RunHandler Tests ----

@@ -1,7 +1,7 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{define_simple_task_runner};
+use crate::tasks::define_simple_task_runner;
+use crate::tasks::task_name_impl;
 use serde_json::Value;
 use serverless_workflow_core::models::task::CustomTaskDefinition;
 

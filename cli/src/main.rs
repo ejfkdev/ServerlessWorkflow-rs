@@ -120,8 +120,8 @@ fn parse_input(input_str: &Option<String>) -> Result<Value, String> {
         None => Ok(Value::Object(serde_json::Map::new())),
         Some(s) if s.starts_with('@') => {
             let path = &s[1..];
-            let content =
-                std::fs::read_to_string(path).map_err(|e| format!("failed to read '{path}': {e}"))?;
+            let content = std::fs::read_to_string(path)
+                .map_err(|e| format!("failed to read '{path}': {e}"))?;
             serde_json::from_str(&content).map_err(|e| format!("invalid JSON in '{path}': {e}"))
         }
         Some(s) => serde_json::from_str(s).map_err(|e| format!("invalid JSON input: {e}")),
@@ -130,7 +130,10 @@ fn parse_input(input_str: &Option<String>) -> Result<Value, String> {
 
 /// Discovers sub-workflow YAML files in the same directory as the main workflow.
 /// Returns a list of parsed WorkflowDefinitions (excluding the main workflow itself).
-fn discover_sub_workflows(main_path: &str, main_workflow: &WorkflowDefinition) -> Vec<WorkflowDefinition> {
+fn discover_sub_workflows(
+    main_path: &str,
+    main_workflow: &WorkflowDefinition,
+) -> Vec<WorkflowDefinition> {
     let main_file = Path::new(main_path);
     let dir = match main_file.parent() {
         Some(d) => d,
@@ -186,9 +189,15 @@ impl WorkflowExecutionListener for VerboseListener {
             WorkflowEvent::WorkflowStarted { instance_id, .. } => {
                 eprintln!("[START] workflow instance: {instance_id}");
             }
-            WorkflowEvent::WorkflowCompleted { instance_id, output } => {
+            WorkflowEvent::WorkflowCompleted {
+                instance_id,
+                output,
+            } => {
                 eprintln!("[DONE]  workflow instance: {instance_id}");
-                eprintln!("  output: {}", serde_json::to_string(output).unwrap_or_default());
+                eprintln!(
+                    "  output: {}",
+                    serde_json::to_string(output).unwrap_or_default()
+                );
             }
             WorkflowEvent::WorkflowFailed { instance_id, error } => {
                 eprintln!("[FAIL]  workflow instance: {instance_id}");
@@ -200,10 +209,14 @@ impl WorkflowExecutionListener for VerboseListener {
             WorkflowEvent::TaskCompleted { task_name, .. } => {
                 eprintln!("  [<] {task_name}");
             }
-            WorkflowEvent::TaskFailed { task_name, error, .. } => {
+            WorkflowEvent::TaskFailed {
+                task_name, error, ..
+            } => {
                 eprintln!("  [!] {task_name}: {error}");
             }
-            WorkflowEvent::TaskRetried { task_name, attempt, .. } => {
+            WorkflowEvent::TaskRetried {
+                task_name, attempt, ..
+            } => {
                 eprintln!("  [↻] {task_name} (attempt {attempt})");
             }
             _ => {}
@@ -272,10 +285,7 @@ async fn main() {
 
     // Configure secret manager
     if !cli.no_secret {
-        let prefix = cli
-            .secret_prefix
-            .as_deref()
-            .unwrap_or("WORKFLOW_SECRET_");
+        let prefix = cli.secret_prefix.as_deref().unwrap_or("WORKFLOW_SECRET_");
         runner = runner.with_secret_manager(Arc::new(EnvSecretManager::with_prefix(prefix)));
     }
 
@@ -287,7 +297,10 @@ async fn main() {
     // Run workflow
     match runner.run(input).await {
         Ok(output) => {
-            println!("{}", serde_json::to_string_pretty(&output).unwrap_or_default());
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&output).unwrap_or_default()
+            );
         }
         Err(e) => {
             eprintln!("error: workflow execution failed: {e}");

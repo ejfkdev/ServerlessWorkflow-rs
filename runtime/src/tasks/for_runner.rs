@@ -1,7 +1,7 @@
-use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{DoTaskRunner};
+use crate::tasks::task_name_impl;
+use crate::tasks::DoTaskRunner;
 use serde_json::Value;
 use serverless_workflow_core::models::input::InputDataModelDefinition;
 use serverless_workflow_core::models::task::{DoTaskDefinition, ForTaskDefinition};
@@ -68,8 +68,7 @@ impl TaskRunner for ForTaskRunner {
                     // Check while condition BEFORE removing local vars ($item, $index)
                     // so that while expressions can reference them
                     let should_break = if let Some(ref while_expr) = self.while_expr {
-                        let should_continue =
-                            support.eval_bool(while_expr, &for_output)?;
+                        let should_continue = support.eval_bool(while_expr, &for_output)?;
                         !should_continue
                     } else {
                         false

@@ -1,7 +1,10 @@
+use super::one_of_validators::validate_schedule_one_of;
+use super::{
+    is_valid_hostname, is_valid_semver, validate_required_hostname, validate_required_semver,
+    ValidationResult, ValidationRule,
+};
 use crate::models::duration::OneOfDurationOrIso8601Expression;
 use crate::models::workflow::*;
-use super::{ValidationResult, ValidationRule, is_valid_hostname, is_valid_semver, validate_required_hostname, validate_required_semver};
-use super::one_of_validators::validate_schedule_one_of;
 
 /// Validates a complete workflow definition
 pub fn validate_workflow(workflow: &WorkflowDefinition) -> ValidationResult {

@@ -1,8 +1,8 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::events::{CloudEvent, EventBus};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{define_simple_task_runner};
+use crate::tasks::define_simple_task_runner;
+use crate::tasks::task_name_impl;
 use serde_json::Value;
 use serverless_workflow_core::models::event::{
     EventConsumptionStrategyDefinition, EventFilterDefinition,
@@ -259,9 +259,7 @@ impl ListenTaskRunner {
         _input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let output = Value::Array(
-            consumed_events.iter().map(|e| e.to_json_value()).collect(),
-        );
+        let output = Value::Array(consumed_events.iter().map(|e| e.to_json_value()).collect());
 
         // Process foreach iterator if defined
         if let Some(ref foreach) = self.task.foreach {

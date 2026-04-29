@@ -10,8 +10,9 @@ type CacheKey = (String, String);
 /// Global cache for compiled JQ filters.
 /// Key: (expression_text, sorted_variable_names_joined)
 /// Value: compiled Filter that can be reused with matching variable bindings
-static FILTER_CACHE: LazyLock<std::sync::RwLock<HashMap<CacheKey, jaq_core::Filter<jaq_core::Native<jaq_json::Val>>>>> =
-    LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
+static FILTER_CACHE: LazyLock<
+    std::sync::RwLock<HashMap<CacheKey, jaq_core::Filter<jaq_core::Native<jaq_json::Val>>>>,
+> = LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
 
 /// Evaluates a JQ expression against a JSON input with variable bindings.
 /// Uses a global cache to avoid recompiling the same expression with the same variable names.
@@ -29,10 +30,7 @@ pub fn evaluate_jq(
     let var_name_refs: Vec<&str> = var_names.iter().map(|s| s.as_str()).collect();
 
     // Build cache key from expression and variable names
-    let cache_key = (
-        expression.to_string(),
-        var_names.join("\0"),
-    );
+    let cache_key = (expression.to_string(), var_names.join("\0"));
 
     // Try to get a compiled filter from the cache
     let filter = {

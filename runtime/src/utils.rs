@@ -1,6 +1,8 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use serverless_workflow_core::models::duration::{Duration as SwfDuration, OneOfDurationOrIso8601Expression};
+use serverless_workflow_core::models::duration::{
+    Duration as SwfDuration, OneOfDurationOrIso8601Expression,
+};
 use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use std::time::Duration;
 

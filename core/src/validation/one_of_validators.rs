@@ -1,9 +1,9 @@
+use super::{ValidationResult, ValidationRule};
 use crate::models::authentication::AuthenticationPolicyDefinition;
 use crate::models::retry::BackoffStrategyDefinition;
 use crate::models::schema::SchemaDefinition;
 use crate::models::task::ProcessTypeDefinition;
 use crate::models::workflow::WorkflowScheduleDefinition;
-use super::{ValidationResult, ValidationRule};
 
 /// Validates that at most one of the given boolean flags is true.
 /// Emits a MutualExclusion error if more than one is set.

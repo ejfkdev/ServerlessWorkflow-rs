@@ -1,10 +1,13 @@
-use crate::models::map::Map;
-use crate::models::retry::OneOfRetryPolicyDefinitionOrReference;
-use crate::models::task::*;
-use super::{ValidationResult, ValidationRule, is_valid_hostname, validate_required_hostname, validate_required_semver};
 use super::document::validate_timeout;
 use super::enum_validators::*;
 use super::one_of_validators::{validate_backoff_one_of, validate_process_type_one_of};
+use super::{
+    is_valid_hostname, validate_required_hostname, validate_required_semver, ValidationResult,
+    ValidationRule,
+};
+use crate::models::map::Map;
+use crate::models::retry::OneOfRetryPolicyDefinitionOrReference;
+use crate::models::task::*;
 
 /// Validates a map of task definitions
 pub fn validate_task_map(
@@ -123,7 +126,11 @@ pub(crate) fn validate_run_task(
 }
 
 /// Validates a call task definition
-pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result: &mut ValidationResult) {
+pub(crate) fn validate_call_task(
+    call: &CallTaskDefinition,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
     validate_common_fields(call.common_fields(), prefix, result);
     match call {
         CallTaskDefinition::HTTP(http) => {
@@ -222,11 +229,7 @@ pub(crate) fn validate_common_fields(
 /// Validates a set task's value
 /// Matches Go SDK's validate:"required,min=1,dive"
 /// Set must have at least 1 key-value pair
-pub fn validate_set_task(
-    set: &SetValue,
-    prefix: &str,
-    result: &mut ValidationResult,
-) {
+pub fn validate_set_task(set: &SetValue, prefix: &str, result: &mut ValidationResult) {
     match set {
         SetValue::Map(map) => {
             if map.is_empty() {

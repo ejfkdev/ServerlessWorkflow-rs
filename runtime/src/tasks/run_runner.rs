@@ -1,7 +1,7 @@
-use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::{define_simple_task_runner};
+use crate::tasks::define_simple_task_runner;
+use crate::tasks::task_name_impl;
 use serde_json::Value;
 use serverless_workflow_core::models::task::{
     OneOfRunArguments, RunTaskDefinition, ShellProcessDefinition, WorkflowProcessDefinition,
@@ -159,8 +159,7 @@ impl RunTaskRunner {
                         match value {
                             Value::String(s) => {
                                 // Evaluate the value as a potential expression
-                                let evaluated_value =
-                                    support.eval_str(s, input, &self.name)?;
+                                let evaluated_value = support.eval_str(s, input, &self.name)?;
                                 // Combine key + value: e.g., "--user" + "john" → "--user john"
                                 parts.push(shell_escape(&evaluated_key));
                                 if !evaluated_value.is_empty() {

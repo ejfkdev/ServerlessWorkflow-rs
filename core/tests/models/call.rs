@@ -123,16 +123,16 @@ fn test_endpoint_definition_with_authentication() {
     use serverless_workflow_core::models::resource::EndpointDefinition;
     let endpoint = EndpointDefinition {
         uri: "http://example.com/{id}".to_string(),
-        authentication: Some(ReferenceableAuthenticationPolicy::Policy(
-            Box::new(AuthenticationPolicyDefinition {
+        authentication: Some(ReferenceableAuthenticationPolicy::Policy(Box::new(
+            AuthenticationPolicyDefinition {
                 basic: Some(BasicAuthenticationSchemeDefinition {
                     username: Some("admin".to_string()),
                     password: Some("admin".to_string()),
                     use_: None,
                 }),
                 ..Default::default()
-            }),
-        )),
+            },
+        ))),
     };
     let json_str = serde_json::to_string(&endpoint).expect("Failed to serialize endpoint");
     assert!(json_str.contains("admin"));

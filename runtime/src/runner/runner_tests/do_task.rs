@@ -1,31 +1,31 @@
 use super::*;
 
-    #[tokio::test]
-    async fn test_runner_nested_do() {
-        let output = run_workflow_from_yaml(&testdata("nested_do.yaml"), json!({}))
-            .await
-            .unwrap();
-        assert_eq!(output["doubled"], json!(20));
-    }
+#[tokio::test]
+async fn test_runner_nested_do() {
+    let output = run_workflow_from_yaml(&testdata("nested_do.yaml"), json!({}))
+        .await
+        .unwrap();
+    assert_eq!(output["doubled"], json!(20));
+}
 
-    // === Simple Expression ($task.startedAt.epoch.milliseconds, $workflow.id, $runtime.version) ===
+// === Simple Expression ($task.startedAt.epoch.milliseconds, $workflow.id, $runtime.version) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_try_catch() {
-        let output = run_workflow_from_yaml(&testdata("nested_try_catch.yaml"), json!({}))
-            .await
-            .unwrap();
-        // Inner try-catch should catch the validation error
-        assert_eq!(output["innerHandled"], json!(true));
-        // The $error variable should be accessible within catch.do
-        assert_eq!(output["innerTitle"], json!("Inner Error"));
-    }
+#[tokio::test]
+async fn test_runner_nested_try_catch() {
+    let output = run_workflow_from_yaml(&testdata("nested_try_catch.yaml"), json!({}))
+        .await
+        .unwrap();
+    // Inner try-catch should catch the validation error
+    assert_eq!(output["innerHandled"], json!(true));
+    // The $error variable should be accessible within catch.do
+    assert_eq!(output["innerTitle"], json!("Inner Error"));
+}
 
-    // === Task Timeout ===
+// === Task Timeout ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_deep() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_deep() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -40,15 +40,15 @@ do:
                   set:
                     deepValue: 42
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["deepValue"], json!(42));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["deepValue"], json!(42));
+}
 
-    // === Set with then: exit (exits current do block) ===
+// === Set with then: exit (exits current do block) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_export_context() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_export_context() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -66,15 +66,15 @@ do:
             set:
               result: '${ $context.innerValue }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!(42));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!(42));
+}
 
-    // === Workflow output: complex transformation ===
+// === Workflow output: complex transformation ===
 
-    #[tokio::test]
-    async fn test_runner_do_within_for() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_within_for() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -90,27 +90,27 @@ do:
             set:
               results: "${ [.results[]] + [{name: $item, doubled: ($item * 2)}] }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"items": [3, 5, 7], "results": []}))
-            .await
-            .unwrap();
-        assert_eq!(
-            output["results"],
-            json!([
-                {"name": 3, "doubled": 6},
-                {"name": 5, "doubled": 10},
-                {"name": 7, "doubled": 14}
-            ])
-        );
-    }
+    let output = runner
+        .run(json!({"items": [3, 5, 7], "results": []}))
+        .await
+        .unwrap();
+    assert_eq!(
+        output["results"],
+        json!([
+            {"name": 3, "doubled": 6},
+            {"name": 5, "doubled": 10},
+            {"name": 7, "doubled": 14}
+        ])
+    );
+}
 
-    // === For within Do (nested composite) ===
+// === For within Do (nested composite) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_try_catch_inner_recovers() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_try_catch_inner_recovers() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -148,18 +148,18 @@ do:
               set:
                 outerCaught: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["innerRecovered"], json!(true));
-        assert_eq!(output["continued"], json!(true));
-        // Outer catch should NOT trigger because inner caught the error
-        assert!(output.get("outerCaught").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["innerRecovered"], json!(true));
+    assert_eq!(output["continued"], json!(true));
+    // Outer catch should NOT trigger because inner caught the error
+    assert!(output.get("outerCaught").is_none());
+}
 
-    // === Switch with age-based classification (proper way to do mutually exclusive conditions) ===
+// === Switch with age-based classification (proper way to do mutually exclusive conditions) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_for_outer_reference() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_for_outer_reference() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -180,33 +180,33 @@ do:
                   set:
                     result: "${ [.result[]] + [{group: $group.name, item: $item}] }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({
-                "groups": [
-                    {"name": "A", "items": [1, 2]},
-                    {"name": "B", "items": [3]}
-                ],
-                "result": []
-            }))
-            .await
-            .unwrap();
-        assert_eq!(
-            output["result"],
-            json!([
-                {"group": "A", "item": 1},
-                {"group": "A", "item": 2},
-                {"group": "B", "item": 3}
-            ])
-        );
-    }
+    let output = runner
+        .run(json!({
+            "groups": [
+                {"name": "A", "items": [1, 2]},
+                {"name": "B", "items": [3]}
+            ],
+            "result": []
+        }))
+        .await
+        .unwrap();
+    assert_eq!(
+        output["result"],
+        json!([
+            {"group": "A", "item": 1},
+            {"group": "A", "item": 2},
+            {"group": "B", "item": 3}
+        ])
+    );
+}
 
-    // === Switch with no matching case and no default ===
+// === Switch with no matching case and no default ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_export() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_export() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -224,15 +224,15 @@ do:
             set:
               result: '${ $context.shared }'
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!(42));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!(42));
+}
 
-    // === Multiple tasks with flow control (then: goto skipping multiple tasks) ===
+// === Multiple tasks with flow control (then: goto skipping multiple tasks) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_for_with_export() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_for_with_export() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -258,25 +258,25 @@ do:
       set:
         allResults: "${ $context.results }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({
-                "groups": [{"name": "A", "items": [1, 2]}, {"name": "B", "items": [3]}],
-                "results": []
-            }))
-            .await
-            .unwrap();
-        // Inner for loop export accumulates, but outer for resets each iteration
-        // Last group (B) should be in context
-        assert!(output["allResults"].is_array());
-    }
+    let output = runner
+        .run(json!({
+            "groups": [{"name": "A", "items": [1, 2]}, {"name": "B", "items": [3]}],
+            "results": []
+        }))
+        .await
+        .unwrap();
+    // Inner for loop export accumulates, but outer for resets each iteration
+    // Last group (B) should be in context
+    assert!(output["allResults"].is_array());
+}
 
-    // === Expression: conditional with and/or ===
+// === Expression: conditional with and/or ===
 
-    #[tokio::test]
-    async fn test_runner_do_then_exit_nested() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_then_exit_nested() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -299,18 +299,18 @@ do:
       set:
         done: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // exit should exit the inner do, then workflow continues with afterOuter
-        assert_eq!(output["done"], json!(true));
-        // step3 should have been skipped by exit
-        assert!(output.get("c").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // exit should exit the inner do, then workflow continues with afterOuter
+    assert_eq!(output["done"], json!(true));
+    // step3 should have been skipped by exit
+    assert!(output.get("c").is_none());
+}
 
-    // === Expression: floor/ceil/round ===
+// === Expression: floor/ceil/round ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_with_then_exit() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_with_then_exit() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -333,17 +333,17 @@ do:
       set:
         z: 3
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // step2 then:exit exits inner do, execution continues at afterOuter in outer scope
-        assert_eq!(output["z"], json!(3));
-        assert!(output.get("skipped").is_none());
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // step2 then:exit exits inner do, execution continues at afterOuter in outer scope
+    assert_eq!(output["z"], json!(3));
+    assert!(output.get("skipped").is_none());
+}
 
-    // === For loop with nested do and export ===
+// === For loop with nested do and export ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_then_end_top_level() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_then_end_top_level() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -360,16 +360,16 @@ do:
       set:
         reached: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // then:end in inner do exits only the inner do, outer tasks continue
-        assert_eq!(output["reached"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // then:end in inner do exits only the inner do, outer tasks continue
+    assert_eq!(output["reached"], json!(true));
+}
 
-    // === Expression: string multiplication (repeat) ===
+// === Expression: string multiplication (repeat) ===
 
-    #[tokio::test]
-    async fn test_runner_nested_raise_caught_by_outer() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_raise_caught_by_outer() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -399,15 +399,15 @@ do:
                 caught: true
                 errorType: communication
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["caught"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["caught"], json!(true));
+}
 
-    // === Expression: ltrimstr / rtrimstr ===
+// === Expression: ltrimstr / rtrimstr ===
 
-    #[tokio::test]
-    async fn test_runner_nested_switch_then_exit_inner() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_switch_then_exit_inner() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -428,17 +428,19 @@ do:
       set:
         outerDone: true
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"ready": true})).await.unwrap();
-        // then:exit should exit inner do, but outer tasks continue
-        assert!(output.get("afterInner").is_none() || output["afterInner"] == json!(true));
-        assert_eq!(output["outerDone"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"ready": true}))
+        .await
+        .unwrap();
+    // then:exit should exit inner do, but outer tasks continue
+    assert!(output.get("afterInner").is_none() || output["afterInner"] == json!(true));
+    assert_eq!(output["outerDone"], json!(true));
+}
 
-    // === Expression: @json format ===
+// === Expression: @json format ===
 
-    #[tokio::test]
-    async fn test_runner_do_mixed_task_types() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_mixed_task_types() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -462,15 +464,15 @@ do:
       set:
         result: "${ .total }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!(6));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!(6));
+}
 
-    // === Fork with try-catch in branches ===
+// === Fork with try-catch in branches ===
 
-    #[tokio::test]
-    async fn test_runner_nested_do_inner_export() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_do_inner_export() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -488,15 +490,15 @@ do:
       set:
         result: "${ $context.innerVal }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!(42));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!(42));
+}
 
-    // === Expression: map with arithmetic ===
+// === Expression: map with arithmetic ===
 
-    #[tokio::test]
-    async fn test_runner_do_nested_goto_between_levels() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_nested_goto_between_levels() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -519,16 +521,16 @@ do:
       set:
         step: d
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // innerC then:exit exits inner do, execution continues at outerD in outer scope
-        assert_eq!(output["step"], json!("d"));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // innerC then:exit exits inner do, execution continues at outerD in outer scope
+    assert_eq!(output["step"], json!("d"));
+}
 
-    // === Expression: @uri encode ===
+// === Expression: @uri encode ===
 
-    #[tokio::test]
-    async fn test_runner_do_then_end_scope() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_then_end_scope() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -549,17 +551,17 @@ do:
         outer: true
         result: "${ .inner }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // then:end exits inner do, outer tasks continue
-        assert_eq!(output["outer"], json!(true));
-        assert_eq!(output["result"], json!(1));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // then:end exits inner do, outer tasks continue
+    assert_eq!(output["outer"], json!(true));
+    assert_eq!(output["result"], json!(1));
+}
 
-    // === Expression: string comparisons ===
+// === Expression: string comparisons ===
 
-    #[tokio::test]
-    async fn test_runner_do_nested_then_exit() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_nested_then_exit() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -579,15 +581,15 @@ do:
       set:
         result: "${ .val + 1 }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["result"], json!(11));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["result"], json!(11));
+}
 
-    // === Export: overwrite context completely ===
+// === Export: overwrite context completely ===
 
-    #[tokio::test]
-    async fn test_runner_do_goto_backward_with_guard() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_goto_backward_with_guard() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -610,17 +612,17 @@ do:
         count: "${ .count + 1 }"
       then: check
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["count"], json!(3));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["count"], json!(3));
+}
 
-    // === Batch 6: More workflow patterns ===
+// === Batch 6: More workflow patterns ===
 
-    // === Wait: PT0S immediate return (duplicate-avoiding name) ===
+// === Wait: PT0S immediate return (duplicate-avoiding name) ===
 
-    #[tokio::test]
-    async fn test_runner_do_if_skip_multiple() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_if_skip_multiple() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -639,16 +641,18 @@ do:
         hasY: "${ .y != null }"
         xVal: "${ .x }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": false})).await.unwrap();
-        assert_eq!(output["xVal"], json!(1));
-        assert_eq!(output["hasY"], json!(false));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": false}))
+        .await
+        .unwrap();
+    assert_eq!(output["xVal"], json!(1));
+    assert_eq!(output["hasY"], json!(false));
+}
 
-    // === Do: if condition executes task ===
+// === Do: if condition executes task ===
 
-    #[tokio::test]
-    async fn test_runner_do_if_execute_multiple() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_do_if_execute_multiple() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -669,16 +673,18 @@ do:
         hasY: "${ .y != null }"
         xVal: "${ .x }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": true})).await.unwrap();
-        assert_eq!(output["xVal"], json!(1));
-        assert_eq!(output["hasY"], json!(true));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": true}))
+        .await
+        .unwrap();
+    assert_eq!(output["xVal"], json!(1));
+    assert_eq!(output["hasY"], json!(true));
+}
 
-    // === Expression: nested object construction ===
+// === Expression: nested object construction ===
 
-    #[tokio::test]
-    async fn test_runner_nested_for_loops() {
-        let yaml_str = r#"
+#[tokio::test]
+async fn test_runner_nested_for_loops() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -695,21 +701,21 @@ do:
               result: "${ .result + [$item] }"
               items: "${ .items }"
 "#;
-        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
+    let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
-        let output = runner
-            .run(json!({"items": [10, 20, 30], "result": []}))
-            .await
-            .unwrap();
-        assert_eq!(output["result"], json!([10, 20, 30]));
-    }
+    let output = runner
+        .run(json!({"items": [10, 20, 30], "result": []}))
+        .await
+        .unwrap();
+    assert_eq!(output["result"], json!([10, 20, 30]));
+}
 
-    // === Batch 7: Additional DSL pattern tests ===
+// === Batch 7: Additional DSL pattern tests ===
 
-    // Do: then:continue explicit - continues to next task
-    #[tokio::test]
-    async fn test_runner_do_then_continue_explicit() {
-        let yaml_str = r#"
+// Do: then:continue explicit - continues to next task
+#[tokio::test]
+async fn test_runner_do_then_continue_explicit() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -725,15 +731,15 @@ do:
         b: 2
         a: "${ .a }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["a"], json!(1));
-        assert_eq!(output["b"], json!(2));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["a"], json!(1));
+    assert_eq!(output["b"], json!(2));
+}
 
-    // Do: multiple set tasks building up state
-    #[tokio::test]
-    async fn test_runner_do_accumulate_state() {
-        let yaml_str = r#"
+// Do: multiple set tasks building up state
+#[tokio::test]
+async fn test_runner_do_accumulate_state() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -759,17 +765,17 @@ do:
         b: "${ .b }"
         c: "${ .c }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        assert_eq!(output["total"], json!(6));
-        assert_eq!(output["a"], json!(1));
-        assert_eq!(output["b"], json!(2));
-        assert_eq!(output["c"], json!(3));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    assert_eq!(output["total"], json!(6));
+    assert_eq!(output["a"], json!(1));
+    assert_eq!(output["b"], json!(2));
+    assert_eq!(output["c"], json!(3));
+}
 
-    // Do: set + export + set chain
-    #[tokio::test]
-    async fn test_runner_do_set_export_chain() {
-        let yaml_str = r#"
+// Do: set + export + set chain
+#[tokio::test]
+async fn test_runner_do_set_export_chain() {
+    let yaml_str = r#"
 document:
   dsl: '1.0.0'
   namespace: test
@@ -792,11 +798,11 @@ do:
         step1: "${ $context.step1 }"
         step2: "${ $context.step2 }"
 "#;
-        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-        // step1: val=10, export step1=10
-        // step2: val=10+10=20, export step1=10,step2=20
-        // step3: val=20+20=40
-        assert_eq!(output["val"], json!(40));
-        assert_eq!(output["step1"], json!(10));
-        assert_eq!(output["step2"], json!(20));
-    }
+    let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+    // step1: val=10, export step1=10
+    // step2: val=10+10=20, export step1=10,step2=20
+    // step3: val=20+20=40
+    assert_eq!(output["val"], json!(40));
+    assert_eq!(output["step1"], json!(10));
+    assert_eq!(output["step2"], json!(20));
+}
