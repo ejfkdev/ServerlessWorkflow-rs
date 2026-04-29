@@ -221,8 +221,7 @@ do:
               evens: "${ if $item % 2 == 0 then [.evens[]] + [$item] else .evens end }"
               odds: "${ if $item % 2 != 0 then [.odds[]] + [$item] else .odds end }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [1, 2, 3, 4, 5], "evens": [], "odds": []}))
@@ -254,8 +253,7 @@ do:
                   set:
                     sum: "${ .sum + $num }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"numbers": [10, 20, 30], "sum": 0}))
@@ -286,8 +284,7 @@ do:
       output:
         as: .total
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"numbers": [1, 2, 3, 4, 5], "total": 0}))
@@ -321,8 +318,7 @@ do:
       set:
         allItems: "${ $context.collected }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": ["a", "b", "c"], "collected": []}))
@@ -354,8 +350,7 @@ do:
       output:
         as: .total
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [3, 5, 7, 9], "total": 0}))
@@ -385,8 +380,7 @@ do:
             set:
               processed: "${ [.processed[]] + [$item] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [], "processed": []}))
@@ -416,10 +410,7 @@ do:
             set:
               processed: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Null collection: no iterations, input passes through
         assert!(output.get("processed").is_none());
     }
@@ -444,10 +435,7 @@ do:
             set:
               result: "${ $item * 2 }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"items": [21]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"items": [21]})).await.unwrap();
         assert_eq!(output["result"], json!(42));
     }
 
@@ -472,8 +460,7 @@ do:
             set:
               result: "${ [.result[]] + [{name: $fruit, index: $idx}] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": ["apple", "banana"], "result": []}))
@@ -510,8 +497,7 @@ do:
             set:
               sum: "${ .sum + $num }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"numbers": [5, 8, 12, 3], "sum": 0}))
@@ -541,8 +527,7 @@ do:
             set:
               keys: "${ [.keys[]] + [$key] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"config": {"host": "localhost", "port": 8080}, "keys": []}))
@@ -576,8 +561,7 @@ do:
       output:
         as: .result
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [1, 2, 3], "result": []}))
@@ -608,8 +592,7 @@ do:
             set:
               total: "${ .total + $num }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"numbers": [1, 2, 3, 4, 5], "total": 0}))
@@ -640,8 +623,7 @@ do:
             export:
               as: "${ .processed }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": ["a", "b", "c"], "processed": []}))
@@ -691,8 +673,7 @@ do:
                     set:
                       hasBadItem: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": ["a", "bad", "c"], "collected": []}))
@@ -723,10 +704,7 @@ do:
             input:
               from: "${ {result: [], item: $item} }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"items": ["a", "b", "c"]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"items": ["a", "b", "c"]})).await.unwrap();
         // The for loop iterates but input.from transforms each iteration
         // After all iterations, the output is from the last iteration
         assert!(output["result"].is_array());
@@ -755,8 +733,7 @@ do:
             set:
               total: "${ (.total // 0) + $num }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // This test verifies for+while+output.as combination
         let result = runner.run(json!({"numbers": [3, 5, 7], "total": 0})).await;
@@ -794,8 +771,7 @@ do:
               total: "${ .total + $d }"
               doubled: "${ .doubled }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"nums": [1, 2, 3], "doubled": [], "total": 0}))
@@ -825,8 +801,7 @@ do:
             set:
               processed: "${ .processed + [$entry] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"config": {"host": "localhost", "port": 8080}, "processed": []}))
@@ -858,8 +833,7 @@ do:
               current: "${ $item }"
               target: "${ .target }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": ["a", "b", "c", "d"], "target": "c", "found": false}))
@@ -893,8 +867,7 @@ do:
               lastIdx: "${ $idx }"
               numbers: "${ .numbers }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"numbers": [5, 8, 3, 12, 7], "total": 0}))
@@ -927,8 +900,7 @@ do:
               result: "${ .result + [$key] }"
               data: "${ .data }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"data": {"a": 1, "b": 2}, "result": []}))
             .await
@@ -964,9 +936,7 @@ do:
         done: true
         total: "${ .total }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"items": [5], "total": 0})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"items": [5], "total": 0})).await.unwrap();
         // then:end should end the for loop, then afterLoop should execute
         assert_eq!(output["total"], json!(5));
         assert_eq!(output["done"], json!(true));
@@ -997,8 +967,7 @@ do:
         done: true
         numbers: "${ .numbers }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"numbers": [10, 20, 30], "total": 0}))
             .await
@@ -1033,8 +1002,7 @@ do:
                     items: "${ .items }"
                     groups: "${ .groups }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"groups": ["A", "B"], "items": [1, 2], "result": []}))
             .await
@@ -1067,8 +1035,7 @@ do:
       output:
         as: "${ .counter }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"input": [1, 2, 3], "counter": 0}))
             .await
@@ -1103,9 +1070,7 @@ do:
             set:
               output: ${.output + [$number + $index + 1]}
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"input": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"input": [1, 2, 3]})).await.unwrap();
         // $number + $index + 1: 1+0+1=2, 2+1+1=4, 3+2+1=6
         assert_eq!(output["output"], json!([2, 4, 6]));
     }
@@ -1134,8 +1099,7 @@ do:
       output:
         as: '${ { total: .counter, increments: .incr } }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"input": [1, 2, 3], "counter": 0}))
             .await
@@ -1165,9 +1129,7 @@ do:
             set:
               output: '${ [.output // [] | .[] , ($number * 2)] }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"input": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"input": [1, 2, 3]})).await.unwrap();
         assert_eq!(output["output"], json!([2, 4, 6]));
     }
 
@@ -1190,8 +1152,7 @@ do:
             set:
               names: "${ [.names[]] + [$item.name] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({
                 "items": [
@@ -1229,8 +1190,7 @@ do:
       output:
         as: .tagged
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"items": ["a", "b", "c"], "tagged": []}))
             .await
@@ -1267,9 +1227,7 @@ do:
             set:
               output: '${ [.output // [] | .[] , ($number + $index + 1)] }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"input": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"input": [1, 2, 3]})).await.unwrap();
         // number=1, index=0 → 1+0+1=2; number=2, index=1 → 2+1+1=4; number=3, index=2 → 3+2+1=6
         assert_eq!(output["output"], json!([2, 4, 6]));
     }
@@ -1299,9 +1257,7 @@ do:
       output:
         as: .counter
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"input": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"input": [1, 2, 3]})).await.unwrap();
         // counter starts null → 0+1=1, then 1+2=3, then 3+3=6
         assert_eq!(output, json!(6));
     }
@@ -1328,9 +1284,7 @@ do:
             set:
               count: '${ (.count // 0) + 1 }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"items": [1, 2, 3, 4, 5]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"items": [1, 2, 3, 4, 5]})).await.unwrap();
         // while stops when count >= 3, so only 3 iterations
         assert_eq!(output["count"], json!(3));
     }
@@ -1364,8 +1318,7 @@ do:
                 colors: '${ .processed.colors + [$color] }'
                 indexes: '${ .processed.indexes + [$index] }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"colors": ["red", "green", "blue"]}))
             .await
@@ -1406,9 +1359,7 @@ do:
             set:
               result: '${ (.result // 0) + $number }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"numbers": [2, 3, 4]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"numbers": [2, 3, 4]})).await.unwrap();
         assert_eq!(output["result"], json!(9));
     }
 
@@ -1445,8 +1396,7 @@ do:
                     set:
                       results: '${ .results + [{name: $item.name, status: "error"}] }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({
                 "items": [
@@ -1490,8 +1440,7 @@ do:
             set:
               processed: '${ { colors: (if .processed == null then [$color] else (.processed.colors + [$color]) end), indexes: (if .processed == null then [$index] else (.processed.indexes + [$index]) end) } }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"colors": ["red", "green", "blue"]}))
             .await
@@ -1526,9 +1475,7 @@ do:
       set:
         result: ${ .total }
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"numbers": [2, 3, 4]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"numbers": [2, 3, 4]})).await.unwrap();
         // 2 + 3 + 4 = 9
         assert_eq!(output["result"], json!(9));
     }
@@ -1560,8 +1507,7 @@ do:
                   set:
                     matrix: ${ .matrix + [[$fruit, $color]] }
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"fruits": ["apple", "banana"], "colors": ["red", "green"]}))
             .await
@@ -1602,9 +1548,7 @@ do:
             set:
               output: "${ .output + [$number + $index + 1] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"input": [5, 3, 1]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"input": [5, 3, 1]})).await.unwrap();
         // input.from produces {input: [5,3,1], output: []}
         // iteration 0: number=5, index=0, output += [5+0+1] = [6]
         // iteration 1: number=3, index=1, output += [3+1+1] = [6,5]

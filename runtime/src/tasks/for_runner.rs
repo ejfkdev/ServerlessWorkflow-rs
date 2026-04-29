@@ -1,6 +1,7 @@
+use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::DoTaskRunner;
+use crate::tasks::{DoTaskRunner};
 use serde_json::Value;
 use serverless_workflow_core::models::input::InputDataModelDefinition;
 use serverless_workflow_core::models::task::{DoTaskDefinition, ForTaskDefinition};
@@ -99,16 +100,14 @@ impl TaskRunner for ForTaskRunner {
         Ok(for_output)
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::context::WorkflowContext;
-    use crate::task_runner::TaskSupport;
+    use crate::default_support;
     use serde_json::json;
     use serverless_workflow_core::models::map::Map;
     use serverless_workflow_core::models::task::{
@@ -148,8 +147,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("sumLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(
@@ -191,8 +189,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("fruitLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(
@@ -234,8 +231,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("emptyLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"items": [], "original": "data"}), &mut support)
@@ -275,8 +271,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("whileLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"numbers": [3, 5, 7, 9], "total": 0}), &mut support)
@@ -317,8 +312,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("collectLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"input": [10, 20, 30], "indices": []}), &mut support)
@@ -358,8 +352,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("singleValLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"single": "hello"}), &mut support)
@@ -399,8 +392,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("sumLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(
@@ -443,8 +435,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("loopColors", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({"colors": ["red", "green", "blue"], "processed": {"colors": [], "indexes": []}}), &mut support).await.unwrap();
         assert_eq!(
@@ -485,8 +476,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("sumNumbers", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(
@@ -554,8 +544,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("nestedLoop", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"combined": []}), &mut support)
@@ -680,8 +669,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("sumAll", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // input=[1,2,3]: each iteration resets to {input:[1,2,3], output:[]}
         // iter 0: output += 1+0+1 = [2], iter 1: output += 2+1+1 = [2,4], iter 2: output += 3+2+1 = [2,4,6]
@@ -732,8 +720,7 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         let runner = ForTaskRunner::new("doubleAll", &task).unwrap();
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"items": [1, 2, 3, 4, 5]}), &mut support)

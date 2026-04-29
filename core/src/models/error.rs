@@ -66,20 +66,19 @@ pub struct ErrorDefinition {
     pub type_: ErrorType,
 
     /// Gets/sets a short, human-readable summary of the error type.It SHOULD NOT change from occurrence to occurrence of the error, except for purposes of localization
-    #[serde(rename = "title", skip_serializing_if = "Option::is_none", default)]
+    #[serde(skip_serializing_if = "Option::is_none", default)]
     pub title: Option<String>,
 
     /// Gets/sets the status code produced by the described error
-    #[serde(rename = "status")]
     pub status: Value,
 
     /// Gets/sets a human-readable explanation specific to this occurrence of the error.
-    #[serde(rename = "detail", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 
     /// Gets/sets a URI reference that identifies the specific occurrence of the error.
     /// It may or may not yield further information if dereferenced.
-    #[serde(rename = "instance", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<String>,
 }
 macro_rules! define_error_type {

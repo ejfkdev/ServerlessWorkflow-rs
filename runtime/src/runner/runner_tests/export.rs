@@ -59,10 +59,7 @@ do:
       set:
         result: "${ $context.step1Value + $context.step2Value }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(40)); // 10 + 30
     }
 
@@ -86,10 +83,7 @@ do:
       set:
         result: '${ $context.step1 + " world" }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!("hello world"));
     }
 
@@ -118,10 +112,7 @@ do:
       set:
         z: "${ $context.x + $context.y }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["z"], json!(40)); // 10 + 30
     }
 
@@ -145,10 +136,7 @@ do:
       set:
         result: "${ $context }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"]["count"], json!(3));
         assert_eq!(output["result"]["total"], json!(6));
     }
@@ -178,10 +166,7 @@ do:
       set:
         result: "${ $context }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // export.as replaces $context, so step2's export should have both a and b
         assert_eq!(output["result"]["a"], json!(1));
         assert_eq!(output["result"]["b"], json!(2));
@@ -207,10 +192,7 @@ do:
       set:
         result: "${ $context }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"]["data"]["val"], json!(10));
         assert_eq!(output["result"]["data"]["ts"], json!(12345));
     }
@@ -245,10 +227,7 @@ do:
       set:
         result: "${ $context }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"]["step1"], json!(1));
         assert_eq!(output["result"]["step2"], json!(2));
         assert_eq!(output["result"]["step3"], json!(3));
@@ -280,10 +259,7 @@ do:
         hasFirst: "${ $context.first != null }"
         hasSecond: "${ $context.second != null }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // export.as replaces context entirely, so step2's export overwrites step1's
         assert_eq!(output["hasSecond"], json!(true));
     }
@@ -308,10 +284,7 @@ do:
       set:
         isProd: "${ $context.mode == \"production\" }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["isProd"], json!(true));
     }
 
@@ -338,9 +311,7 @@ do:
         hasCount: "${ $context.count }"
         items: "${ .items }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["hasTotal"], json!(6));
         assert_eq!(output["hasCount"], json!(3));
     }
@@ -369,9 +340,7 @@ do:
       set:
         fullName: '${ $context.firstName + " " + $context.lastName }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["fullName"], json!("Alice Smith"));
     }
 

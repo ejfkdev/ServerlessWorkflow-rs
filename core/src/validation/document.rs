@@ -1,6 +1,6 @@
 use crate::models::duration::OneOfDurationOrIso8601Expression;
 use crate::models::workflow::*;
-use super::{ValidationResult, ValidationRule, is_valid_hostname, is_valid_semver};
+use super::{ValidationResult, ValidationRule, is_valid_hostname, is_valid_semver, validate_required_hostname, validate_required_semver};
 use super::one_of_validators::validate_schedule_one_of;
 
 /// Validates a complete workflow definition
@@ -33,34 +33,8 @@ pub fn validate_workflow(workflow: &WorkflowDefinition) -> ValidationResult {
 
 /// Validates workflow document metadata
 pub(crate) fn validate_document(doc: &WorkflowDefinitionMetadata, result: &mut ValidationResult) {
-    if doc.name.is_empty() {
-        result.add_error(
-            "document.name",
-            ValidationRule::Required,
-            "workflow name is required",
-        );
-    } else if !is_valid_hostname(&doc.name) {
-        // Go SDK: validate:"required,hostname_rfc1123"
-        result.add_error(
-            "document.name",
-            ValidationRule::Hostname,
-            "workflow name must be a valid RFC 1123 hostname",
-        );
-    }
-    if doc.version.is_empty() {
-        result.add_error(
-            "document.version",
-            ValidationRule::Required,
-            "workflow version is required",
-        );
-    } else if !is_valid_semver(&doc.version) {
-        // Go SDK: validate:"required,semver_pattern"
-        result.add_error(
-            "document.version",
-            ValidationRule::Semver,
-            "workflow version must be a valid semantic version",
-        );
-    }
+    validate_required_hostname(&doc.name, "document.name", result);
+    validate_required_semver(&doc.version, "document.version", result);
     if !doc.dsl.is_empty() && !is_valid_semver(&doc.dsl) {
         result.add_error(
             "document.dsl",

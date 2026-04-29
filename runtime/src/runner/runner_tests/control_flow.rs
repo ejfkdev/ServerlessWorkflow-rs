@@ -222,10 +222,7 @@ do:
       set:
         end: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // set replaces entire output: finalTask's set only has "end"
         assert_eq!(output["end"], json!(true));
         assert!(output.get("skipped1").is_none());
@@ -265,10 +262,7 @@ do:
         evenSum: "${ .evens | add }"
         oddSum: "${ .odds | add }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["evenCount"], json!(5));
         assert_eq!(output["oddCount"], json!(5));
         assert_eq!(output["evenSum"], json!(30));
@@ -293,9 +287,7 @@ do:
       set:
         name: javierito
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"enabled": true})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"enabled": true})).await.unwrap();
         assert_eq!(output["name"], json!("javierito"));
     }
 
@@ -315,9 +307,7 @@ do:
       set:
         name: javierito
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"enabled": false})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"enabled": false})).await.unwrap();
         // Task was skipped, enabled should still be false in output
         assert_eq!(output["enabled"], json!(false));
         // name should NOT be set since the task was skipped
@@ -340,8 +330,7 @@ do:
       set:
         weather: '${ if .temperature > 25 then "hot" else "cold" end }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"localWeather": {"temperature": 34}}))
             .await
@@ -367,8 +356,7 @@ do:
       set:
         weather: '${ if .temperature > 25 then "hot" else "cold" end }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"localWeather": {"temperature": 10}}))
             .await
@@ -394,8 +382,7 @@ do:
       set:
         weather: "${ if .temperature > 25 then 'hot' else 'cold' end }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"localWeather": {"temperature": 34}}))
             .await

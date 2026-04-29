@@ -1,6 +1,8 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::events::{CloudEvent, EventBus};
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::{define_simple_task_runner};
 use serde_json::Value;
 use serverless_workflow_core::models::event::{
     EventConsumptionStrategyDefinition, EventFilterDefinition,
@@ -8,18 +10,17 @@ use serverless_workflow_core::models::event::{
 };
 use serverless_workflow_core::models::task::ListenTaskDefinition;
 
-/// Runner for Listen tasks - subscribes to events from the EventBus
-///
-/// Supports three consumption strategies:
-/// - `any`: Complete when any one of the listed events is received
-/// - `all`: Complete when all listed events have been received at least once
-/// - `one`: Complete when the single specified event is received
-///
-/// Also supports `until` conditions and `foreach` iterators.
-pub struct ListenTaskRunner {
-    name: String,
-    task: ListenTaskDefinition,
-}
+define_simple_task_runner!(
+    /// Runner for Listen tasks - subscribes to events from the EventBus
+    ///
+    /// Supports three consumption strategies:
+    /// - `any`: Complete when any one of the listed events is received
+    /// - `all`: Complete when all listed events have been received at least once
+    /// - `one`: Complete when the single specified event is received
+    ///
+    /// Also supports `until` conditions and `foreach` iterators.
+    ListenTaskRunner, ListenTaskDefinition
+);
 
 /// Consumption strategy mode for the unified listen loop
 enum ListenMode {
@@ -33,13 +34,6 @@ enum ListenMode {
 }
 
 impl ListenTaskRunner {
-    pub fn new(name: &str, task: &ListenTaskDefinition) -> WorkflowResult<Self> {
-        Ok(Self {
-            name: name.to_string(),
-            task: task.clone(),
-        })
-    }
-
     /// Checks if a CloudEvent matches an EventFilterDefinition
     fn event_matches_filter(
         event: &CloudEvent,
@@ -78,19 +72,28 @@ impl ListenTaskRunner {
         true
     }
 
+    /// Converts consumed events to a JSON Value for expression evaluation
+    fn events_to_value(consumed_events: &[CloudEvent]) -> Value {
+        if consumed_events.len() == 1 {
+            consumed_events[0].data.clone()
+        } else {
+            Value::Array(consumed_events.iter().map(|e| e.to_json_value()).collect())
+        }
+    }
+
     /// Evaluates an `until` condition to decide whether to stop listening
     async fn evaluate_until(
         &self,
         until: &OneOfEventConsumptionStrategyDefinitionOrExpression,
         consumed_events: &[CloudEvent],
-        input: &Value,
         support: &TaskSupport<'_>,
     ) -> WorkflowResult<bool> {
         match until {
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(false) => Ok(false),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(true) => Ok(true),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Expression(expr) => {
-                support.eval_bool(expr, input)
+                let events_ctx = Self::events_to_value(consumed_events);
+                support.eval_bool(expr, &events_ctx)
             }
             OneOfEventConsumptionStrategyDefinitionOrExpression::Strategy(strategy) => {
                 // Check if the until strategy is satisfied by the consumed events
@@ -169,7 +172,7 @@ impl ListenTaskRunner {
                 if all_satisfied {
                     if let Some(ref until) = self.task.listen.to.until {
                         if self
-                            .evaluate_until(until, &consumed_events, input, support)
+                            .evaluate_until(until, &consumed_events, support)
                             .await?
                         {
                             break;
@@ -222,7 +225,7 @@ impl ListenTaskRunner {
 
                                 // Check until condition
                                 if let Some(ref until) = self.task.listen.to.until {
-                                    if self.evaluate_until(until, &consumed_events, input, support).await? {
+                                    if self.evaluate_until(until, &consumed_events, support).await? {
                                         break;
                                     }
                                 }
@@ -256,31 +259,14 @@ impl ListenTaskRunner {
         _input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        // Convert consumed events to JSON array
-        let events_json: Vec<Value> = consumed_events
-            .iter()
-            .map(|e| {
-                let mut obj = serde_json::Map::new();
-                obj.insert("type".to_string(), Value::String(e.event_type.clone()));
-                if let Some(ref source) = e.source {
-                    obj.insert("source".to_string(), Value::String(source.clone()));
-                }
-                obj.insert("data".to_string(), e.data.clone());
-                for (k, v) in &e.attributes {
-                    obj.insert(k.clone(), v.clone());
-                }
-                Value::Object(obj)
-            })
-            .collect();
-
-        let output = Value::Array(events_json);
+        let output = Value::Array(
+            consumed_events.iter().map(|e| e.to_json_value()).collect(),
+        );
 
         // Process foreach iterator if defined
         if let Some(ref foreach) = self.task.foreach {
             self.process_foreach(&output, foreach, support).await
         } else {
-            // If only one event was consumed and strategy is "one" or "any",
-            // return just that event's data; otherwise return the array
             if consumed_events.len() == 1 {
                 Ok(consumed_events[0].data.clone())
             } else {
@@ -353,6 +339,8 @@ impl ListenTaskRunner {
 
 #[async_trait::async_trait]
 impl TaskRunner for ListenTaskRunner {
+    task_name_impl!();
+
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
         let event_bus = support.clone_event_bus().ok_or_else(|| {
             WorkflowError::runtime_simple(
@@ -394,10 +382,6 @@ impl TaskRunner for ListenTaskRunner {
             // No consumption strategy defined — return input unchanged
             Ok(input)
         }
-    }
-
-    fn task_name(&self) -> &str {
-        &self.name
     }
 }
 
@@ -442,8 +426,8 @@ fn values_match(actual: &Value, expected: &Value) -> bool {
 mod tests {
     use super::*;
     use crate::context::WorkflowContext;
+    use crate::default_support;
     use crate::events::InMemoryEventBus;
-    use crate::task_runner::TaskSupport;
     use serde_json::json;
     use serverless_workflow_core::models::event::EventConsumptionStrategyDefinition;
     use serverless_workflow_core::models::event::EventFilterDefinition;
@@ -639,8 +623,7 @@ mod tests {
         let runner = ListenTaskRunner::new("listenNoBus", &listen_def).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());

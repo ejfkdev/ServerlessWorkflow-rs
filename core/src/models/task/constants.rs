@@ -102,3 +102,34 @@ string_constants! {
         TOKEN_EXCHANGE => "urn:ietf:params:oauth:grant-type:token-exchange",
     }
 }
+
+string_constants! {
+    /// Enumerates all supported container image pull policies
+    PullPolicy {
+        IF_NOT_PRESENT => "ifNotPresent",
+        ALWAYS => "always",
+        NEVER => "never",
+    }
+}
+
+string_constants! {
+    /// Enumerates all supported script languages
+    ScriptLanguage {
+        JAVASCRIPT => "javascript",
+        JS => "js",
+        PYTHON => "python",
+    }
+}
+
+string_constants! {
+    /// Enumerates all supported HTTP methods
+    HttpMethod {
+        GET => "GET",
+        POST => "POST",
+        PUT => "PUT",
+        DELETE => "DELETE",
+        PATCH => "PATCH",
+        HEAD => "HEAD",
+        OPTIONS => "OPTIONS",
+    }
+}

@@ -85,7 +85,7 @@ pub struct ErrorFilterProperties {
     #[serde(rename = "title", skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
-    /// Gets/sets the error detail to filter by
-    #[serde(rename = "detail", skip_serializing_if = "Option::is_none")]
+    /// Gets/sets the error details to filter by
+    #[serde(rename = "details", skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }

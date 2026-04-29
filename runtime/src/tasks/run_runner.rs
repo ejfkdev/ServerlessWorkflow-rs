@@ -1,24 +1,16 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::{define_simple_task_runner};
 use serde_json::Value;
 use serverless_workflow_core::models::task::{
     OneOfRunArguments, RunTaskDefinition, ShellProcessDefinition, WorkflowProcessDefinition,
 };
 
-/// Runner for Run tasks - executes processes (shell, container, script, workflow)
-pub struct RunTaskRunner {
-    name: String,
-    task: RunTaskDefinition,
-}
-
-impl RunTaskRunner {
-    pub fn new(name: &str, task: &RunTaskDefinition) -> WorkflowResult<Self> {
-        Ok(Self {
-            name: name.to_string(),
-            task: task.clone(),
-        })
-    }
-}
+define_simple_task_runner!(
+    /// Runner for Run tasks - executes processes (shell, container, script, workflow)
+    RunTaskRunner, RunTaskDefinition
+);
 
 #[async_trait::async_trait]
 impl TaskRunner for RunTaskRunner {
@@ -54,9 +46,7 @@ impl TaskRunner for RunTaskRunner {
         ))
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 impl RunTaskRunner {
@@ -292,6 +282,7 @@ fn shell_escape(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::context::WorkflowContext;
+    use crate::default_support;
     use serde_json::json;
     use serverless_workflow_core::models::task::{
         ProcessTypeDefinition, RunTaskDefinition, ShellProcessDefinition,
@@ -325,8 +316,7 @@ mod tests {
         let runner = RunTaskRunner::new("shellTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output, Value::String("hello\n".to_string()));
@@ -338,8 +328,7 @@ mod tests {
         let runner = RunTaskRunner::new("jsonTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output, json!({"key": "value"}));
@@ -351,8 +340,7 @@ mod tests {
         let runner = RunTaskRunner::new("failTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -365,8 +353,7 @@ mod tests {
         let runner = RunTaskRunner::new("codeTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output, json!(42));
@@ -379,8 +366,7 @@ mod tests {
         let runner = RunTaskRunner::new("allTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["code"], json!(0));
@@ -398,8 +384,7 @@ mod tests {
         let runner = RunTaskRunner::new("envTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output, Value::String("test_value\n".to_string()));
@@ -412,8 +397,7 @@ mod tests {
         let runner = RunTaskRunner::new("exprTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"cmd": "echo hello"}), &mut support)
@@ -440,8 +424,7 @@ mod tests {
         let runner = RunTaskRunner::new("containerTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -469,8 +452,7 @@ mod tests {
         let runner = RunTaskRunner::new("scriptTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());

@@ -8,8 +8,38 @@ use serverless_workflow_core::models::task::TaskDefinition;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
+
+/// Generates a setter, deref-getter, and clone-getter for an `Option<Arc<T>>` field.
+macro_rules! arc_accessors {
+    ($field:ident, $setter:ident, $getter:ident, $clone:ident, $ty:ty) => {
+        pub fn $setter(&mut self, value: Arc<$ty>) {
+            self.$field = Some(value);
+        }
+        pub fn $getter(&self) -> Option<&$ty> {
+            self.$field.as_deref()
+        }
+        pub fn $clone(&self) -> Option<Arc<$ty>> {
+            self.$field.clone()
+        }
+    };
+}
+
+/// Generates a setter, ref-getter, and clone-getter for an `Option<T>` field where T: Clone.
+macro_rules! option_accessors {
+    ($field:ident, $setter:ident, $getter:ident, $clone:ident, $ty:ty) => {
+        pub fn $setter(&mut self, value: $ty) {
+            self.$field = Some(value);
+        }
+        pub fn $getter(&self) -> Option<&$ty> {
+            self.$field.as_ref()
+        }
+        pub fn $clone(&self) -> Option<$ty> {
+            self.$field.clone()
+        }
+    };
+}
 
 /// Shared suspend/resume state for workflow execution.
 /// Cloned between WorkflowHandle and WorkflowContext to avoid duplicating logic.
@@ -75,7 +105,7 @@ pub mod vars {
 /// Runtime name and version constants
 pub mod runtime_info {
     pub const NAME: &str = "CNCF Serverless Workflow Specification Rust SDK";
-    pub const VERSION: &str = "1.0.0-alpha6.3";
+    pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
     /// Cached runtime info JSON value (constructed once)
     static RUNTIME_INFO: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
@@ -91,7 +121,6 @@ pub mod runtime_info {
 }
 
 /// Holds the runtime context for a workflow execution
-#[derive(Clone)]
 pub struct WorkflowContext {
     /// The workflow input ($input)
     input: Option<Value>,
@@ -100,7 +129,7 @@ pub struct WorkflowContext {
     /// The instance context ($context) - set by export.as
     instance_ctx: Option<Value>,
     /// The workflow descriptor ($workflow)
-    workflow_descriptor: Value,
+    workflow_descriptor: Arc<Value>,
     /// The current task descriptor ($task)
     task_descriptor: Value,
     /// Local expression variables (e.g., $item, $index in for loops)
@@ -127,6 +156,39 @@ pub struct WorkflowContext {
     status_log: Vec<StatusPhaseLog>,
     /// Per-task status log
     task_status: HashMap<String, Vec<StatusPhaseLog>>,
+    /// Per-task iteration counter (incremented each time a task executes)
+    iterations: HashMap<String, u32>,
+    /// Cached vars map for JQ expression evaluation (rebuilt when dirty)
+    vars_cache: Mutex<Option<HashMap<String, Value>>>,
+    /// Whether vars_cache is stale and needs rebuilding
+    vars_dirty: AtomicBool,
+}
+
+impl Clone for WorkflowContext {
+    fn clone(&self) -> Self {
+        Self {
+            input: self.input.clone(),
+            output: self.output.clone(),
+            instance_ctx: self.instance_ctx.clone(),
+            workflow_descriptor: Arc::clone(&self.workflow_descriptor),
+            task_descriptor: self.task_descriptor.clone(),
+            local_expr_vars: self.local_expr_vars.clone(),
+            authorization: self.authorization.clone(),
+            secret_manager: self.secret_manager.clone(),
+            listener: self.listener.clone(),
+            event_bus: self.event_bus.clone(),
+            sub_workflows: self.sub_workflows.clone(),
+            cancellation_token: self.cancellation_token.clone(),
+            suspend_state: self.suspend_state.clone(),
+            handler_registry: self.handler_registry.clone(),
+            functions: self.functions.clone(),
+            status_log: self.status_log.clone(),
+            task_status: self.task_status.clone(),
+            iterations: self.iterations.clone(),
+            vars_cache: Mutex::new(self.vars_cache.lock().unwrap().clone()),
+            vars_dirty: AtomicBool::new(self.vars_dirty.load(Ordering::Acquire)),
+        }
+    }
 }
 
 impl std::fmt::Debug for WorkflowContext {
@@ -146,6 +208,7 @@ impl std::fmt::Debug for WorkflowContext {
             .field("event_bus", &self.event_bus.as_ref().map(|_| "..."))
             .field("status_log", &self.status_log)
             .field("task_status", &self.task_status)
+            .field("iterations", &self.iterations)
             .finish()
     }
 }
@@ -163,10 +226,10 @@ impl WorkflowContext {
             )
         })?;
 
-        let workflow_descriptor = serde_json::json!({
+        let workflow_descriptor = Arc::new(serde_json::json!({
             "id": uuid::Uuid::new_v4().to_string(),
             "definition": workflow_json,
-        });
+        }));
 
         let mut ctx = Self {
             input: None,
@@ -186,6 +249,9 @@ impl WorkflowContext {
             functions: HashMap::new(),
             status_log: Vec::new(),
             task_status: HashMap::new(),
+            iterations: HashMap::new(),
+            vars_cache: Mutex::new(None),
+            vars_dirty: AtomicBool::new(true),
         };
         ctx.set_status(StatusPhase::Pending);
         Ok(ctx)
@@ -231,36 +297,26 @@ impl WorkflowContext {
             .map(|log| log.status)
     }
 
-    // ---- Input / Output ----
+    // ---- Input / Output / Instance Context ----
 
-    /// Sets the workflow input
-    pub fn set_input(&mut self, input: Value) {
-        self.input = Some(input);
+    pub fn set_input(&mut self, value: Value) {
+        self.input = Some(value);
+        self.invalidate_vars_cache();
     }
-
-    /// Gets the workflow input
     pub fn get_input(&self) -> Option<&Value> {
         self.input.as_ref()
     }
-
-    /// Sets the workflow output
-    pub fn set_output(&mut self, output: Value) {
-        self.output = Some(output);
+    pub fn set_output(&mut self, value: Value) {
+        self.output = Some(value);
+        self.invalidate_vars_cache();
     }
-
-    /// Gets the workflow output
     pub fn get_output(&self) -> Option<&Value> {
         self.output.as_ref()
     }
-
-    // ---- Instance Context ($context) ----
-
-    /// Sets the instance context ($context variable)
     pub fn set_instance_ctx(&mut self, value: Value) {
         self.instance_ctx = Some(value);
+        self.invalidate_vars_cache();
     }
-
-    /// Gets the instance context
     pub fn get_instance_ctx(&self) -> Option<&Value> {
         self.instance_ctx.as_ref()
     }
@@ -269,20 +325,22 @@ impl WorkflowContext {
 
     /// Sets the raw input in the workflow descriptor
     pub fn set_raw_input(&mut self, input: &Value) {
-        if let Some(obj) = self.workflow_descriptor.as_object_mut() {
+        let mut desc = (*self.workflow_descriptor).clone();
+        if let Some(obj) = desc.as_object_mut() {
             obj.insert("input".to_string(), input.clone());
         }
+        self.workflow_descriptor = Arc::new(desc);
+        self.invalidate_vars_cache();
     }
 
     // ---- Task Descriptor ----
 
     /// Inserts a key-value pair into the task descriptor object.
-    /// Panics if task_descriptor is not an Object (it always is by construction).
     fn task_descriptor_insert(&mut self, key: &str, value: Value) {
-        self.task_descriptor
-            .as_object_mut()
-            .expect("task_descriptor is always an Object")
-            .insert(key.to_string(), value);
+        if let Some(obj) = self.task_descriptor.as_object_mut() {
+            obj.insert(key.to_string(), value);
+        }
+        self.invalidate_vars_cache();
     }
 
     /// Sets the task name in the current task descriptor
@@ -338,9 +396,26 @@ impl WorkflowContext {
             .and_then(|obj| obj.get("definition"))
     }
 
+    /// Gets the workflow instance ID
+
     /// Sets the task definition in the task descriptor
     pub fn set_task_def(&mut self, task: &Value) {
         self.task_descriptor_insert("definition", task.clone());
+    }
+
+    /// Increments and returns the iteration counter for the given task position.
+    /// Each time a task executes, this counter is incremented, starting at 1.
+    pub fn inc_iteration(&mut self, position: &str) -> u32 {
+        let count = self.iterations.entry(position.to_string()).or_insert(0);
+        *count += 1;
+        let value = *count;
+        self.task_descriptor_insert("iteration", serde_json::json!(value));
+        value
+    }
+
+    /// Sets the retry attempt count in the task descriptor
+    pub fn set_retry_attempt(&mut self, attempt: u32) {
+        self.task_descriptor_insert("retryAttempt", serde_json::json!(attempt));
     }
 
     /// Clears the current task context
@@ -350,32 +425,13 @@ impl WorkflowContext {
 
     // ---- Secret Manager ----
 
-    /// Sets the secret manager for $secret expression variable
-    pub fn set_secret_manager(&mut self, manager: Arc<dyn SecretManager>) {
-        self.secret_manager = Some(manager);
-    }
-
-    /// Gets the secret manager
-    pub fn get_secret_manager(&self) -> Option<&dyn SecretManager> {
-        self.secret_manager.as_deref()
-    }
-
-    /// Gets a cloned Arc to the secret manager (for propagating to child runners)
-    pub fn clone_secret_manager(&self) -> Option<Arc<dyn SecretManager>> {
-        self.secret_manager.clone()
-    }
-
-    /// Gets a cloned Arc to the listener (for propagating to child runners)
-    pub fn clone_listener(&self) -> Option<Arc<dyn WorkflowExecutionListener>> {
-        self.listener.clone()
-    }
+    arc_accessors!(secret_manager, set_secret_manager, get_secret_manager, clone_secret_manager, dyn SecretManager);
 
     // ---- Execution Listener ----
 
-    /// Sets the execution listener
-    pub fn set_listener(&mut self, listener: Arc<dyn WorkflowExecutionListener>) {
-        self.listener = Some(listener);
-    }
+    arc_accessors!(listener, set_listener, get_listener, clone_listener, dyn WorkflowExecutionListener);
+
+    // ---- Event Emission ----
 
     /// Emits an event to the listener if configured, and publishes as CloudEvent to EventBus
     pub fn emit_event(&self, event: WorkflowEvent) {
@@ -396,20 +452,7 @@ impl WorkflowContext {
 
     // ---- Event Bus ----
 
-    /// Sets the event bus for emit/listen tasks
-    pub fn set_event_bus(&mut self, bus: SharedEventBus) {
-        self.event_bus = Some(bus);
-    }
-
-    /// Gets the event bus
-    pub fn get_event_bus(&self) -> Option<&SharedEventBus> {
-        self.event_bus.as_ref()
-    }
-
-    /// Gets a cloned Arc to the event bus (for propagating to child runners)
-    pub fn clone_event_bus(&self) -> Option<SharedEventBus> {
-        self.event_bus.clone()
-    }
+    option_accessors!(event_bus, set_event_bus, get_event_bus, clone_event_bus, SharedEventBus);
 
     // ---- Sub-Workflow Registry ----
 
@@ -535,11 +578,13 @@ impl WorkflowContext {
             "scheme": scheme,
             "parameter": parameter,
         }));
+        self.invalidate_vars_cache();
     }
 
     /// Clears the authorization descriptor (called after task completes)
     pub fn clear_authorization(&mut self) {
         self.authorization = None;
+        self.invalidate_vars_cache();
     }
 
     // ---- Local Expression Variables ----
@@ -547,6 +592,7 @@ impl WorkflowContext {
     /// Sets local expression variables (replaces all)
     pub fn set_local_expr_vars(&mut self, vars: HashMap<String, Value>) {
         self.local_expr_vars = vars;
+        self.invalidate_vars_cache();
     }
 
     /// Adds local expression variables (merges, does not overwrite existing keys)
@@ -554,6 +600,7 @@ impl WorkflowContext {
         for (k, v) in vars {
             self.local_expr_vars.entry(k).or_insert(v);
         }
+        self.invalidate_vars_cache();
     }
 
     /// Removes specified local expression variables
@@ -561,48 +608,57 @@ impl WorkflowContext {
         for key in keys {
             self.local_expr_vars.remove(*key);
         }
+        self.invalidate_vars_cache();
     }
 
     // ---- Variable Aggregation ----
 
-    /// Returns all variables for JQ expression evaluation
+    /// Marks the vars cache as dirty (needs rebuild on next access)
+    fn invalidate_vars_cache(&self) {
+        self.vars_dirty.store(true, Ordering::Release);
+    }
+
+    /// Returns all variables for JQ expression evaluation, using a cache
+    /// to avoid rebuilding the map on every call.
     pub fn get_vars(&self) -> HashMap<String, Value> {
-        let mut vars = HashMap::new();
+        if self.vars_dirty.load(Ordering::Acquire) {
+            let mut vars = HashMap::new();
 
-        vars.insert(
-            vars::INPUT.to_string(),
-            self.input.clone().unwrap_or(Value::Null),
-        );
-        vars.insert(
-            vars::OUTPUT.to_string(),
-            self.output.clone().unwrap_or(Value::Null),
-        );
-        vars.insert(
-            vars::CONTEXT.to_string(),
-            self.instance_ctx.clone().unwrap_or(Value::Null),
-        );
-        vars.insert(vars::TASK.to_string(), self.task_descriptor.clone());
-        vars.insert(vars::WORKFLOW.to_string(), self.workflow_descriptor.clone());
-        vars.insert(
-            vars::RUNTIME.to_string(),
-            runtime_info::runtime_info_value().clone(),
-        );
+            vars.insert(
+                vars::INPUT.to_string(),
+                self.input.clone().unwrap_or(Value::Null),
+            );
+            vars.insert(
+                vars::OUTPUT.to_string(),
+                self.output.clone().unwrap_or(Value::Null),
+            );
+            vars.insert(
+                vars::CONTEXT.to_string(),
+                self.instance_ctx.clone().unwrap_or(Value::Null),
+            );
+            vars.insert(vars::TASK.to_string(), self.task_descriptor.clone());
+            vars.insert(vars::WORKFLOW.to_string(), (*self.workflow_descriptor).clone());
+            vars.insert(
+                vars::RUNTIME.to_string(),
+                runtime_info::runtime_info_value().clone(),
+            );
 
-        // Add $secret variable if secret manager is configured
-        if let Some(ref mgr) = self.secret_manager {
-            vars.insert(vars::SECRET.to_string(), mgr.get_all_secrets());
+            if let Some(ref mgr) = self.secret_manager {
+                vars.insert(vars::SECRET.to_string(), mgr.get_all_secrets());
+            }
+
+            if let Some(ref auth) = self.authorization {
+                vars.insert(vars::AUTHORIZATION.to_string(), auth.clone());
+            }
+
+            for (k, v) in &self.local_expr_vars {
+                vars.insert(k.clone(), v.clone());
+            }
+
+            *self.vars_cache.lock().unwrap() = Some(vars);
+            self.vars_dirty.store(false, Ordering::Release);
         }
-
-        // Add $authorization variable if set (after HTTP authentication)
-        if let Some(ref auth) = self.authorization {
-            vars.insert(vars::AUTHORIZATION.to_string(), auth.clone());
-        }
-
-        for (k, v) in &self.local_expr_vars {
-            vars.insert(k.clone(), v.clone());
-        }
-
-        vars
+        self.vars_cache.lock().unwrap().as_ref().unwrap().clone()
     }
 }
 

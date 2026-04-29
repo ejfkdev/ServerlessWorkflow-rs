@@ -129,9 +129,7 @@ do:
               set:
                 message: Viva er Beti Balompie
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"delay": 0.01})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"delay": 0.01})).await.unwrap();
         // After timeout, catch block should set the message
         assert_eq!(output["message"], json!("Viva er Beti Balompie"));
     }

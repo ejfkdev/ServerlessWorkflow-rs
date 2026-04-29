@@ -50,8 +50,7 @@ do:
       wait: PT5S
       timeout: shortTimeout
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -88,10 +87,7 @@ do:
               set:
                 timedOut: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["timedOut"], json!(true));
     }
 
@@ -114,10 +110,7 @@ do:
       output:
         as: .result
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"rawNumber": 21})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"rawNumber": 21})).await.unwrap();
         assert_eq!(output, json!(42));
     }
 
@@ -146,10 +139,7 @@ do:
       set:
         doubled: "${ .count * 2 }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"count": 5})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"count": 5})).await.unwrap();
         assert_eq!(output["doubled"], json!(10));
     }
 
@@ -176,8 +166,7 @@ do:
       set:
         doubled: "${ .count * 2 }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Missing required field 'count'
         let result = runner.run(json!({"name": "test"})).await;
@@ -209,10 +198,7 @@ do:
             required:
               - result
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!("success"));
     }
 
@@ -239,8 +225,7 @@ do:
             required:
               - count
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // count is number but schema expects string
         let result = runner.run(json!({})).await;
@@ -276,10 +261,7 @@ do:
       set:
         result: "${ $context.exportedKey }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"inputKey": "hello"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"inputKey": "hello"})).await.unwrap();
         assert_eq!(output["result"], json!("hello"));
     }
 
@@ -310,8 +292,7 @@ do:
       set:
         result: "${ $context.exportedKey }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // exportedKey is 123 (number) but schema requires string
         let result = runner.run(json!({})).await;

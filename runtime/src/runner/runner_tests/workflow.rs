@@ -205,10 +205,7 @@ do:
 output:
   as: "${ {topScorer: .items[0].name, count: (.items | length)} }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["topScorer"], json!("Alice"));
         assert_eq!(output["count"], json!(2));
     }
@@ -230,8 +227,7 @@ do:
       set:
         result: "${ .name + \" is \" + (.age | tostring) }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"rawName": "Alice", "rawAge": 30}))
@@ -256,8 +252,7 @@ do:
   - slowTask:
       wait: PT5S
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -282,10 +277,7 @@ do:
       set:
         result: done
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!("done"));
     }
 
@@ -308,8 +300,7 @@ do:
   - slowTask:
       wait: PT5S
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -343,8 +334,7 @@ do:
               set:
                 timedOut: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Workflow-level timeout is applied outside try-catch, so it should still timeout
         let result = runner.run(json!({})).await;
@@ -372,8 +362,7 @@ do:
         name: "${ .name }"
         age: "${ .age }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"rawName": "Alice", "rawAge": 30}))
@@ -433,9 +422,7 @@ do:
         x: "${ .x }"
         y: "${ .y }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"a": 3, "b": 7})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"a": 3, "b": 7})).await.unwrap();
         assert_eq!(output["result"], json!(10));
     }
 
@@ -461,9 +448,7 @@ do:
 output:
   as: "${ { result: .colors } }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"colors": []})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"colors": []})).await.unwrap();
         // workflow-level output.as transforms the final result
         assert_eq!(output["result"], json!(["red", "green", "blue"]));
     }

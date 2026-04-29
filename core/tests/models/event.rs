@@ -94,6 +94,7 @@ fn test_event_definition_roundtrip() {
         subject: Some("Test Subject".to_string()),
         data_content_type: Some("application/json".to_string()),
         data_schema: Some("http://example.com/schema".to_string()),
+        data: None,
         with: std::collections::HashMap::new(),
     };
 

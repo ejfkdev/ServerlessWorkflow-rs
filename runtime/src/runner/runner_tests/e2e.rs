@@ -2,7 +2,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_e2e_http_try_catch_recovery() {
-        use warp::Filter;
 
         // Normal endpoint
         let api_ok = warp::path("users").and(warp::path("1")).map(|| {
@@ -21,9 +20,7 @@ use super::*;
         });
 
         let routes = api_ok.or(api_fail);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml_str = r#"
 document:
@@ -64,9 +61,7 @@ do:
 "#
         .replace("PORT", &port.to_string());
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["userName"], json!("Alice"));
         assert_eq!(output["recovered"], json!(true));
     }
@@ -75,7 +70,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_http_for_batch_call() {
-        use warp::Filter;
 
         // Endpoint that returns item by ID
         let get_item = warp::path!("items" / i32).map(|id| {
@@ -86,9 +80,7 @@ do:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(get_item).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(get_item);
 
         // For loop iterates over IDs, each iteration calls HTTP and uses export.as
         // to accumulate the item into the $context.collected array.
@@ -117,9 +109,7 @@ do:
               as: '${ {collected: ((if $context == null then [] elif $context.collected == null then [] else $context.collected end) + [{id: .id, name: .name, price: .price}])} }'
 "#.replace("PORT", &port.to_string());
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"ids": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"ids": [1, 2, 3]})).await.unwrap();
 
         // The output is the last iteration's result (the last HTTP call output.as)
         assert_eq!(output["id"], json!(3));
@@ -130,7 +120,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_http_export_switch_order() {
-        use warp::Filter;
 
         // Order status endpoint
         let get_order = warp::path!("orders" / i32).map(|id| {
@@ -141,9 +130,7 @@ do:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(get_order).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(get_order);
 
         // Test shipped order path
         let yaml_str = r#"
@@ -182,16 +169,13 @@ do:
 "#
         .replace("PORT", &port.to_string());
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!("shipped"));
         assert_eq!(output["orderId"], json!(1));
     }
 
     #[tokio::test]
     async fn test_e2e_http_export_switch_pending_order() {
-        use warp::Filter;
 
         let get_order = warp::path!("orders" / i32).map(|id| {
             warp::reply::json(&serde_json::json!({
@@ -201,9 +185,7 @@ do:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(get_order).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(get_order);
 
         let yaml_str = r#"
 document:
@@ -241,9 +223,7 @@ do:
 "#
         .replace("PORT", &port.to_string());
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!("pending"));
         assert_eq!(output["orderId"], json!(2));
     }
@@ -252,7 +232,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_etl_pipeline() {
-        use warp::Filter;
 
         // API that accepts POST with processed data
         let submit = warp::post()
@@ -267,9 +246,7 @@ do:
                 }))
             });
 
-        let (addr, server_fn) = warp::serve(submit).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(submit);
 
         // ETL: set transforms data, HTTP POST submits, export.as preserves context
         // Key: use export.as on the transform step to save highValueItems/total in $context,
@@ -339,7 +316,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_http_fork_parallel_calls() {
-        use warp::Filter;
 
         // Two different endpoints
         let users = warp::path("users")
@@ -349,12 +325,10 @@ do:
             .map(|| warp::reply::json(&serde_json::json!([{"id": 1, "name": "Widget"}])));
 
         let routes = users.or(products);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
-        // Fork returns Value::Array(results) where each result is a branch's output.
-        // We process the array in the next set task.
+        // Fork returns Value::Object with branch names as keys.
+        // We use to_entries to process the object in the next set task.
         let yaml_str = r#"
 document:
   dsl: '1.0.0'
@@ -380,16 +354,14 @@ do:
                   uri: http://localhost:PORT/products
   - mergeResults:
       set:
-        hasUsers: '${ ([.[] | .[0]] | length) > 0 }'
-        hasProducts: '${ ([.[] | .[0]] | length) > 0 }'
+        hasUsers: '${ (to_entries | length) > 0 }'
+        hasProducts: '${ (to_entries | length) > 0 }'
 "#
         .replace("PORT", &port.to_string());
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
 
-        // Fork returns an array of branch results; the set task transforms it
+        // Fork returns object with branch names; the set task checks keys exist
         // Just verify we got results from both branches
         assert!(output["hasUsers"].is_boolean());
         assert!(output["hasProducts"].is_boolean());
@@ -422,9 +394,7 @@ do:
       set:
         fullName: "${ .firstName + ' ' + .lastName }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["fullName"], json!("John Doe"));
     }
 
@@ -446,9 +416,7 @@ do:
       set:
         weather: "${ if .temperature > 25 then 'hot' else 'cold' end }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["weather"], json!("hot"));
     }
 
@@ -469,12 +437,7 @@ do:
       set:
         weather: "${ if .temperature > 25 then 'hot' else 'cold' end }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner
-            .run(json!({"localWeather": {"temperature": 34}}))
-            .await
-            .unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"localWeather": {"temperature": 34}})).await.unwrap();
         assert_eq!(output["weather"], json!("hot"));
     }
 
@@ -501,9 +464,7 @@ do:
       output:
         as: "${ { resultColors: .colors } }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["resultColors"], json!(["red", "green", "blue"]));
     }
 
@@ -530,15 +491,12 @@ do:
 output:
   as: "${ { result: .colors } }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(["red", "green", "blue"]));
     }
 
     #[tokio::test]
     async fn test_e2e_http_try_catch() {
-        use warp::Filter;
 
         let ok_endpoint = warp::path("data").map(|| {
             warp::reply::json(&serde_json::json!({
@@ -555,16 +513,11 @@ output:
         });
 
         let routes = ok_endpoint.or(err_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml_str = std::fs::read_to_string(testdata("e2e_http_try_catch.yaml")).unwrap();
         let yaml_str = yaml_str.replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["apiResult"], json!("success"));
         assert_eq!(output["errorHandled"], json!(true));
     }
@@ -573,7 +526,6 @@ output:
 
     #[tokio::test]
     async fn test_e2e_http_for_batch() {
-        use warp::Filter;
 
         let items = warp::path!("items" / i32).map(|id| {
             warp::reply::json(&serde_json::json!({
@@ -582,16 +534,11 @@ output:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(items).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(items);
 
         let yaml_str = std::fs::read_to_string(testdata("e2e_http_for_batch.yaml")).unwrap();
         let yaml_str = yaml_str.replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"itemIds": [1, 2, 3]})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"itemIds": [1, 2, 3]})).await.unwrap();
         // For loop with output.as returns last iteration's output as an object
         // or array depending on the task structure
         assert!(
@@ -604,7 +551,6 @@ output:
 
     #[tokio::test]
     async fn test_e2e_http_export_switch() {
-        use warp::Filter;
 
         let order_api = warp::path!("orders" / i32).map(|id| {
             warp::reply::json(&serde_json::json!({
@@ -614,16 +560,11 @@ output:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(order_api).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(order_api);
 
         let yaml_str = std::fs::read_to_string(testdata("e2e_http_export_switch.yaml")).unwrap();
         let yaml_str = yaml_str.replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["notified"], json!(true));
         assert_eq!(output["message"], json!("Your order has been shipped!"));
     }
@@ -670,10 +611,7 @@ do:
                 summary: "ETL partial"
                 itemCount: 0
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["summary"], json!("ETL complete"));
         assert_eq!(output["itemCount"], json!(3));
     }

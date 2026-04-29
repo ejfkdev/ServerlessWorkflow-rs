@@ -1,7 +1,8 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression;
+use serverless_workflow_core::models::duration::{Duration as SwfDuration, OneOfDurationOrIso8601Expression};
 use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
+use std::time::Duration;
 
 /// Ensures a variable name has the `$` prefix used in JQ expressions.
 /// If the name already starts with `$`, returns it unchanged.
@@ -14,6 +15,11 @@ pub fn ensure_dollar_prefix(name: &str, default: &str) -> String {
     } else {
         format!("${}", name)
     }
+}
+
+/// Converts a workflow Duration to a std Duration
+pub fn duration_to_std(dur: &SwfDuration) -> Duration {
+    Duration::from_millis(dur.total_milliseconds())
 }
 
 /// Resolves a OneOfDurationOrIso8601Expression into a std::time::Duration
@@ -130,29 +136,29 @@ pub fn parse_iso8601_duration(s: &str) -> Option<std::time::Duration> {
             }
             'D' if !in_time => {
                 let val: u64 = current_buf.parse().ok()?;
-                total_ms += val * 24 * 60 * 60 * 1000;
+                total_ms = total_ms.saturating_add(val.saturating_mul(86_400_000));
                 current_buf.clear();
             }
             'H' if in_time => {
                 let val: f64 = current_buf.parse().ok()?;
-                total_ms += (val * 60.0 * 60.0 * 1000.0) as u64;
+                total_ms = total_ms.saturating_add((val * 3_600_000.0) as u64);
                 current_buf.clear();
             }
             'M' if in_time => {
                 // Check if next char is 'S' (milliseconds: MS suffix)
                 if i + 1 < chars.len() && chars[i + 1] == 'S' {
                     let val: u64 = current_buf.parse().ok()?;
-                    total_ms += val;
+                    total_ms = total_ms.saturating_add(val);
                     i += 1; // skip the 'S' after 'M'
                 } else {
                     let val: f64 = current_buf.parse().ok()?;
-                    total_ms += (val * 60.0 * 1000.0) as u64;
+                    total_ms = total_ms.saturating_add((val * 60_000.0) as u64);
                 }
                 current_buf.clear();
             }
             'S' if in_time => {
                 let val: f64 = current_buf.parse().ok()?;
-                total_ms += (val * 1000.0) as u64;
+                total_ms = total_ms.saturating_add((val * 1000.0) as u64);
                 current_buf.clear();
             }
             _ => return None,

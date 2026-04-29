@@ -238,8 +238,7 @@ do:
             '--password': '${ .password }'
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"username": "john", "password": "doe"}))
@@ -274,8 +273,7 @@ do:
             'args!':
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"greeting": "Hello", "name": "World"}))
@@ -306,9 +304,7 @@ do:
           command: 'echo "Serverless Workflow"'
         return: none
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert!(output.is_null());
     }
 
@@ -328,9 +324,7 @@ do:
           command: 'ls /nonexistent_directory_for_test'
         return: stderr
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // stderr output should be a string
         assert!(output.is_string());
         assert!(!output.as_str().unwrap().is_empty());
@@ -355,9 +349,7 @@ do:
             LAST_NAME: '${.lastName}'
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"lastName": "Doe"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"lastName": "Doe"})).await.unwrap();
         assert_eq!(output["code"], json!(0));
         assert!(output["stdout"]
             .as_str()
@@ -385,9 +377,7 @@ do:
             World:
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["code"], json!(0));
         assert!(output["stdout"].as_str().unwrap().contains("Hello"));
         assert!(output["stdout"].as_str().unwrap().contains("World"));
@@ -413,8 +403,7 @@ do:
             '${.passwordKey}': 'doe'
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let output = runner
             .run(json!({"user": "john", "passwordKey": "--password"}))
             .await
@@ -440,9 +429,7 @@ do:
           command: echo "hello world"
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["code"], json!(0));
         assert!(output["stdout"].as_str().unwrap().contains("hello world"));
     }
@@ -468,8 +455,7 @@ do:
           command: echo
         return: all
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         // Check that it ran successfully (return: all gives {code, stdout, stderr})
         assert!(result.is_ok(), "Expected Ok, got Err: {:?}", result.err());
@@ -503,9 +489,7 @@ do:
           command: 'ls /nonexistent_directory_xyz'
         return: code
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // return: code should give exit code as number (non-zero for failing command)
         assert!(output.is_number());
         assert_ne!(output, json!(0));
@@ -529,8 +513,7 @@ do:
           command: 'echo hello'
         await: false
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         // async execution: output should be null or empty since we don't wait
         let output = runner.run(json!({})).await.unwrap();
         assert!(
@@ -562,9 +545,7 @@ do:
         answer: '${ .stdout | tonumber }'
         success: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["answer"], json!(42));
         assert_eq!(output["success"], json!(true));
     }
@@ -612,9 +593,7 @@ do:
         detected: true
       then: end
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["detected"], json!(true));
         // On macOS (CI runner), should be macos
         #[cfg(target_os = "macos")]
@@ -648,9 +627,7 @@ do:
             set:
               results: '${ (.results // []) + [{score: $score, grade: (if $score >= 90 then "A" elif $score >= 70 then "B" elif $score >= 60 then "C" else "F" end)}] }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
 
         let results = output["results"]
             .as_array()
@@ -713,9 +690,7 @@ do:
         message: '${ .stdout | rtrimstr("\n") }}'
         status: completed
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["message"], json!("hello-world"));
         assert_eq!(output["status"], json!("completed"));
     }
@@ -741,10 +716,7 @@ do:
         year: ${ . | tonumber }
         verified: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         let year = output["year"].as_i64().unwrap();
         assert!(year >= 2020, "year should be >= 2020, got: {}", year);
         assert_eq!(output["verified"], json!(true));
@@ -789,10 +761,7 @@ do:
         os: other
         detected: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["detected"], json!(true));
         let os = output["os"].as_str().unwrap();
         assert!(
@@ -832,10 +801,7 @@ do:
               value: ${ $num }
               doubled: ${ $num * 2 }
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // For loop returns the output of the last iteration
         assert!(output.is_object(), "for loop should return an object");
         assert_eq!(output["value"], json!(3), "last item should be 3");
@@ -1014,9 +980,7 @@ do:
         year: '${ .stdout | tonumber }'
         greeting: 'Hello from ${ .stdout | gsub("\n";"") }!'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
 
         // Verify year is a valid number (current year)
         let year = output["year"].as_u64().expect("year should be a number");
@@ -1067,9 +1031,7 @@ do:
         family: unknown
       then: end
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
 
         // On macOS, should detect "macos"
         #[cfg(target_os = "macos")]

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RetryPolicyDefinition {
     /// Gets/sets a runtime expression used to determine whether or not to retry running the task, in a given context
-    #[serde(rename = "when", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
 
     /// Gets/sets a runtime expression used to determine whether or not to retry running the task, in a given context
@@ -15,19 +15,19 @@ pub struct RetryPolicyDefinition {
     pub except_when: Option<String>,
 
     /// Gets/sets the limits, if any, of the retry policy
-    #[serde(rename = "limit", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<RetryPolicyLimitDefinition>,
 
     /// Gets/sets the delay duration between retry attempts
-    #[serde(rename = "delay", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delay: Option<OneOfDurationOrIso8601Expression>,
 
     /// Gets/sets the backoff strategy to use, if any
-    #[serde(rename = "backoff", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backoff: Option<BackoffStrategyDefinition>,
 
     /// Gets/sets the parameters, if any, that control the randomness or variability of the delay between retry attempts
-    #[serde(rename = "jitter", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub jitter: Option<JitterDefinition>,
 }
 
@@ -35,11 +35,11 @@ pub struct RetryPolicyDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RetryPolicyLimitDefinition {
     /// Gets/sets the definition of the limits for all retry attempts of a given policy
-    #[serde(rename = "attempt", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attempt: Option<RetryAttemptLimitDefinition>,
 
     /// Gets/sets the maximum duration, if any, during which to retry a given task
-    #[serde(rename = "duration", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<OneOfDurationOrIso8601Expression>,
 }
 
@@ -47,11 +47,11 @@ pub struct RetryPolicyLimitDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RetryAttemptLimitDefinition {
     /// Gets/sets the maximum attempts count
-    #[serde(rename = "count", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<u16>,
 
     /// Gets/sets the duration limit, if any, for all retry attempts
-    #[serde(rename = "duration", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<OneOfDurationOrIso8601Expression>,
 }
 
@@ -59,15 +59,15 @@ pub struct RetryAttemptLimitDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BackoffStrategyDefinition {
     /// Gets/sets the definition of the constant backoff to use, if any
-    #[serde(rename = "constant", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub constant: Option<ConstantBackoffDefinition>,
 
     /// Gets/sets the definition of the exponential backoff to use, if any
-    #[serde(rename = "exponential", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exponential: Option<ExponentialBackoffDefinition>,
 
     /// Gets/sets the definition of the linear backoff to use, if any
-    #[serde(rename = "linear", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub linear: Option<LinearBackoffDefinition>,
 }
 
@@ -136,7 +136,7 @@ impl ExponentialBackoffDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LinearBackoffDefinition {
     /// Gets/sets the linear incrementation to the delay between retry attempts
-    #[serde(rename = "increment", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub increment: Option<Duration>,
 
     /// Gets/sets the definition of additional linear backoff parameters (e.g., {"maxDelay": "PT30S"})
@@ -148,17 +148,14 @@ pub struct LinearBackoffDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct JitterDefinition {
     /// Gets/sets the minimum duration of the jitter range
-    #[serde(rename = "from")]
     pub from: Duration,
 
     /// Gets/sets the maximum duration of the jitter range
-    #[serde(rename = "to")]
     pub to: Duration,
 }
 
-/// Represents a value that can be either a RetryPolicyDefinition or a reference to a RetryPolicyDefinition
 define_one_of_or_reference!(
-    /// A retry policy definition or a reference to one
+    /// Represents a value that can be either a RetryPolicyDefinition or a reference to a RetryPolicyDefinition
     OneOfRetryPolicyDefinitionOrReference, Retry(Box<RetryPolicyDefinition>)
 );
 

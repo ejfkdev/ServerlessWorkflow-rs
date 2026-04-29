@@ -6,19 +6,19 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventConsumptionStrategyDefinition {
     /// Gets/sets a list containing all the events that must be consumed, if any
-    #[serde(rename = "all", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub all: Option<Vec<EventFilterDefinition>>,
 
     /// Gets/sets a list containing any of the events to consume, if any
-    #[serde(rename = "any", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub any: Option<Vec<EventFilterDefinition>>,
 
     /// Gets/sets the single event to consume
-    #[serde(rename = "one", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub one: Option<EventFilterDefinition>,
 
     /// Gets/sets the consumption strategy, if any, that defines the events that must be consumed to stop listening
-    #[serde(rename = "until", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub until: Option<Box<OneOfEventConsumptionStrategyDefinitionOrExpression>>,
 }
 
@@ -26,11 +26,11 @@ pub struct EventConsumptionStrategyDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventFilterDefinition {
     /// Gets/sets a name/value mapping of the attributes filtered events must define. Supports both regular expressions and runtime expressions
-    #[serde(rename = "with", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub with: Option<HashMap<String, Value>>,
 
     /// Gets/sets a name/definition mapping of the correlation to attempt when filtering events.
-    #[serde(rename = "correlate", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub correlate: Option<HashMap<String, CorrelationKeyDefinition>>,
 }
 
@@ -38,11 +38,10 @@ pub struct EventFilterDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CorrelationKeyDefinition {
     /// Gets/sets a runtime expression used to extract the correlation key value from events
-    #[serde(rename = "from")]
     pub from: String,
 
     /// Gets/sets a constant or a runtime expression, if any, used to determine whether or not the extracted correlation key value matches expectations and should be correlated. If not set, the first extracted value will be used as the correlation key's expectation
-    #[serde(rename = "expect", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expect: Option<String>,
 }
 impl CorrelationKeyDefinition {
@@ -58,11 +57,11 @@ impl CorrelationKeyDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EventDefinition {
     /// Gets/sets the unique event identifier
-    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Gets/sets the event source (URI template or runtime expression)
-    #[serde(rename = "source", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
     /// Gets/sets the event type
@@ -70,11 +69,11 @@ pub struct EventDefinition {
     pub type_: Option<String>,
 
     /// Gets/sets the event time (ISO 8601 date-time string or runtime expression)
-    #[serde(rename = "time", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time: Option<String>,
 
     /// Gets/sets the event subject
-    #[serde(rename = "subject", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
 
     /// Gets/sets the data content type
@@ -85,8 +84,12 @@ pub struct EventDefinition {
     #[serde(rename = "dataschema", skip_serializing_if = "Option::is_none")]
     pub data_schema: Option<String>,
 
+    /// Gets/sets the event data payload
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+
     /// Gets/sets a key/value mapping of the attributes of the configured event
-    #[serde(rename = "with", default)]
+    #[serde(default)]
     pub with: HashMap<String, Value>,
 }
 impl EventDefinition {

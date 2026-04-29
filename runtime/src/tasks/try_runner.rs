@@ -1,10 +1,11 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
-use crate::tasks::DoTaskRunner;
+use crate::tasks::{DoTaskRunner};
 use serde_json::Value;
 use serverless_workflow_core::models::retry::{
-    OneOfRetryPolicyDefinitionOrReference, RetryAttemptLimitDefinition, RetryPolicyDefinition,
-    RetryPolicyLimitDefinition,
+    JitterDefinition, OneOfRetryPolicyDefinitionOrReference, RetryAttemptLimitDefinition,
+    RetryPolicyDefinition, RetryPolicyLimitDefinition,
 };
 use serverless_workflow_core::models::task::{ErrorCatcherDefinition, TryTaskDefinition};
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
@@ -16,14 +17,13 @@ pub struct TryTaskRunner {
     name: String,
     try_runner: DoTaskRunner,
     catch: ErrorCatcherDefinition,
-    workflow: WorkflowDefinition,
 }
 
 impl TryTaskRunner {
     pub fn new(
         name: &str,
         task: &TryTaskDefinition,
-        workflow: &WorkflowDefinition,
+        _workflow: &WorkflowDefinition,
     ) -> WorkflowResult<Self> {
         let do_def =
             serverless_workflow_core::models::task::DoTaskDefinition::new(task.try_.clone());
@@ -33,7 +33,6 @@ impl TryTaskRunner {
             name: name.to_string(),
             try_runner,
             catch: task.catch.clone(),
-            workflow: workflow.clone(),
         })
     }
 }
@@ -98,9 +97,7 @@ impl TaskRunner for TryTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 impl TryTaskRunner {
@@ -125,44 +122,29 @@ impl TryTaskRunner {
             }
         }
 
-        // Check status filter
-        if let Some(ref status_filter) = props.status {
-            match error.status() {
-                Some(error_status) if error_status == status_filter => {}
-                _ => return false,
-            }
+        // Check optional string filters: status, title, detail, instance
+        fn matches_opt_str(filter: Option<&String>, actual: Option<&str>) -> bool {
+            filter.map_or(true, |f| actual == Some(f.as_str()))
         }
 
-        // Check title filter
-        if let Some(ref title_filter) = props.title {
-            match error.title() {
-                Some(error_title) if error_title == title_filter => {}
-                _ => return false,
-            }
+        fn matches_opt_value(filter: Option<&Value>, actual: Option<&Value>) -> bool {
+            filter.map_or(true, |f| actual == Some(f))
         }
 
-        // Check details filter
-        if let Some(ref detail_filter) = props.detail {
-            match error.detail() {
-                Some(error_details) if error_details == detail_filter => {}
-                _ => return false,
-            }
-        }
-
-        // Check instance filter
-        if let Some(ref instance_filter) = props.instance {
-            match error.instance() {
-                Some(error_instance) if error_instance == instance_filter => {}
-                _ => return false,
-            }
-        }
+        if !matches_opt_value(props.status.as_ref(), error.status()) { return false; }
+        if !matches_opt_str(props.title.as_ref(), error.title()) { return false; }
+        if !matches_opt_str(props.detail.as_ref(), error.detail()) { return false; }
+        if !matches_opt_str(props.instance.as_ref(), error.instance()) { return false; }
 
         true
     }
 
     /// Resolves a retry policy reference from workflow.use.retries
-    fn resolve_retry_reference(&self, ref_name: &str) -> Option<RetryPolicyDefinition> {
-        let use_ = self.workflow.use_.as_ref()?;
+    fn resolve_retry_reference(
+        support: &TaskSupport<'_>,
+        ref_name: &str,
+    ) -> Option<RetryPolicyDefinition> {
+        let use_ = support.workflow.use_.as_ref()?;
         let retries = use_.retries.as_ref()?;
         retries.get(ref_name).cloned()
     }
@@ -192,7 +174,7 @@ impl TryTaskRunner {
                     except_when: None,
                     jitter: None,
                 };
-                self.resolve_retry_reference(ref_name).unwrap_or(fallback)
+                Self::resolve_retry_reference(support, ref_name).unwrap_or(fallback)
             }
         };
 
@@ -220,6 +202,7 @@ impl TryTaskRunner {
         for attempt in 1..=max_attempts {
             // Apply backoff delay (skip first attempt)
             if attempt > 1 {
+                support.set_retry_attempt(attempt);
                 let backoff_delay = self.calculate_backoff_delay(delay_ms, attempt - 1, &policy);
                 tokio::time::sleep(Duration::from_millis(backoff_delay)).await;
             }
@@ -254,42 +237,64 @@ impl TryTaskRunner {
     ) -> u64 {
         let backoff = match &policy.backoff {
             Some(b) => b,
-            None => return base_delay_ms,
+            None => return Self::apply_jitter(base_delay_ms, policy.jitter.as_ref()),
         };
 
-        if let Some(ref constant) = backoff.constant {
-            // Constant backoff: use the configured delay, or fall back to base_delay_ms
+        let delay = if let Some(ref constant) = backoff.constant {
             if let Some(delay_str) = constant.delay() {
                 if let Some(parsed) = crate::utils::parse_iso8601_duration(delay_str) {
-                    return parsed.as_millis() as u64;
+                    parsed.as_millis() as u64
+                } else {
+                    base_delay_ms
                 }
+            } else {
+                base_delay_ms
             }
-            return base_delay_ms;
-        }
-
-        if let Some(ref exponential) = backoff.exponential {
+        } else if let Some(ref exponential) = backoff.exponential {
             let factor = exponential.factor().unwrap_or(2.0);
             let delay = (base_delay_ms as f64 * factor.powi(attempt as i32)) as u64;
-            // Apply maxDelay if set
             if let Some(max_delay_str) = exponential.max_delay() {
                 if let Some(parsed) = crate::utils::parse_iso8601_duration(max_delay_str) {
-                    let max_ms = parsed.as_millis() as u64;
-                    return delay.min(max_ms);
+                    delay.min(parsed.as_millis() as u64)
+                } else {
+                    delay
                 }
+            } else {
+                delay
             }
-            return delay;
-        }
-
-        if let Some(ref linear) = backoff.linear {
+        } else if let Some(ref linear) = backoff.linear {
             let increment_ms = linear
                 .increment
                 .as_ref()
                 .map(|d| d.total_milliseconds())
                 .unwrap_or(base_delay_ms);
-            return base_delay_ms + (increment_ms * attempt as u64);
-        }
+            base_delay_ms + (increment_ms * attempt as u64)
+        } else {
+            base_delay_ms
+        };
 
-        base_delay_ms
+        Self::apply_jitter(delay, policy.jitter.as_ref())
+    }
+
+    /// Applies jitter to a delay value by adding a random duration within [from, to].
+    fn apply_jitter(delay_ms: u64, jitter: Option<&JitterDefinition>) -> u64 {
+        let jitter = match jitter {
+            Some(j) => j,
+            None => return delay_ms,
+        };
+        let from_ms = jitter.from.total_milliseconds() as u64;
+        let to_ms = jitter.to.total_milliseconds() as u64;
+        if from_ms >= to_ms {
+            return delay_ms.saturating_add(from_ms);
+        }
+        let range = to_ms - from_ms;
+        // Simple fast random using thread-local nanosecond timestamp
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos() as u64;
+        let jitter_ms = from_ms + (seed % (range + 1));
+        delay_ms.saturating_add(jitter_ms)
     }
 }
 
@@ -320,8 +325,7 @@ fn evaluates_when_allowed(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::WorkflowContext;
-    use crate::task_runner::TaskSupport;
+    use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
     use serverless_workflow_core::models::error::{
@@ -422,8 +426,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["result"], json!(42));
@@ -441,8 +444,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should catch the error and return input (swallowed)
         let output = runner
@@ -464,8 +466,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should catch because type matches
         let output = runner
@@ -484,8 +485,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should NOT catch because type doesn't match
         let result = runner.run(json!({}), &mut support).await;
@@ -518,8 +518,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["compensated"], json!(true));
@@ -555,8 +554,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -590,8 +588,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"data": "safe"}), &mut support)
@@ -627,8 +624,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({"ok": true}), &mut support).await.unwrap();
         assert_eq!(output["ok"], json!(true));
@@ -660,8 +656,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["handled"], json!("auth_error"));
@@ -693,8 +688,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["caught"], json!(true));
@@ -725,8 +719,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert!(output["errorType"].is_string());
@@ -784,8 +777,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["recovered"], json!(true));
@@ -833,8 +825,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should NOT catch because details don't match
         let result = runner.run(json!({}), &mut support).await;
@@ -869,8 +860,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -902,8 +892,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should NOT catch because when expression is false
         let result = runner.run(json!({}), &mut support).await;
@@ -922,7 +911,7 @@ mod tests {
             do_: Some({
                 let entries = vec![(
                     "handleError".to_string(),
-                    make_set_task("errorMessage", json!("${ $caughtError.detail }")),
+                    make_set_task("errorMessage", json!("${ $caughtError.details }")),
                 )];
                 Map { entries }
             }),
@@ -949,8 +938,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert!(output["errorMessage"].is_string());
@@ -994,8 +982,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["recovered"], json!(true));
@@ -1047,8 +1034,7 @@ mod tests {
             &workflow,
         );
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Should retry 2 times then fail
         let result = runner.run(json!({}), &mut support).await;
@@ -1089,8 +1075,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -1134,8 +1119,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -1176,8 +1160,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -1233,8 +1216,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
@@ -1284,11 +1266,86 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let result = runner.run(json!({}), &mut support).await;
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_try_retry_with_jitter() {
+        use serverless_workflow_core::models::retry::{
+            BackoffStrategyDefinition, JitterDefinition,
+        };
+
+        let retry = RetryPolicyDefinition {
+            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            )),
+            backoff: Some(BackoffStrategyDefinition {
+                constant: None,
+                exponential: None,
+                linear: None,
+            }),
+            limit: Some(RetryPolicyLimitDefinition {
+                attempt: Some(RetryAttemptLimitDefinition { count: Some(2), duration: None }),
+                duration: None,
+            }),
+            when: None,
+            except_when: None,
+            jitter: Some(JitterDefinition {
+                from: serverless_workflow_core::models::duration::Duration::from_milliseconds(1),
+                to: serverless_workflow_core::models::duration::Duration::from_milliseconds(5),
+            }),
+        };
+
+        let catch = ErrorCatcherDefinition {
+            errors: None,
+            when: None,
+            except_when: None,
+            as_: None,
+            retry: Some(OneOfRetryPolicyDefinitionOrReference::Retry(Box::new(retry))),
+            do_: None,
+        };
+
+        let runner = make_try_runner(
+            "jitterRetryTask",
+            vec![("task1", make_raise_task("runtime"))],
+            catch,
+        );
+
+        let workflow = WorkflowDefinition::default();
+        default_support!(workflow, context, support);
+
+        let result = runner.run(json!({}), &mut support).await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_apply_jitter_no_jitter() {
+        let delay = TryTaskRunner::apply_jitter(1000, None);
+        assert_eq!(delay, 1000);
+    }
+
+    #[test]
+    fn test_apply_jitter_with_range() {
+        let jitter = JitterDefinition {
+            from: serverless_workflow_core::models::duration::Duration::from_milliseconds(10),
+            to: serverless_workflow_core::models::duration::Duration::from_milliseconds(50),
+        };
+        let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
+        // delay should be 100 + [10, 50] = [110, 150]
+        assert!(delay >= 110 && delay <= 150, "delay {} should be in [110, 150]", delay);
+    }
+
+    #[test]
+    fn test_apply_jitter_equal_from_to() {
+        let jitter = JitterDefinition {
+            from: serverless_workflow_core::models::duration::Duration::from_milliseconds(20),
+            to: serverless_workflow_core::models::duration::Duration::from_milliseconds(20),
+        };
+        let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
+        assert_eq!(delay, 120);
     }
 
     #[tokio::test]
@@ -1322,8 +1379,7 @@ mod tests {
         );
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // The set task produces {errorInfo: {type: ..., status: ...}}

@@ -22,15 +22,15 @@ impl SchemaFormat {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SchemaDefinition {
     /// Gets/sets the schema's format. Defaults to 'json'. The (optional) version of the format can be set using `{format}:{version}`.
-    #[serde(rename = "format", default = "default_schema_format")]
+    #[serde(default = "default_schema_format")]
     pub format: String,
 
     /// Gets/sets the schema's external resource, if any. Required if `document` has not been set.
-    #[serde(rename = "resource", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub resource: Option<ExternalResourceDefinition>,
 
     /// Gets/sets the inline definition of the schema to use. Required if `resource` has not been set.
-    #[serde(rename = "document", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub document: Option<Value>,
 }
 

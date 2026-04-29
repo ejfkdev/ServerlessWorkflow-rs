@@ -5,13 +5,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeoutDefinition {
     /// Gets/sets the duration after which to timeout
-    #[serde(rename = "after")]
     pub after: OneOfDurationOrIso8601Expression,
 }
 
-/// Represents a value that can be either a TimeoutDefinition or a reference to a TimeoutDefinition
 define_one_of_or_reference!(
-    /// A timeout definition or a reference to one
+    /// Represents a value that can be either a TimeoutDefinition or a reference to a TimeoutDefinition
     OneOfTimeoutDefinitionOrReference, Timeout(TimeoutDefinition)
 );
 

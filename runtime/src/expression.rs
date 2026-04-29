@@ -10,8 +10,8 @@ type CacheKey = (String, String);
 /// Global cache for compiled JQ filters.
 /// Key: (expression_text, sorted_variable_names_joined)
 /// Value: compiled Filter that can be reused with matching variable bindings
-static FILTER_CACHE: LazyLock<std::sync::Mutex<HashMap<CacheKey, jaq_core::Filter<jaq_core::Native<jaq_json::Val>>>>> =
-    LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+static FILTER_CACHE: LazyLock<std::sync::RwLock<HashMap<CacheKey, jaq_core::Filter<jaq_core::Native<jaq_json::Val>>>>> =
+    LazyLock::new(|| std::sync::RwLock::new(HashMap::new()));
 
 /// Evaluates a JQ expression against a JSON input with variable bindings.
 /// Uses a global cache to avoid recompiling the same expression with the same variable names.
@@ -36,7 +36,7 @@ pub fn evaluate_jq(
 
     // Try to get a compiled filter from the cache
     let filter = {
-        let cache = FILTER_CACHE.lock().unwrap();
+        let cache = FILTER_CACHE.read().unwrap_or_else(|e| e.into_inner());
         cache.get(&cache_key).cloned()
     };
 
@@ -74,7 +74,7 @@ pub fn evaluate_jq(
                 })?;
 
             // Store in cache
-            let mut cache = FILTER_CACHE.lock().unwrap();
+            let mut cache = FILTER_CACHE.write().unwrap_or_else(|e| e.into_inner());
             cache.entry(cache_key).or_insert(filter).clone()
         }
     };
@@ -112,7 +112,7 @@ pub fn evaluate_jq(
             "no result from jq evaluation",
             "",
         )),
-        1 => Ok(results.into_iter().next().unwrap()),
+        1 => Ok(results.into_iter().next().unwrap_or(Value::Null)),
         _ => Ok(Value::Array(results)),
     }
 }
@@ -134,12 +134,10 @@ pub fn traverse_and_evaluate(
                 traverse_and_evaluate(item, input, vars)?;
             }
         }
-        Value::String(s) => {
-            if is_strict_expr(s) {
-                let expr = sanitize_expr(s);
-                let result = evaluate_jq(&expr, input, vars)?;
-                *node = result;
-            }
+        Value::String(s) if is_strict_expr(s) => {
+            let expr = sanitize_expr(s);
+            let result = evaluate_jq(&expr, input, vars)?;
+            *node = result;
         }
         _ => {}
     }
@@ -287,23 +285,6 @@ pub fn evaluate_value_expr(
     }
 }
 
-/// Evaluates an optional `Value` expression (e.g., input.from, output.as, export.as).
-///
-/// - `None` returns the input unchanged.
-/// - String values are evaluated as JQ expressions.
-/// - Non-string values have embedded `${...}` expressions evaluated.
-pub fn evaluate_optional_expr(
-    as_val: Option<&Value>,
-    input: &Value,
-    vars: &HashMap<String, Value>,
-    task_name: &str,
-) -> WorkflowResult<Value> {
-    match as_val {
-        None => Ok(input.clone()),
-        Some(value) => evaluate_value_expr(value, input, vars, task_name),
-    }
-}
-
 /// Prepares an expression for JQ evaluation by normalizing and sanitizing.
 ///
 /// If the expression is a strict expression (`${...}`), strips the `${` and `}` wrapper.
@@ -428,7 +409,7 @@ mod tests {
         assert_eq!(result2, json!(2));
 
         // Verify cache has entries
-        let cache = FILTER_CACHE.lock().unwrap();
+        let cache = FILTER_CACHE.read().unwrap();
         assert!(!cache.is_empty());
     }
 

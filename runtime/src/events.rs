@@ -35,6 +35,20 @@ impl CloudEvent {
         self.attributes.insert(key.to_string(), value);
         self
     }
+
+    /// Converts this CloudEvent to a JSON Value for expression evaluation
+    pub fn to_json_value(&self) -> Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("type".to_string(), Value::String(self.event_type.clone()));
+        if let Some(ref source) = self.source {
+            obj.insert("source".to_string(), Value::String(source.clone()));
+        }
+        obj.insert("data".to_string(), self.data.clone());
+        for (k, v) in &self.attributes {
+            obj.insert(k.clone(), v.clone());
+        }
+        Value::Object(obj)
+    }
 }
 
 /// A subscription handle that holds a receiver for events

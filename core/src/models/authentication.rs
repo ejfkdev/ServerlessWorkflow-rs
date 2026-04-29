@@ -59,27 +59,27 @@ pub struct AuthenticationPolicyDefinition {
     pub use_: Option<String>,
 
     /// Gets/sets the `basic` authentication scheme to use, if any
-    #[serde(rename = "basic", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub basic: Option<BasicAuthenticationSchemeDefinition>,
 
     /// Gets/sets the `Bearer` authentication scheme to use, if any
-    #[serde(rename = "bearer", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bearer: Option<BearerAuthenticationSchemeDefinition>,
 
     /// Gets/sets the `Certificate` authentication scheme to use, if any
-    #[serde(rename = "certificate", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub certificate: Option<CertificateAuthenticationSchemeDefinition>,
 
     /// Gets/sets the `Digest` authentication scheme to use, if any
-    #[serde(rename = "digest", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub digest: Option<DigestAuthenticationSchemeDefinition>,
 
     /// Gets/sets the `OAUTH2` authentication scheme to use, if any
-    #[serde(rename = "oauth2", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub oauth2: Option<OAuth2AuthenticationSchemeDefinition>,
 
     /// Gets/sets the `OIDC` authentication scheme to use, if any
-    #[serde(rename = "oidc", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub oidc: Option<OpenIDConnectSchemeDefinition>,
 }
 
@@ -113,11 +113,11 @@ macro_rules! credential_auth_scheme {
             pub use_: Option<String>,
 
             /// Gets/sets the username used for authentication
-            #[serde(rename = "username", skip_serializing_if = "Option::is_none")]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub username: Option<String>,
 
             /// Gets/sets the password used for authentication
-            #[serde(rename = "password", skip_serializing_if = "Option::is_none")]
+            #[serde(skip_serializing_if = "Option::is_none")]
             pub password: Option<String>,
         }
     };
@@ -136,7 +136,7 @@ pub struct BearerAuthenticationSchemeDefinition {
     pub use_: Option<String>,
 
     /// Gets/sets the bearer token used for authentication
-    #[serde(rename = "token", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<String>,
 }
 
@@ -157,19 +157,19 @@ credential_auth_scheme!(
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuth2AuthenticationClientDefinition {
     /// Gets/sets the OAUTH2 `client_id` to use. Required if 'Authentication' has NOT been set to 'none'.
-    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
     /// Gets/sets the OAUTH2 `client_secret` to use, if any
-    #[serde(rename = "secret", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub secret: Option<String>,
 
     /// Gets/sets a JWT, if any, containing a signed assertion with the application credentials
-    #[serde(rename = "assertion", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub assertion: Option<String>,
 
     /// Gets/sets the authentication method to use to authenticate the client. Defaults to 'client_secret_post'
-    #[serde(rename = "authentication", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<String>,
 }
 
@@ -177,7 +177,7 @@ pub struct OAuth2AuthenticationClientDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuth2AuthenticationRequestDefinition {
     /// Gets/sets the encoding of the authentication request. Defaults to 'application/x-www-form-urlencoded'
-    #[serde(rename = "encoding", default = "default_oauth2_request_encoding")]
+    #[serde(default = "default_oauth2_request_encoding")]
     pub encoding: String,
 }
 
@@ -185,7 +185,6 @@ pub struct OAuth2AuthenticationRequestDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuth2TokenDefinition {
     /// Gets/sets the security token to use
-    #[serde(rename = "token")]
     pub token: String,
 
     /// Gets/sets the type of security token to use
@@ -197,125 +196,91 @@ pub struct OAuth2TokenDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct OAuth2AuthenticationEndpointsDefinition {
     /// Gets/sets the relative path to the token endpoint. Defaults to `/oauth2/token`
-    #[serde(rename = "token", default = "default_token_endpoint")]
+    #[serde(default = "default_token_endpoint")]
     pub token: String,
 
     /// Gets/sets the relative path to the revocation endpoint. Defaults to `/oauth2/revoke`
-    #[serde(rename = "revocation", default = "default_revocation_endpoint")]
+    #[serde(default = "default_revocation_endpoint")]
     pub revocation: String,
 
     /// Gets/sets the relative path to the introspection endpoint. Defaults to `/oauth2/introspect`
-    #[serde(rename = "introspection", default = "default_introspection_endpoint")]
+    #[serde(default = "default_introspection_endpoint")]
     pub introspection: String,
 }
 
-/// Represents the definition of an OAUTH2 authentication scheme
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OAuth2AuthenticationSchemeDefinition {
-    /// Gets/sets the name of the secret, if any, used to configure the authentication scheme
-    #[serde(rename = "use", skip_serializing_if = "Option::is_none")]
-    pub use_: Option<String>,
+/// Macro to define OAuth2-like authentication scheme structs.
+/// OAuth2 and OIDC share the same field set except OAuth2 has an extra `endpoints` field.
+macro_rules! oauth2_like_auth_scheme {
+    ($( #[$meta:meta] )* $name:ident { $($extra_field:tt)* }) => {
+        $( #[$meta] )*
+        #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+        pub struct $name {
+            /// Gets/sets the name of the secret, if any, used to configure the authentication scheme
+            #[serde(rename = "use", skip_serializing_if = "Option::is_none")]
+            pub use_: Option<String>,
 
-    /// Gets/sets the configuration of the OAUTH2 endpoints to use
-    #[serde(rename = "endpoints", skip_serializing_if = "Option::is_none")]
-    pub endpoints: Option<OAuth2AuthenticationEndpointsDefinition>,
+            $($extra_field)*
 
-    /// Gets/sets the URI that references the OAUTH2 authority to use.
-    #[serde(rename = "authority", skip_serializing_if = "Option::is_none")]
-    pub authority: Option<String>,
+            /// Gets/sets the URI that references the OAUTH2 authority to use.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub authority: Option<String>,
 
-    /// Gets/sets the grant type to use.
-    #[serde(rename = "grant", skip_serializing_if = "Option::is_none")]
-    pub grant: Option<String>,
+            /// Gets/sets the grant type to use.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub grant: Option<String>,
 
-    /// Gets/sets the definition of the client to use.
-    #[serde(rename = "client", skip_serializing_if = "Option::is_none")]
-    pub client: Option<OAuth2AuthenticationClientDefinition>,
+            /// Gets/sets the definition of the client to use.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub client: Option<OAuth2AuthenticationClientDefinition>,
 
-    /// Gets/sets the configuration of the authentication request to perform.
-    #[serde(rename = "request", skip_serializing_if = "Option::is_none")]
-    pub request: Option<OAuth2AuthenticationRequestDefinition>,
+            /// Gets/sets the configuration of the authentication request to perform.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub request: Option<OAuth2AuthenticationRequestDefinition>,
 
-    /// Gets/sets a list of valid issuers for token checks.
-    #[serde(rename = "issuers", skip_serializing_if = "Option::is_none")]
-    pub issuers: Option<Vec<String>>, // Using Vec<String> for EquatableList<string>
+            /// Gets/sets a list of valid issuers for token checks.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub issuers: Option<Vec<String>>,
 
-    /// Gets/sets the scopes to request the token for.
-    #[serde(rename = "scopes", skip_serializing_if = "Option::is_none")]
-    pub scopes: Option<Vec<String>>,
+            /// Gets/sets the scopes to request the token for.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub scopes: Option<Vec<String>>,
 
-    /// Gets/sets the audiences to request the token for.
-    #[serde(rename = "audiences", skip_serializing_if = "Option::is_none")]
-    pub audiences: Option<Vec<String>>,
+            /// Gets/sets the audiences to request the token for.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub audiences: Option<Vec<String>>,
 
-    /// Gets/sets the username to use (for Password grant).
-    #[serde(rename = "username", skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
+            /// Gets/sets the username to use (for Password grant).
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub username: Option<String>,
 
-    /// Gets/sets the password to use (for Password grant).
-    #[serde(rename = "password", skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
+            /// Gets/sets the password to use (for Password grant).
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub password: Option<String>,
 
-    /// Gets/sets the token representing the identity of the party on whose behalf the request is made.
-    #[serde(rename = "subject", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<OAuth2TokenDefinition>,
+            /// Gets/sets the token representing the identity of the party on whose behalf the request is made.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub subject: Option<OAuth2TokenDefinition>,
 
-    /// Gets/sets the token representing the acting party's identity.
-    #[serde(rename = "actor", skip_serializing_if = "Option::is_none")]
-    pub actor: Option<OAuth2TokenDefinition>,
+            /// Gets/sets the token representing the acting party's identity.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub actor: Option<OAuth2TokenDefinition>,
+        }
+    };
 }
 
-/// Represents the definition of an OpenIDConnect authentication scheme
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct OpenIDConnectSchemeDefinition {
-    /// Gets/sets the name of the secret, if any, used to configure the authentication scheme
-    #[serde(rename = "use", skip_serializing_if = "Option::is_none")]
-    pub use_: Option<String>,
+oauth2_like_auth_scheme!(
+    /// Represents the definition of an OAUTH2 authentication scheme
+    OAuth2AuthenticationSchemeDefinition {
+        /// Gets/sets the configuration of the OAUTH2 endpoints to use
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub endpoints: Option<OAuth2AuthenticationEndpointsDefinition>,
+    }
+);
 
-    /// Gets/sets the URI that references the OAUTH2 authority to use.
-    #[serde(rename = "authority", skip_serializing_if = "Option::is_none")]
-    pub authority: Option<String>,
-
-    /// Gets/sets the grant type to use.
-    #[serde(rename = "grant", skip_serializing_if = "Option::is_none")]
-    pub grant: Option<String>,
-
-    /// Gets/sets the definition of the client to use.
-    #[serde(rename = "client", skip_serializing_if = "Option::is_none")]
-    pub client: Option<OAuth2AuthenticationClientDefinition>,
-
-    /// Gets/sets the configuration of the authentication request to perform.
-    #[serde(rename = "request", skip_serializing_if = "Option::is_none")]
-    pub request: Option<OAuth2AuthenticationRequestDefinition>,
-
-    /// Gets/sets a list of valid issuers for token checks.
-    #[serde(rename = "issuers", skip_serializing_if = "Option::is_none")]
-    pub issuers: Option<Vec<String>>, // Using Vec<String> for EquatableList<string>
-
-    /// Gets/sets the scopes to request the token for.
-    #[serde(rename = "scopes", skip_serializing_if = "Option::is_none")]
-    pub scopes: Option<Vec<String>>,
-
-    /// Gets/sets the audiences to request the token for.
-    #[serde(rename = "audiences", skip_serializing_if = "Option::is_none")]
-    pub audiences: Option<Vec<String>>,
-
-    /// Gets/sets the username to use (for Password grant).
-    #[serde(rename = "username", skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
-
-    /// Gets/sets the password to use (for Password grant).
-    #[serde(rename = "password", skip_serializing_if = "Option::is_none")]
-    pub password: Option<String>,
-
-    /// Gets/sets the token representing the identity of the party on whose behalf the request is made.
-    #[serde(rename = "subject", skip_serializing_if = "Option::is_none")]
-    pub subject: Option<OAuth2TokenDefinition>,
-
-    /// Gets/sets the token representing the acting party's identity.
-    #[serde(rename = "actor", skip_serializing_if = "Option::is_none")]
-    pub actor: Option<OAuth2TokenDefinition>,
-}
+oauth2_like_auth_scheme!(
+    /// Represents the definition of an OpenIDConnect authentication scheme
+    OpenIDConnectSchemeDefinition {}
+);
 
 #[cfg(test)]
 mod tests {

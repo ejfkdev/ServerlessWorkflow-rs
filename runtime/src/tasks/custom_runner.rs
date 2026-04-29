@@ -1,25 +1,17 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::{define_simple_task_runner};
 use serde_json::Value;
 use serverless_workflow_core::models::task::CustomTaskDefinition;
 
-/// Runner for custom/extension task types.
-///
-/// Delegates to a registered `CustomTaskHandler` via the handler registry.
-/// If no handler is found, returns an error.
-pub struct CustomTaskRunner {
-    name: String,
-    task: CustomTaskDefinition,
-}
-
-impl CustomTaskRunner {
-    pub fn new(name: &str, task: &CustomTaskDefinition) -> WorkflowResult<Self> {
-        Ok(Self {
-            name: name.to_string(),
-            task: task.clone(),
-        })
-    }
-}
+define_simple_task_runner!(
+    /// Runner for custom/extension task types.
+    ///
+    /// Delegates to a registered `CustomTaskHandler` via the handler registry.
+    /// If no handler is found, returns an error.
+    CustomTaskRunner, CustomTaskDefinition
+);
 
 #[async_trait::async_trait]
 impl TaskRunner for CustomTaskRunner {
@@ -41,7 +33,5 @@ impl TaskRunner for CustomTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }

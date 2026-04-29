@@ -132,6 +132,26 @@ pub fn is_valid_hostname(hostname: &str) -> bool {
     HOSTNAME_RFC1123_PATTERN.is_match(hostname)
 }
 
+/// Validates a required string field as an RFC 1123 hostname.
+/// Adds a Required error if empty, or a Hostname error if invalid format.
+pub fn validate_required_hostname(value: &str, field: &str, result: &mut ValidationResult) {
+    if value.is_empty() {
+        result.add_error(field, ValidationRule::Required, &format!("{} is required", field));
+    } else if !is_valid_hostname(value) {
+        result.add_error(field, ValidationRule::Hostname, &format!("{} must be a valid RFC 1123 hostname", field));
+    }
+}
+
+/// Validates a required string field as a semantic version.
+/// Adds a Required error if empty, or a Semver error if invalid format.
+pub fn validate_required_semver(value: &str, field: &str, result: &mut ValidationResult) {
+    if value.is_empty() {
+        result.add_error(field, ValidationRule::Required, &format!("{} is required", field));
+    } else if !is_valid_semver(value) {
+        result.add_error(field, ValidationRule::Semver, &format!("{} must be a valid semantic version", field));
+    }
+}
+
 /// Checks if a value is a non-empty string.
 /// Per the Go SDK's `string_or_runtime_expr` validator, any non-empty string is valid
 /// (either a plain string or a runtime expression).

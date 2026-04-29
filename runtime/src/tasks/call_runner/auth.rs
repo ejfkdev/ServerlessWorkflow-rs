@@ -1,56 +1,99 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::evaluate_expression_str;
+use base64::Engine;
 use serde_json::Value;
 use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
+
+type VarsMap = std::collections::HashMap<String, Value>;
+type AuthDefs = std::collections::HashMap<String, ReferenceableAuthenticationPolicy>;
+
+/// Encodes credentials as Base64 to avoid exposing raw passwords through
+/// the `$authorization` expression variable.
+fn base64_encode_credentials(username: &str, password: &str) -> String {
+    let creds = format!("{}:{}", username, password);
+    base64::engine::general_purpose::STANDARD.encode(creds)
+}
+
+/// Evaluates an optional expression string, returning "" if None.
+fn eval_optional_expr(
+    expr: Option<&str>,
+    input: &Value,
+    vars: &VarsMap,
+    task_name: &str,
+) -> WorkflowResult<String> {
+    expr
+        .map(|e| evaluate_expression_str(e, input, vars, task_name))
+        .transpose()
+        .map(|o| o.unwrap_or_default())
+}
+
+/// Evaluates a required expression string, returning a validation error if None.
+fn eval_required_expr(
+    expr: Option<&str>,
+    field_name: &str,
+    context: &str,
+    input: &Value,
+    vars: &VarsMap,
+    task_name: &str,
+) -> WorkflowResult<String> {
+    expr
+        .map(|e| evaluate_expression_str(e, input, vars, task_name))
+        .transpose()?
+        .ok_or_else(|| {
+            WorkflowError::validation(
+                format!("{} requires '{}' to be set", context, field_name),
+                task_name,
+            )
+        })
+}
+
+/// Resolves an authentication policy reference to the actual policy definition.
+/// If the policy is already inline (Policy variant), returns it directly.
+/// If it's a Reference, looks it up in auth_definitions.
+fn resolve_auth_policy<'a>(
+    policy: &'a ReferenceableAuthenticationPolicy,
+    auth_definitions: Option<&'a AuthDefs>,
+    task_name: &str,
+) -> WorkflowResult<&'a serverless_workflow_core::models::authentication::AuthenticationPolicyDefinition> {
+    match policy {
+        ReferenceableAuthenticationPolicy::Policy(def) => Ok(def),
+        ReferenceableAuthenticationPolicy::Reference(ref_ref) => {
+            let defs = auth_definitions.ok_or_else(|| {
+                WorkflowError::validation(
+                    format!("authentication reference '{}' but no use.authentications defined", ref_ref.use_),
+                    task_name,
+                )
+            })?;
+            match defs.get(&ref_ref.use_) {
+                Some(ReferenceableAuthenticationPolicy::Policy(def)) => Ok(def),
+                Some(ReferenceableAuthenticationPolicy::Reference(nested)) => {
+                    Err(WorkflowError::validation(
+                        format!("nested authentication reference '{}' is not supported", nested.use_),
+                        task_name,
+                    ))
+                }
+                None => {
+                    Err(WorkflowError::validation(
+                        format!("authentication reference '{}' not found in use.authentications", ref_ref.use_),
+                        task_name,
+                    ))
+                }
+            }
+        }
+    }
+}
 
 /// Applies authentication to an HTTP request builder
 /// Returns (request_builder, optional_authorization) where authorization is (scheme, parameter)
 pub(crate) async fn apply_authentication(
     mut builder: reqwest::RequestBuilder,
     policy: &ReferenceableAuthenticationPolicy,
-    auth_definitions: Option<&std::collections::HashMap<String, ReferenceableAuthenticationPolicy>>,
+    auth_definitions: Option<&AuthDefs>,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<(reqwest::RequestBuilder, Option<(String, String)>)> {
-    // Resolve the policy: if it's a reference, look it up in workflow.use_.authentications
-    let resolved_policy = match policy {
-        ReferenceableAuthenticationPolicy::Policy(def) => def,
-        ReferenceableAuthenticationPolicy::Reference(ref_ref) => {
-            match auth_definitions {
-                Some(defs) => {
-                    match defs.get(&ref_ref.use_) {
-                        Some(ReferenceableAuthenticationPolicy::Policy(def)) => def,
-                        Some(ReferenceableAuthenticationPolicy::Reference(nested)) => {
-                            // Prevent deep recursion: only resolve one level of reference
-                            return Err(WorkflowError::validation(
-                                format!(
-                                    "nested authentication reference '{}' is not supported",
-                                    nested.use_
-                                ),
-                                task_name,
-                            ));
-                        }
-                        None => {
-                            return Err(WorkflowError::validation(
-                            format!("authentication reference '{}' not found in use.authentications", ref_ref.use_),
-                            task_name,
-                        ));
-                        }
-                    }
-                }
-                None => {
-                    return Err(WorkflowError::validation(
-                        format!(
-                            "authentication reference '{}' but no use.authentications defined",
-                            ref_ref.use_
-                        ),
-                        task_name,
-                    ));
-                }
-            }
-        }
-    };
+    let resolved_policy = resolve_auth_policy(policy, auth_definitions, task_name)?;
 
     // Apply basic authentication
     let mut authorization: Option<(String, String)> = None;
@@ -66,7 +109,9 @@ pub(crate) async fn apply_authentication(
         )
         .await?;
         if let Some((username, password)) = creds {
-            let parameter = format!("{}:{}", username, password);
+            // Store Base64-encoded credentials instead of plaintext to avoid
+            // exposing raw password through $authorization expression variable
+            let parameter = base64_encode_credentials(&username, &password);
             authorization = Some((auth_scheme, parameter));
             builder = builder.basic_auth(username, Some(password));
         }
@@ -102,7 +147,8 @@ pub(crate) async fn apply_authentication(
             // Digest auth requires a two-step flow (pre-flight + retry with digest header).
             // We apply basic_auth as a fallback here — the actual digest flow is handled
             // in the response processing code when a 401 with WWW-Authenticate: Digest is received.
-            let parameter = format!("{}:{}", username, password);
+            // Store Base64-encoded credentials instead of plaintext
+            let parameter = base64_encode_credentials(&username, &password);
             authorization = Some((auth_scheme, parameter));
             builder = builder.basic_auth(username, Some(password));
         }
@@ -134,16 +180,12 @@ async fn apply_credentials_auth(
     password_expr: &Option<String>,
     secret_ref: Option<&str>,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<(String, Option<(String, String)>)> {
     if let Some(ref username) = username_expr {
         let username_val = evaluate_expression_str(username, input, vars, task_name)?;
-        let password_val = password_expr
-            .as_deref()
-            .map(|p| evaluate_expression_str(p, input, vars, task_name))
-            .transpose()?
-            .unwrap_or_default();
+        let password_val = eval_optional_expr(password_expr.as_deref(), input, vars, task_name)?;
         Ok((scheme.to_string(), Some((username_val, password_val))))
     } else if let Some(secret_name) = secret_ref {
         let (username_val, password_val) = lookup_secret_credentials(secret_name, vars, task_name)?;
@@ -156,7 +198,7 @@ async fn apply_credentials_auth(
 /// Looks up a secret object from $secret.<secretName>
 fn lookup_secret<'a>(
     secret_name: &str,
-    vars: &'a std::collections::HashMap<String, Value>,
+    vars: &'a VarsMap,
     task_name: &str,
 ) -> WorkflowResult<&'a Value> {
     vars.get("$secret")
@@ -173,7 +215,7 @@ fn lookup_secret<'a>(
 /// The secret object should contain "username" and "password" fields
 fn lookup_secret_credentials(
     secret_name: &str,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<(String, String)> {
     let secret = lookup_secret(secret_name, vars, task_name)?;
@@ -202,7 +244,7 @@ fn lookup_secret_credentials(
 /// The secret object should contain a "token" field
 fn lookup_secret_token(
     secret_name: &str,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<String> {
     let secret = lookup_secret(secret_name, vars, task_name)?;
@@ -296,7 +338,9 @@ async fn fetch_access_token(params: TokenRequestParams, task_name: &str) -> Work
 
     let status = response.status();
     if !status.is_success() {
-        let body_text = response.text().await.unwrap_or_default();
+        let body_text = response.text().await.unwrap_or_else(|e| {
+            format!("<failed to read response body: {}>", e)
+        });
         return Err(WorkflowError::communication(
             format!(
                 "{} token endpoint returned status {}: {}",
@@ -404,7 +448,7 @@ fn build_token_request_params(
     protocol_name: &'static str,
     allow_token_exchange: bool,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<TokenRequestParams> {
     let grant_type = fields
@@ -444,18 +488,8 @@ fn build_token_request_params(
     match grant_type.as_str() {
         "client_credentials" => { /* scope handled in fetch_access_token */ }
         "password" => {
-            let username = fields
-                .username
-                .as_deref()
-                .map(|u| evaluate_expression_str(u, input, vars, task_name))
-                .transpose()?
-                .unwrap_or_default();
-            let password = fields
-                .password
-                .as_deref()
-                .map(|p| evaluate_expression_str(p, input, vars, task_name))
-                .transpose()?
-                .unwrap_or_default();
+            let username = eval_optional_expr(fields.username.as_deref(), input, vars, task_name)?;
+            let password = eval_optional_expr(fields.password.as_deref(), input, vars, task_name)?;
             grant_params.push(("username".to_string(), username));
             grant_params.push(("password".to_string(), password));
         }
@@ -515,39 +549,27 @@ fn build_token_request_params(
     })
 }
 
-/// Fetches an OAuth2 access token from the token endpoint
+/// Fetches an OAuth2 access token from the token endpoint.
 /// Implements the client_credentials, password, and token-exchange grant types
-/// matching Java SDK's JaxRSAccessTokenProvider
-async fn fetch_oauth2_token(
-    oauth2: &serverless_workflow_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
+/// matching Java SDK's JaxRSAccessTokenProvider.
+///
+/// `token_url` is pre-computed (OAuth2 appends endpoint path, OIDC uses authority directly).
+/// `protocol_name` is "OAuth2" or "OIDC".
+/// `allow_token_exchange` enables the token-exchange grant type (only for OAuth2).
+async fn fetch_token(
+    token_url: String,
+    fields: OAuthTokenFields,
+    protocol_name: &'static str,
+    allow_token_exchange: bool,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<String> {
-    // Build the token endpoint URL from authority + endpoints.token path
-    let authority = oauth2
-        .authority
-        .as_deref()
-        .map(|a| evaluate_expression_str(a, input, vars, task_name))
-        .transpose()?
-        .ok_or_else(|| {
-            WorkflowError::validation(
-                "OAuth2 authentication requires 'authority' to be set".to_string(),
-                task_name,
-            )
-        })?;
-    let token_path = oauth2
-        .endpoints
-        .as_ref()
-        .map(|e| e.token.as_str())
-        .unwrap_or("/oauth2/token");
-    let token_url = format!("{}{}", authority.trim_end_matches('/'), token_path);
-
     let params = build_token_request_params(
         token_url,
-        OAuthTokenFields::from_oauth2(oauth2),
-        "OAuth2",
-        true,
+        fields,
+        protocol_name,
+        allow_token_exchange,
         input,
         vars,
         task_name,
@@ -555,34 +577,38 @@ async fn fetch_oauth2_token(
     fetch_access_token(params, task_name).await
 }
 
+/// Fetches an OAuth2 access token from the token endpoint
+async fn fetch_oauth2_token(
+    oauth2: &serverless_workflow_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
+    input: &Value,
+    vars: &VarsMap,
+    task_name: &str,
+) -> WorkflowResult<String> {
+    // Build the token endpoint URL from authority + endpoints.token path
+    let authority = eval_required_expr(
+        oauth2.authority.as_deref(), "authority", "OAuth2", input, vars, task_name,
+    )?;
+    let token_path = oauth2
+        .endpoints
+        .as_ref()
+        .map(|e| e.token.as_str())
+        .unwrap_or("/oauth2/token");
+    let token_url = format!("{}{}", authority.trim_end_matches('/'), token_path);
+
+    fetch_token(token_url, OAuthTokenFields::from_oauth2(oauth2), "OAuth2", true, input, vars, task_name).await
+}
+
 /// Fetches an OIDC access token — same as OAuth2 but OIDC's authority IS the token endpoint URL
 async fn fetch_oidc_token(
     oidc: &serverless_workflow_core::models::authentication::OpenIDConnectSchemeDefinition,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<String> {
     // For OIDC, the authority is the full token endpoint URL
-    let token_url = oidc
-        .authority
-        .as_deref()
-        .map(|a| evaluate_expression_str(a, input, vars, task_name))
-        .transpose()?
-        .ok_or_else(|| {
-            WorkflowError::validation(
-                "OIDC authentication requires 'authority' to be set".to_string(),
-                task_name,
-            )
-        })?;
-
-    let params = build_token_request_params(
-        token_url,
-        OAuthTokenFields::from_oidc(oidc),
-        "OIDC",
-        false,
-        input,
-        vars,
-        task_name,
+    let token_url = eval_required_expr(
+        oidc.authority.as_deref(), "authority", "OIDC", input, vars, task_name,
     )?;
-    fetch_access_token(params, task_name).await
+
+    fetch_token(token_url, OAuthTokenFields::from_oidc(oidc), "OIDC", false, input, vars, task_name).await
 }

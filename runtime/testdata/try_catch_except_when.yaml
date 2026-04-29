@@ -17,7 +17,7 @@ do:
         errors:
           with:
             type: runtime
-        exceptWhen: ${ .detail == "Skip this error" }
+        exceptWhen: ${ .details == "Skip this error" }
         do:
           - handleError:
               set:

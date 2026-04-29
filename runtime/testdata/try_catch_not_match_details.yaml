@@ -18,4 +18,4 @@ do:
           with:
             type: https://example.com/errors/security
             status: 403
-            detail: User not found in tenant catalog
+            details: User not found in tenant catalog

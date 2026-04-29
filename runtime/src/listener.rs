@@ -227,26 +227,6 @@ impl WorkflowEvent {
             ),
         }
     }
-
-    /// Returns the CloudEvent type string for this event
-    pub fn cloud_event_type(&self) -> &'static str {
-        match self {
-            WorkflowEvent::WorkflowStarted { .. } => Self::WORKFLOW_STARTED_TYPE,
-            WorkflowEvent::WorkflowCompleted { .. } => Self::WORKFLOW_COMPLETED_TYPE,
-            WorkflowEvent::WorkflowFailed { .. } => Self::WORKFLOW_FAILED_TYPE,
-            WorkflowEvent::WorkflowSuspended { .. } => Self::WORKFLOW_SUSPENDED_TYPE,
-            WorkflowEvent::WorkflowResumed { .. } => Self::WORKFLOW_RESUMED_TYPE,
-            WorkflowEvent::WorkflowCancelled { .. } => Self::WORKFLOW_CANCELLED_TYPE,
-            WorkflowEvent::TaskStarted { .. } => Self::TASK_STARTED_TYPE,
-            WorkflowEvent::TaskCompleted { .. } => Self::TASK_COMPLETED_TYPE,
-            WorkflowEvent::TaskFailed { .. } => Self::TASK_FAILED_TYPE,
-            WorkflowEvent::TaskRetried { .. } => Self::TASK_RETRIED_TYPE,
-            WorkflowEvent::TaskSuspended { .. } => Self::TASK_SUSPENDED_TYPE,
-            WorkflowEvent::TaskResumed { .. } => Self::TASK_RESUMED_TYPE,
-            WorkflowEvent::TaskCancelled { .. } => Self::TASK_CANCELLED_TYPE,
-            WorkflowEvent::WorkflowStatusChanged { .. } => Self::WORKFLOW_STATUS_CHANGED_TYPE,
-        }
-    }
 }
 
 /// Returns current time as milliseconds since epoch
@@ -302,12 +282,12 @@ impl CollectingListener {
 
     /// Returns all collected events
     pub fn events(&self) -> Vec<WorkflowEvent> {
-        self.events.lock().expect("listener lock poisoned").clone()
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Returns the number of collected events
     pub fn len(&self) -> usize {
-        self.events.lock().expect("listener lock poisoned").len()
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).len()
     }
 
     /// Returns true if no events have been collected
@@ -317,7 +297,7 @@ impl CollectingListener {
 
     /// Clears all collected events
     pub fn clear(&self) {
-        self.events.lock().expect("listener lock poisoned").clear();
+        self.events.lock().unwrap_or_else(|e| e.into_inner()).clear();
     }
 }
 
@@ -325,7 +305,7 @@ impl WorkflowExecutionListener for CollectingListener {
     fn on_event(&self, event: &WorkflowEvent) {
         self.events
             .lock()
-            .expect("listener lock poisoned")
+            .unwrap_or_else(|e| e.into_inner())
             .push(event.clone());
     }
 }

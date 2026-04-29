@@ -135,8 +135,11 @@ pub fn sanitize_expr(expression: &str) -> String {
         }
     }
 
-    // Replace single quotes with double quotes
-    expr = expr.replace('\'', "\"");
+    // Replace single-quoted strings with double-quoted strings,
+    // but only when the single quotes denote a JQ string literal (not inside a double-quoted string).
+    // We must NOT replace single quotes that appear inside double-quoted strings,
+    // as they may be part of JQ string interpolation like "Hello '\(.name)'"
+    expr = replace_single_quoted_strings(&expr);
 
     expr
 }
@@ -178,6 +181,61 @@ pub fn is_valid_expr(expression: &str) -> bool {
     !expression.trim().is_empty()
 }
 
+/// Replaces single-quoted JQ string literals with double-quoted ones,
+/// while preserving single quotes that appear inside double-quoted strings.
+///
+/// JQ uses single-quoted strings like `'hello'`, but jaq only supports double-quoted
+/// strings. However, single quotes inside double-quoted strings (like `"it's"` or
+/// `"'\(.name)'"`) must be preserved.
+fn replace_single_quoted_strings(expr: &str) -> String {
+    let mut result = String::with_capacity(expr.len());
+    let chars: Vec<char> = expr.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        match chars[i] {
+            '"' => {
+                // Inside a double-quoted string — copy everything as-is
+                result.push('"');
+                i += 1;
+                while i < chars.len() {
+                    result.push(chars[i]);
+                    if chars[i] == '"' && (i == 0 || chars[i - 1] != '\\') {
+                        i += 1;
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            '\'' => {
+                // Start of a single-quoted string — replace with double quotes
+                result.push('"');
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\'' && (i == 0 || chars[i - 1] != '\\') {
+                        result.push('"');
+                        i += 1;
+                        break;
+                    }
+                    // Escape any double quotes inside the single-quoted string
+                    if chars[i] == '"' {
+                        result.push_str("\\\"");
+                    } else {
+                        result.push(chars[i]);
+                    }
+                    i += 1;
+                }
+            }
+            _ => {
+                result.push(chars[i]);
+                i += 1;
+            }
+        }
+    }
+
+    result
+}
+
 /// Checks if brackets are balanced in an expression
 fn has_balanced_brackets(expr: &str) -> bool {
     let mut stack: Vec<char> = Vec::new();
@@ -202,21 +260,9 @@ fn has_balanced_brackets(expr: &str) -> bool {
         }
         match ch {
             '{' | '(' | '[' => stack.push(ch),
-            '}' => {
-                if stack.pop() != Some('{') {
-                    return false;
-                }
-            }
-            ')' => {
-                if stack.pop() != Some('(') {
-                    return false;
-                }
-            }
-            ']' => {
-                if stack.pop() != Some('[') {
-                    return false;
-                }
-            }
+            '}' if stack.pop() != Some('{') => return false,
+            ')' if stack.pop() != Some('(') => return false,
+            ']' if stack.pop() != Some('[') => return false,
             _ => {}
         }
     }

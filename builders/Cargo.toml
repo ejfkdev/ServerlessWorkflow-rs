@@ -16,3 +16,6 @@ readme = "README.md"
 [dependencies]
 serverless_workflow_core = { path = "../core", version = "1.0.0-alpha7" }
 serde_json = "1.0"
+
+[package.metadata.dist]
+dist = true

@@ -325,7 +325,7 @@ fn test_call_mcp() {
                     "command": "npx",
                     "arguments": ["slack-mcp-server@latest", "--transport", "stdio"],
                     "environment": {
-                        "SLACK_MCP_TOKEN": "xoxp-xxx"
+                        "SLACK_MCP_TOKEN": "test-slack-token-placeholder"
                     }
                 }
             }

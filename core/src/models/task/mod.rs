@@ -30,8 +30,9 @@ pub use crate::models::call::CallTaskDefinition;
 
 // Re-export all public types from sub-modules
 pub use constants::{
-    ContainerCleanupPolicy, EventReadMode, ExtensionTarget, FlowDirective, HttpOutputFormat,
-    OAuth2GrantType, ProcessReturnType, ProcessType, TaskType,
+    ContainerCleanupPolicy, EventReadMode, ExtensionTarget, FlowDirective, HttpMethod,
+    HttpOutputFormat, OAuth2GrantType, ProcessReturnType, ProcessType, PullPolicy,
+    ScriptLanguage, TaskType,
 };
 pub use custom_task::CustomTaskDefinition;
 pub use do_task::DoTaskDefinition;

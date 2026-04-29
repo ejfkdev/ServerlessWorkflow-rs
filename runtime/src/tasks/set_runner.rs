@@ -1,5 +1,7 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
+
 use serde_json::Value;
 use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
 
@@ -44,9 +46,7 @@ impl TaskRunner for SetTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 #[cfg(test)]

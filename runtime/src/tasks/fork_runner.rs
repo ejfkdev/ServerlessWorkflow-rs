@@ -1,5 +1,7 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{create_task_runner, OwnedTaskSupport, TaskRunner, TaskSupport};
+
 use serde_json::Value;
 use serverless_workflow_core::models::task::{ForkTaskDefinition, TaskDefinition};
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
@@ -50,9 +52,7 @@ impl TaskRunner for ForkTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 impl ForkTaskRunner {
@@ -89,25 +89,18 @@ impl ForkTaskRunner {
                 input.clone(),
                 support,
             );
-            handles.push(tokio::spawn(future));
+            handles.push((branch_name.clone(), tokio::spawn(future)));
         }
 
-        let mut results = Vec::new();
-        for handle in handles {
+        let mut results = serde_json::Map::new();
+        for (branch_name, handle) in handles {
             let result = handle.await.map_err(|e| {
                 WorkflowError::runtime_simple(format!("fork branch panicked: {}", e), &self.name)
             })??;
-            results.push(result);
+            results.insert(branch_name, result);
         }
 
-        if results.len() == 1 {
-            Ok(results
-                .into_iter()
-                .next()
-                .expect("len == 1 guarantees one element"))
-        } else {
-            Ok(Value::Array(results))
-        }
+        Ok(Value::Object(results))
     }
 
     /// Compete mode: first branch to complete successfully wins, others are cancelled
@@ -154,7 +147,7 @@ impl ForkTaskRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::WorkflowContext;
+    use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
     use serverless_workflow_core::models::map::Map;
@@ -192,16 +185,15 @@ mod tests {
             .push(("branch2".to_string(), make_set_task("result", "r2")));
 
         let workflow = make_workflow_with_fork(false, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
                 let runner = ForkTaskRunner::new(name, fork_task, &workflow).unwrap();
                 let output = runner.run(json!({}), &mut support).await.unwrap();
-                // Non-compete with multiple branches returns array
-                assert!(output.is_array());
-                assert_eq!(output.as_array().unwrap().len(), 2);
+                // Non-compete with multiple branches returns object with branch names as keys
+                assert!(output.is_object());
+                assert_eq!(output.as_object().unwrap().len(), 2);
             }
         }
     }
@@ -214,8 +206,7 @@ mod tests {
             .push(("fast".to_string(), make_set_task("winner", "fast")));
 
         let workflow = make_workflow_with_fork(true, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
@@ -230,8 +221,7 @@ mod tests {
     async fn test_fork_empty_branches() {
         let branches = Map::default();
         let workflow = make_workflow_with_fork(false, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
@@ -256,8 +246,7 @@ mod tests {
             .push(("branch2".to_string(), make_set_task("winner", "b2")));
 
         let workflow = make_workflow_with_fork(true, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
@@ -277,15 +266,14 @@ mod tests {
             .push(("only".to_string(), make_set_task("value", "42")));
 
         let workflow = make_workflow_with_fork(false, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
                 let runner = ForkTaskRunner::new(name, fork_task, &workflow).unwrap();
                 let output = runner.run(json!({}), &mut support).await.unwrap();
-                // Single branch returns its output directly (not wrapped in array)
-                assert_eq!(output["value"], json!("42"));
+                // Single branch returns its output with branch name as key
+                assert_eq!(output["only"]["value"], json!("42"));
             }
         }
     }
@@ -338,16 +326,15 @@ mod tests {
         branches.entries.push(("byeBranch".to_string(), do_task2));
 
         let workflow = make_workflow_with_fork(false, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
                 let runner = ForkTaskRunner::new(name, fork_task, &workflow).unwrap();
                 let output = runner.run(json!({}), &mut support).await.unwrap();
-                // Non-compete with multiple branches returns array
-                assert!(output.is_array());
-                assert_eq!(output.as_array().unwrap().len(), 2);
+                // Non-compete with multiple branches returns object with branch names as keys
+                assert!(output.is_object());
+                assert_eq!(output.as_object().unwrap().len(), 2);
             }
         }
     }
@@ -412,15 +399,14 @@ mod tests {
         branches.entries.push(("callDoctor".to_string(), do_task2));
 
         let workflow = make_workflow_with_fork(false, branches);
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         for (name, task_def) in &workflow.do_.entries {
             if let TaskDefinition::Fork(ref fork_task) = task_def {
                 let runner = ForkTaskRunner::new(name, fork_task, &workflow).unwrap();
                 let output = runner.run(json!({}), &mut support).await.unwrap();
-                assert!(output.is_array());
-                assert_eq!(output.as_array().unwrap().len(), 2);
+                assert!(output.is_object());
+                assert_eq!(output.as_object().unwrap().len(), 2);
             }
         }
     }

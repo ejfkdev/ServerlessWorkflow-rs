@@ -1,5 +1,7 @@
+use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::task_runner::{TaskRunner, TaskSupport};
+
 use serde_json::Value;
 use serverless_workflow_core::models::task::SwitchTaskDefinition;
 
@@ -26,16 +28,13 @@ impl TaskRunner for SwitchTaskRunner {
         Ok(input)
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::WorkflowContext;
-    use crate::task_runner::TaskSupport;
+    use crate::default_support;
     use serde_json::json;
     use serverless_workflow_core::models::map::Map;
     use serverless_workflow_core::models::task::{
@@ -63,8 +62,7 @@ mod tests {
         let runner = SwitchTaskRunner::new("passThrough", &switch).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"data": "value"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();
@@ -97,8 +95,7 @@ mod tests {
         let runner = SwitchTaskRunner::new("colorSwitch", &switch).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"color": "red"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();

@@ -16,4 +16,4 @@ do:
                 color2: blue
   - joinResult:
       set:
-        colors: "${ [.[] | .[]] }"
+        colors: "${ [to_entries[].value[]] }"

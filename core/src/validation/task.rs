@@ -1,7 +1,7 @@
 use crate::models::map::Map;
 use crate::models::retry::OneOfRetryPolicyDefinitionOrReference;
 use crate::models::task::*;
-use super::{ValidationResult, ValidationRule, is_valid_hostname, is_valid_semver};
+use super::{ValidationResult, ValidationRule, is_valid_hostname, validate_required_hostname, validate_required_semver};
 use super::document::validate_timeout;
 use super::enum_validators::*;
 use super::one_of_validators::{validate_backoff_one_of, validate_process_type_one_of};
@@ -124,9 +124,9 @@ pub(crate) fn validate_run_task(
 
 /// Validates a call task definition
 pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result: &mut ValidationResult) {
+    validate_common_fields(call.common_fields(), prefix, result);
     match call {
         CallTaskDefinition::HTTP(http) => {
-            validate_common_fields(&http.common, prefix, result);
             if http.with.method.is_empty() {
                 result.add_error(
                     &format!("{}.with.method", prefix),
@@ -141,7 +141,6 @@ pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result
             }
         }
         CallTaskDefinition::GRPC(grpc) => {
-            validate_common_fields(&grpc.common, prefix, result);
             if grpc.with.method.is_empty() {
                 result.add_error(
                     &format!("{}.with.method", prefix),
@@ -172,7 +171,6 @@ pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result
             }
         }
         CallTaskDefinition::OpenAPI(openapi) => {
-            validate_common_fields(&openapi.common, prefix, result);
             if openapi.with.operation_id.is_empty() {
                 result.add_error(
                     &format!("{}.with.operationId", prefix),
@@ -185,13 +183,11 @@ pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result
             }
         }
         CallTaskDefinition::AsyncAPI(asyncapi) => {
-            validate_common_fields(&asyncapi.common, prefix, result);
             if let Some(ref protocol) = asyncapi.with.protocol {
                 validate_asyncapi_protocol(protocol, &format!("{}.with", prefix), result);
             }
         }
         CallTaskDefinition::A2A(a2a) => {
-            validate_common_fields(&a2a.common, prefix, result);
             if a2a.with.method.is_empty() {
                 result.add_error(
                     &format!("{}.with.method", prefix),
@@ -201,7 +197,6 @@ pub(crate) fn validate_call_task(call: &CallTaskDefinition, prefix: &str, result
             }
         }
         CallTaskDefinition::Function(func) => {
-            validate_common_fields(&func.common, prefix, result);
             if func.call.is_empty() {
                 result.add_error(
                     &format!("{}.call", prefix),
@@ -264,45 +259,10 @@ pub fn validate_workflow_process(
     prefix: &str,
     result: &mut ValidationResult,
 ) {
-    if workflow.namespace.is_empty() {
-        result.add_error(
-            &format!("{}.run.workflow.namespace", prefix),
-            ValidationRule::Required,
-            "workflow namespace is required",
-        );
-    } else if !is_valid_hostname(&workflow.namespace) {
-        result.add_error(
-            &format!("{}.run.workflow.namespace", prefix),
-            ValidationRule::Hostname,
-            "workflow namespace must be a valid RFC 1123 hostname",
-        );
-    }
-    if workflow.name.is_empty() {
-        result.add_error(
-            &format!("{}.run.workflow.name", prefix),
-            ValidationRule::Required,
-            "workflow name is required",
-        );
-    } else if !is_valid_hostname(&workflow.name) {
-        result.add_error(
-            &format!("{}.run.workflow.name", prefix),
-            ValidationRule::Hostname,
-            "workflow name must be a valid RFC 1123 hostname",
-        );
-    }
-    if workflow.version.is_empty() {
-        result.add_error(
-            &format!("{}.run.workflow.version", prefix),
-            ValidationRule::Required,
-            "workflow version is required",
-        );
-    } else if !is_valid_semver(&workflow.version) {
-        result.add_error(
-            &format!("{}.run.workflow.version", prefix),
-            ValidationRule::Semver,
-            "workflow version must be a valid semantic version",
-        );
-    }
+    let p = &format!("{}.run.workflow", prefix);
+    validate_required_hostname(&workflow.namespace, &format!("{}.namespace", p), result);
+    validate_required_hostname(&workflow.name, &format!("{}.name", p), result);
+    validate_required_semver(&workflow.version, &format!("{}.version", p), result);
 }
 
 /// Validates a switch task definition

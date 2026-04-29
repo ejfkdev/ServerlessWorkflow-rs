@@ -1,26 +1,18 @@
+use crate::tasks::task_name_impl;
 use crate::error::WorkflowResult;
 use crate::events::CloudEvent;
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::{define_simple_task_runner};
 use serde_json::Value;
 use serverless_workflow_core::models::task::EmitTaskDefinition;
 
-/// Runner for Emit tasks - emits events
-///
-/// By default, emitted events are logged. To integrate with an external event bus,
-/// implement the `EventHandler` trait and register it via `set_event_handler()`.
-pub struct EmitTaskRunner {
-    name: String,
-    task: EmitTaskDefinition,
-}
-
-impl EmitTaskRunner {
-    pub fn new(name: &str, task: &EmitTaskDefinition) -> WorkflowResult<Self> {
-        Ok(Self {
-            name: name.to_string(),
-            task: task.clone(),
-        })
-    }
-}
+define_simple_task_runner!(
+    /// Runner for Emit tasks - emits events
+    ///
+    /// By default, emitted events are logged. To integrate with an external event bus,
+    /// implement the `EventHandler` trait and register it via `set_event_handler()`.
+    EmitTaskRunner, EmitTaskDefinition
+);
 
 #[async_trait::async_trait]
 impl TaskRunner for EmitTaskRunner {
@@ -45,31 +37,60 @@ impl TaskRunner for EmitTaskRunner {
             let source = event_data
                 .get("source")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+                .unwrap_or("/serverless-workflow")
+                .to_string();
             let data = event_data
                 .get("data")
                 .cloned()
-                .unwrap_or(event_data.clone());
+                .unwrap_or(Value::Null);
 
             let mut cloud_event = CloudEvent::new(&event_type, data);
-            if let Some(source) = source {
-                cloud_event = cloud_event.with_source(&source);
+            cloud_event = cloud_event.with_source(&source);
+
+            // Add CloudEvent mandatory fields
+            let id = event_data
+                .get("id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| format!("evt-{}", std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()));
+            cloud_event = cloud_event.with_attribute("id", Value::String(id));
+
+            let time = event_data
+                .get("time")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| {
+                    chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
+                });
+            cloud_event = cloud_event.with_attribute("time", Value::String(time));
+
+            // Add optional CloudEvent attributes
+            if let Some(subject) = event_data.get("subject").and_then(|v| v.as_str()) {
+                cloud_event = cloud_event.with_attribute("subject", Value::String(subject.to_string()));
             }
+            if let Some(dct) = event_data.get("datacontenttype").and_then(|v| v.as_str()) {
+                cloud_event = cloud_event.with_attribute("datacontenttype", Value::String(dct.to_string()));
+            }
+            if let Some(ds) = event_data.get("dataschema").and_then(|v| v.as_str()) {
+                cloud_event = cloud_event.with_attribute("dataschema", Value::String(ds.to_string()));
+            }
+
             event_bus.publish(cloud_event).await;
         }
 
         Ok(input)
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::WorkflowContext;
+    use crate::default_support;
     use serde_json::json;
     use serverless_workflow_core::models::event::EventDefinition;
     use serverless_workflow_core::models::task::{EmitTaskDefinition, EventEmissionDefinition};
@@ -83,8 +104,7 @@ mod tests {
         let runner = EmitTaskRunner::new("emitTest", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"existing": "data"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();
@@ -106,8 +126,7 @@ mod tests {
         let runner = EmitTaskRunner::new("emitOut", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"patient": "John"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();
@@ -133,8 +152,7 @@ mod tests {
         let runner = EmitTaskRunner::new("emitEvent", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"orderId": "123"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();
@@ -155,8 +173,7 @@ mod tests {
         let runner = EmitTaskRunner::new("emitExpr", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"orderDetails": {"id": "456", "total": 99.99}});
         let output = runner.run(input.clone(), &mut support).await.unwrap();
@@ -174,14 +191,14 @@ mod tests {
             subject: Some("my-subject".to_string()),
             data_content_type: Some("application/json".to_string()),
             data_schema: None,
+            data: None,
             with: HashMap::new(),
         };
         let task = EmitTaskDefinition::new(EventEmissionDefinition::new(event_def));
         let runner = EmitTaskRunner::new("emitFull", &task).unwrap();
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let input = json!({"data": "here"});
         let output = runner.run(input.clone(), &mut support).await.unwrap();

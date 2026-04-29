@@ -38,8 +38,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let output = runner.run(json!({})).await.unwrap();
@@ -69,8 +68,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let output = runner.run(json!({})).await.unwrap();
@@ -100,8 +98,7 @@ do:
       set:
         waited: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let output = runner.run(json!({})).await.unwrap();
@@ -127,8 +124,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let output = runner.run(json!({})).await.unwrap();
@@ -154,8 +150,7 @@ do:
       set:
         finished: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let output = runner.run(json!({})).await.unwrap();
@@ -182,9 +177,7 @@ do:
       set:
         waited: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["waited"], json!(true));
     }
 
@@ -210,9 +203,7 @@ do:
         previousPhase: started
         keptWaitExpr: PT0.01S
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["phase"], json!("completed"));
         assert_eq!(output["previousPhase"], json!("started"));
         assert_eq!(output["keptWaitExpr"], json!("PT0.01S"));
@@ -242,9 +233,7 @@ do:
         previousPhase: "${ .phase }"
         waitExpression: "${ .waitExpression }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["phase"], json!("completed"));
         assert_eq!(output["previousPhase"], json!("started"));
         assert_eq!(output["waitExpression"], json!("PT0.01S"));

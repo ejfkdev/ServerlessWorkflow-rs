@@ -1,13 +1,15 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::task_runner::{TaskRunner, TaskSupport};
+
 use serde_json::Value;
 use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
-use serverless_workflow_core::models::expression::{is_strict_expr, sanitize_expr};
+use serverless_workflow_core::models::expression::is_strict_expr;
 use serverless_workflow_core::models::task::RaiseTaskDefinition;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
 /// Evaluates an optional strict expression string, returning the evaluated string result.
-/// If the expression is a strict JQ expression (`${...}`), it is sanitized and evaluated;
+/// If the expression is a strict JQ expression (`${...}`), it is evaluated via `eval_jq_expr`;
 /// on evaluation failure, falls back to the raw string. Non-strict strings are returned as-is.
 fn eval_strict_expr(
     s: &str,
@@ -16,9 +18,8 @@ fn eval_strict_expr(
     task_name: &str,
 ) -> String {
     if is_strict_expr(s) {
-        let expr = sanitize_expr(s);
         let val = support
-            .eval_jq(&expr, input, task_name)
+            .eval_jq_expr(s, input, task_name)
             .unwrap_or_else(|_| Value::String(s.to_string()));
         val.as_str()
             .map(|v| v.to_string())
@@ -117,15 +118,14 @@ impl TaskRunner for RaiseTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::context::WorkflowContext;
+    use crate::default_support;
     use serde_json::json;
     use serverless_workflow_core::models::error::{ErrorDefinition, ErrorTypes};
     use serverless_workflow_core::models::task::{RaiseErrorDefinition, TaskDefinitionFields};
@@ -175,8 +175,7 @@ mod tests {
         };
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("test_raise_timeout", &task, &workflow).unwrap();
 
         let input = json!({"timeoutMessage": "Request took too long"});
@@ -197,8 +196,7 @@ mod tests {
         };
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("test_raise_ref", &task, &workflow).unwrap();
 
         let result = runner.run(json!({}), &mut support).await;
@@ -277,8 +275,7 @@ mod tests {
             common: TaskDefinitionFields::new(),
         };
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("testRaiseRef", &task, &workflow).unwrap();
 
         let result = runner.run(json!({}), &mut support).await;
@@ -328,8 +325,7 @@ mod tests {
         };
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("dynamicError", &task, &workflow).unwrap();
 
         let input = json!({"reason": "User token expired"});
@@ -354,8 +350,7 @@ mod tests {
         };
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("missingError", &task, &workflow).unwrap();
 
         let result = runner.run(json!({}), &mut support).await;
@@ -391,8 +386,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
         let runner = RaiseTaskRunner::new("inlineError", &task, &workflow).unwrap();
 
         let result = runner.run(json!({}), &mut support).await;

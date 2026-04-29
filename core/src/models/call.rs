@@ -88,6 +88,19 @@ impl CallTaskDefinition {
             CallTaskDefinition::Function(t) => &t.common,
         }
     }
+
+    /// Returns the call type name string for this variant (e.g., "http", "grpc", "openapi").
+    /// Used for handler lookup and error messages.
+    pub fn call_type_name(&self) -> &'static str {
+        match self {
+            CallTaskDefinition::HTTP(_) => "http",
+            CallTaskDefinition::GRPC(_) => "grpc",
+            CallTaskDefinition::OpenAPI(_) => "openapi",
+            CallTaskDefinition::AsyncAPI(_) => "asyncapi",
+            CallTaskDefinition::A2A(_) => "a2a",
+            CallTaskDefinition::Function(_) => "function",
+        }
+    }
 }
 
 impl<'de> serde::Deserialize<'de> for CallTaskDefinition {
@@ -129,35 +142,33 @@ impl<'de> serde::Deserialize<'de> for CallTaskDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct HTTPArguments {
     /// Gets/sets the HTTP method of the HTTP request to perform
-    #[serde(rename = "method")]
     pub method: String,
 
     /// Gets/sets the HTTP endpoint to send the request to
-    #[serde(rename = "endpoint")]
     pub endpoint: super::resource::OneOfEndpointDefinitionOrUri,
 
     /// Gets/sets a name/value mapping of the headers, if any, of the HTTP request to perform
-    #[serde(rename = "headers", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<OneOfHeadersOrExpression>,
 
     /// Gets/sets the body, if any, of the HTTP request to perform
-    #[serde(rename = "body", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Value>,
 
     /// Gets/sets a name/value mapping of the query parameters, if any, of the HTTP request to perform
-    #[serde(rename = "query", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub query: Option<OneOfQueryOrExpression>,
 
     /// Gets/sets the http call output format. Defaults to 'content'
-    #[serde(rename = "output", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
 
     /// Gets/sets whether redirection status codes (300-399) should be treated as errors
-    #[serde(rename = "redirect", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect: Option<bool>,
 }
 
-/// A value that can be either a string-keyed map or a runtime expression
+/// Represents headers that can be either a map or a runtime expression
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StringMapOrExpression {
@@ -186,11 +197,9 @@ macro_rules! define_call_definition {
         #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
         pub struct $name {
             /// Gets/sets the call type identifier
-            #[serde(rename = "call")]
             pub call: String,
 
             /// Gets/sets the call arguments
-            #[serde(rename = "with")]
             pub with: $with_ty,
 
             /// Gets/sets the task's common fields
@@ -209,19 +218,17 @@ define_call_definition!(
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GRPCServiceDefinition {
     /// Gets/sets the name of the GRPC service to call
-    #[serde(rename = "name")]
     pub name: String,
 
     /// Gets/sets the hostname of the GRPC service to call
-    #[serde(rename = "host")]
     pub host: String,
 
     /// Gets/sets the port number of the GRPC service to call
-    #[serde(rename = "port", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
 
     /// Gets/sets the endpoint's authentication policy, if any
-    #[serde(rename = "authentication", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<ReferenceableAuthenticationPolicy>,
 }
 
@@ -229,23 +236,20 @@ pub struct GRPCServiceDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GRPCArguments {
     /// Gets/sets the proto resource that describes the GRPC service to call
-    #[serde(rename = "proto")]
     pub proto: ExternalResourceDefinition,
 
     /// Gets/sets the GRPC service definition
-    #[serde(rename = "service")]
     pub service: GRPCServiceDefinition,
 
     /// Gets/sets the name of the method to call on the defined GRPC service
-    #[serde(rename = "method")]
     pub method: String,
 
     /// Gets/sets the arguments, if any, to call the method with
-    #[serde(rename = "arguments", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<HashMap<String, Value>>,
 
     /// Gets/sets the authentication policy, if any, to use when calling the GRPC service
-    #[serde(rename = "authentication", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<ReferenceableAuthenticationPolicy>,
 }
 
@@ -258,7 +262,6 @@ define_call_definition!(
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OpenAPIArguments {
     /// Gets/sets the document that defines the OpenAPI operation to call
-    #[serde(rename = "document")]
     pub document: ExternalResourceDefinition,
 
     /// Gets/sets the id of the OpenAPI operation to call
@@ -266,19 +269,19 @@ pub struct OpenAPIArguments {
     pub operation_id: String,
 
     /// Gets/sets a name/value mapping of the parameters of the OpenAPI operation to call
-    #[serde(rename = "parameters", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<HashMap<String, Value>>,
 
     /// Gets/sets the authentication policy, if any, to use when calling the OpenAPI operation
-    #[serde(rename = "authentication", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<ReferenceableAuthenticationPolicy>,
 
     /// Gets/sets the http call output format. Defaults to 'content'
-    #[serde(rename = "output", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
 
     /// Gets/sets whether redirection status codes (300-399) should be treated as errors
-    #[serde(rename = "redirect", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect: Option<bool>,
 }
 
@@ -291,11 +294,10 @@ define_call_definition!(
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsyncApiServerDefinition {
     /// Gets/sets the target server's name
-    #[serde(rename = "name")]
     pub name: String,
 
     /// Gets/sets the target server's variables, if any
-    #[serde(rename = "variables", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variables: Option<HashMap<String, Value>>,
 }
 
@@ -303,11 +305,11 @@ pub struct AsyncApiServerDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsyncApiOutboundMessageDefinition {
     /// Gets/sets the message's payload, if any
-    #[serde(rename = "payload", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<Value>,
 
     /// Gets/sets the message's headers, if any
-    #[serde(rename = "headers", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<Value>,
 }
 
@@ -315,11 +317,11 @@ pub struct AsyncApiOutboundMessageDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsyncApiInboundMessageDefinition {
     /// Gets/sets the message's payload, if any
-    #[serde(rename = "payload", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payload: Option<Value>,
 
     /// Gets/sets the message's headers, if any
-    #[serde(rename = "headers", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<Value>,
 
     /// Gets/sets the message's correlation id, if any
@@ -362,50 +364,52 @@ impl Default for AsyncApiMessageConsumptionPolicy {
 }
 
 /// Represents an AsyncAPI subscription
-#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsyncApiSubscriptionDefinition {
     /// Gets/sets a runtime expression, if any, used to filter consumed messages
-    #[serde(rename = "filter", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<String>,
 
     /// Gets/sets the subscription's message consumption policy
-    #[serde(rename = "consume")]
     pub consume: AsyncApiMessageConsumptionPolicy,
+
+    /// Gets/sets the configuration of the iterator, if any, for processing each consumed item
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub foreach: Option<super::task::SubscriptionIteratorDefinition>,
 }
 
 /// Represents the AsyncAPI call arguments
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AsyncApiArguments {
     /// Gets/sets the document that defines the AsyncAPI operation to call
-    #[serde(rename = "document")]
     pub document: ExternalResourceDefinition,
 
     /// Gets/sets the name of the channel (AsyncAPI v2.6.0)
-    #[serde(rename = "channel", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub channel: Option<String>,
 
     /// Gets/sets a reference to the AsyncAPI operation to call
-    #[serde(rename = "operation", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub operation: Option<String>,
 
     /// Gets/sets the server to call the specified AsyncAPI operation on
-    #[serde(rename = "server", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<AsyncApiServerDefinition>,
 
     /// Gets/sets the protocol to use to select the target server
-    #[serde(rename = "protocol", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<String>,
 
     /// Gets/sets the message to publish using the target operation
-    #[serde(rename = "message", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<AsyncApiOutboundMessageDefinition>,
 
     /// Gets/sets the subscription to messages consumed using the target operation
-    #[serde(rename = "subscription", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subscription: Option<AsyncApiSubscriptionDefinition>,
 
     /// Gets/sets the authentication policy, if any, to use when calling the AsyncAPI operation
-    #[serde(rename = "authentication", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub authentication: Option<ReferenceableAuthenticationPolicy>,
 }
 
@@ -438,15 +442,14 @@ pub struct A2AArguments {
     pub agent_card: Option<ExternalResourceDefinition>,
 
     /// Gets/sets the server endpoint to send the request to
-    #[serde(rename = "server", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<super::resource::OneOfEndpointDefinitionOrUri>,
 
     /// Gets/sets the A2A method to send
-    #[serde(rename = "method")]
     pub method: String,
 
     /// Gets/sets the parameters object to send with the A2A method
-    #[serde(rename = "parameters", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<OneOfA2AParametersOrExpression>,
 }
 
@@ -459,11 +462,10 @@ define_call_definition!(
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CallFunctionDefinition {
     /// Gets/sets the name of the function to call
-    #[serde(rename = "call")]
     pub call: String,
 
     /// Gets/sets a name/value mapping of the parameters, if any, to call the function with
-    #[serde(rename = "with", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub with: Option<HashMap<String, Value>>,
 
     /// Gets/sets the task's common fields

@@ -6,19 +6,18 @@ use std::collections::HashMap;
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExtensionDefinition {
     /// Gets/sets the type of task to extend
-    #[serde(rename = "extend")]
     pub extend: String,
 
     /// Gets/sets a runtime expression, if any, used to determine whether or not the extension should apply in the specified context
-    #[serde(rename = "when", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<String>,
 
     /// Gets/sets a name/definition list, if any, of the tasks to execute before the extended task
-    #[serde(rename = "before", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub before: Option<Vec<HashMap<String, TaskDefinition>>>,
 
     /// Gets/sets a name/definition list, if any, of the tasks to execute after the extended task
-    #[serde(rename = "after", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after: Option<Vec<HashMap<String, TaskDefinition>>>,
 }
 

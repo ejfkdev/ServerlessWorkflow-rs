@@ -125,7 +125,6 @@ use super::*;
     async fn test_runner_try_catch_retry_inline_exponential() {
         use std::sync::atomic::{AtomicU32, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let attempt_count = Arc::new(AtomicU32::new(0));
@@ -145,9 +144,7 @@ use super::*;
             }
         });
 
-        let (addr, server_fn) = warp::serve(endpoint).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(endpoint);
 
         let yaml = format!(
             r#"
@@ -197,7 +194,6 @@ do:
     async fn test_runner_try_catch_retry_reusable_constant() {
         use std::sync::atomic::{AtomicU32, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let attempt_count = Arc::new(AtomicU32::new(0));
@@ -216,9 +212,7 @@ do:
             }
         });
 
-        let (addr, server_fn) = warp::serve(endpoint).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(endpoint);
 
         let yaml = format!(
             r#"
@@ -269,7 +263,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_try_catch_communication_error() {
-        use warp::Filter;
 
         // Server that returns 404 for any path
         let not_found = warp::any()
@@ -283,15 +276,12 @@ do:
 
     #[tokio::test]
     async fn test_runner_try_catch_by_status() {
-        use warp::Filter;
 
         let not_found = warp::path("api")
             .and(warp::path("items"))
             .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
 
-        let (addr, server_fn) = warp::serve(not_found).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(not_found);
 
         let yaml_str = r#"
 document:
@@ -319,10 +309,7 @@ do:
                 handled: true
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["handled"], json!(true));
     }
 
@@ -365,10 +352,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
     }
 
@@ -402,10 +386,7 @@ do:
                 errorTitle: '${ $err.title }'
                 errorStatus: '${ $err.status }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorTitle"], json!("Validation Error"));
         assert_eq!(output["errorStatus"], json!(400));
     }
@@ -439,10 +420,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
     }
 
@@ -475,8 +453,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -487,7 +464,6 @@ do:
     #[tokio::test]
     async fn test_runner_retry_success_on_retry() {
         use std::sync::atomic::{AtomicUsize, Ordering};
-        use warp::Filter;
 
         let request_count = Arc::new(AtomicUsize::new(0));
         let count_clone = request_count.clone();
@@ -508,9 +484,7 @@ do:
             }
         });
 
-        let (addr, server_fn) = warp::serve(handler).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(handler);
 
         let yaml_str = r#"
 document:
@@ -541,10 +515,7 @@ do:
               count: 5
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // After 2 retries, the 3rd request should succeed
         assert_eq!(output["name"], json!("Buddy"));
     }
@@ -578,8 +549,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // exceptWhen matches status == 400, so catch should be SKIPPED → error propagates
         let result = runner.run(json!({})).await;
@@ -620,8 +590,7 @@ do:
             type: runtime
         retry: myRetry
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Retry exhausts all attempts
         let result = runner.run(json!({})).await;
@@ -657,8 +626,7 @@ do:
                 originalName: "${ .name }"
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"name": "Alice", "age": 30}))
@@ -696,10 +664,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
     }
 
@@ -733,10 +698,7 @@ do:
                 errorStatus: '${ $err.status }'
                 errorType: '${ $err.type }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorStatus"], json!(401));
         assert_eq!(output["errorType"], json!("authentication"));
     }
@@ -770,12 +732,9 @@ do:
           - logError:
               set:
                 errorTitle: '${ $err.title }'
-                errorDetail: '${ $err.detail }'
+                errorDetail: '${ $err.details }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorTitle"], json!("Bad Request"));
         assert_eq!(output["errorDetail"], json!("Missing email field"));
     }
@@ -809,10 +768,7 @@ do:
               set:
                 handled: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["handled"], json!(true));
     }
 
@@ -843,8 +799,7 @@ do:
               set:
                 handled: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // when condition doesn't match (400 < 500), so catch is skipped and error propagates
         let result = runner.run(json!({})).await;
@@ -882,10 +837,7 @@ do:
                 errorStatus: "${ $err.status }"
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // $err.type contains the full URI or short name depending on error definition
         let err_type = output["errorType"].as_str().unwrap();
         assert!(
@@ -930,8 +882,7 @@ do:
             attempt:
               count: 3
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let result = runner.run(json!({})).await;
@@ -981,8 +932,7 @@ do:
             attempt:
               count: 3
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let start = std::time::Instant::now();
         let result = runner.run(json!({})).await;
@@ -1030,8 +980,7 @@ do:
             type: runtime
         retry: myRetry
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Should fail after 3 attempts using referenced retry policy
         let result = runner.run(json!({})).await;
@@ -1068,8 +1017,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // validation error doesn't match communication filter → propagates
         let result = runner.run(json!({})).await;
@@ -1106,8 +1054,7 @@ do:
               set:
                 caught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // shouldCatch=false → catch.when rejects → error propagates
         let result = runner.run(json!({"shouldCatch": false})).await;
@@ -1144,10 +1091,7 @@ do:
                 caught: true
                 errorStatus: "${ $err.status }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
         assert_eq!(output["errorStatus"], json!(400));
     }
@@ -1188,10 +1132,7 @@ do:
         final: "${ .value }"
         wasRecovered: "${ .recovered }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["final"], json!(0));
         assert_eq!(output["wasRecovered"], json!(true));
     }
@@ -1226,10 +1167,7 @@ do:
       set:
         value: after
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Error caught without catch.do — output preserved from before the error
         assert_eq!(output["value"], json!("after"));
     }
@@ -1261,10 +1199,7 @@ do:
                 caught: true
                 errType: "${ $err.type }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
         assert!(output["errType"].as_str().unwrap().contains("runtime"));
     }
@@ -1302,8 +1237,7 @@ do:
             attempt:
               count: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // After retry limit, error propagates
         let result = runner.run(json!({})).await;
@@ -1342,9 +1276,7 @@ do:
         done: true
         recovered: "${ .recovered }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["recovered"], json!(true));
         assert_eq!(output["done"], json!(true));
     }
@@ -1392,9 +1324,7 @@ do:
         innerErrType: "${ .innerErr }"
         noOuterRecovery: "${ .outerRecovered == null }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["innerOk"], json!(true));
         assert_eq!(output["innerErrType"], json!("validation"));
         assert_eq!(output["noOuterRecovery"], json!(true));
@@ -1433,9 +1363,7 @@ do:
       set:
         wasCaught: "${ .caught }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["wasCaught"], json!(true));
     }
 
@@ -1463,11 +1391,9 @@ do:
         do:
           - handleError:
               set:
-                errorMessage: '${$caughtError.detail}'
+                errorMessage: '${$caughtError.details}'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorMessage"], json!("Javierito was here!"));
     }
 
@@ -1496,9 +1422,7 @@ do:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["recovered"], json!(true));
     }
 
@@ -1527,8 +1451,7 @@ do:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         // When catch when doesn't match, the error propagates
         assert!(result.is_err());
@@ -1558,15 +1481,13 @@ do:
           with:
             type: https://example.com/errors/transient
             status: 503
-            detail: Enforcement Failure - invalid email
+            details: Enforcement Failure - invalid email
         do:
           - handleError:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["recovered"], json!(true));
     }
 
@@ -1594,14 +1515,13 @@ do:
           with:
             type: https://example.com/errors/security
             status: 403
-            detail: User not found in tenant catalog
+            details: User not found in tenant catalog
         do:
           - handleError:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         // Details don't match, error propagates
         assert!(result.is_err());
@@ -1641,8 +1561,7 @@ do:
             type: communication
         retry: myRetry
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         // After 2 retries, the error still propagates (always raises)
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -1676,8 +1595,7 @@ do:
               set:
                 recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         // catch.when requires .status == 404, but error has status 400 → propagates
         assert!(result.is_err());
@@ -1711,11 +1629,9 @@ do:
         do:
           - handleError:
               set:
-                errorMessage: '${ $caughtError.detail }'
+                errorMessage: '${ $caughtError.details }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorMessage"], json!("test error occurred"));
     }
 

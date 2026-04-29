@@ -1,7 +1,9 @@
+use crate::tasks::task_name_impl;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::listener::WorkflowEvent;
 use crate::status::StatusPhase;
 use crate::task_runner::{create_task_runner, TaskRunner, TaskSupport};
+
 use serde_json::Value;
 use serverless_workflow_core::models::map::Map;
 use serverless_workflow_core::models::task::{
@@ -34,7 +36,7 @@ impl FlowDirective {
 
 /// Runner for Do tasks - executes subtasks sequentially
 pub struct DoTaskRunner {
-    task_name: String,
+    name: String,
     tasks: Map<String, TaskDefinition>,
 }
 
@@ -42,16 +44,16 @@ impl DoTaskRunner {
     /// Creates a new DoTaskRunner from a DoTaskDefinition
     pub fn new(name: &str, task: &DoTaskDefinition) -> WorkflowResult<Self> {
         Ok(Self {
-            task_name: name.to_string(),
+            name: name.to_string(),
             tasks: task.do_.clone(),
         })
     }
 
     /// Creates a DoTaskRunner from the workflow's top-level do tasks
     pub fn new_from_workflow(workflow: &WorkflowDefinition) -> WorkflowResult<Self> {
-        let task_name = workflow.document.name.clone();
+        let name = workflow.document.name.clone();
         Ok(Self {
-            task_name,
+            name,
             tasks: workflow.do_.clone(),
         })
     }
@@ -152,7 +154,7 @@ impl DoTaskRunner {
                     None => {
                         return Err(WorkflowError::runtime_simple(
                             format!("switch/goto target '{}' not found in task list", target),
-                            &self.task_name,
+                            &self.name,
                         ));
                     }
                 },
@@ -230,9 +232,7 @@ impl TaskRunner for DoTaskRunner {
         self.run_tasks(input, support).await
     }
 
-    fn task_name(&self) -> &str {
-        &self.task_name
-    }
+    task_name_impl!();
 }
 
 /// Extracts the `if` condition from a TaskDefinition
@@ -243,8 +243,7 @@ fn get_if_condition(task: &TaskDefinition) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::context::WorkflowContext;
-    use crate::task_runner::TaskSupport;
+    use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
     use serverless_workflow_core::models::map::Map;
@@ -273,8 +272,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // task2 output replaces task1 output, but references .a from task1
@@ -294,8 +292,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // run=false (in input), so task2 should be skipped; output stays from task1
         let output = runner
@@ -319,8 +316,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // task1 sets run=true, so task2 should execute
         let output = runner.run(json!({}), &mut support).await.unwrap();
@@ -340,8 +336,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["final"], json!(42));
@@ -362,8 +357,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // Set replaces output, so task3's set overwrites task1's set
@@ -408,8 +402,7 @@ mod tests {
         let runner = make_do_runner(vec![("inc", inc_task), ("looping", switch_task)]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({"count": 0}), &mut support).await.unwrap();
         // Loop runs: count 0→1→2→3→4→5→6 (count<6 fails at 6, exits)
@@ -498,8 +491,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Test electronic order path
         let output = runner
@@ -588,8 +580,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Test physical order path
         let output = runner
@@ -679,8 +670,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Test unknown order type path (falls through to default)
         let output = runner
@@ -745,8 +735,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Test red path
         let output = runner
@@ -810,8 +799,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Test fallback (no matching case)
         let output = runner
@@ -842,8 +830,7 @@ mod tests {
         let runner = make_do_runner(vec![("switchColor", switch_task), ("setRed", set_red)]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Color is "green" which doesn't match "red" - no default, so continue
         let output = runner
@@ -876,8 +863,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // Set replaces output, so only the last task's output remains
@@ -904,8 +890,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"colors": []}), &mut support)
@@ -930,8 +915,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // Set replaces output; task1 sets {value: 30}, task3 uses that as input
@@ -972,8 +956,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // User is 25 (>= 18), so raise is skipped, continueProcess runs
         let output = runner
@@ -1015,8 +998,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // User is 15 (< 18), so raise fires
         let result = runner.run(json!({"user": {"age": 15}}), &mut support).await;
@@ -1048,8 +1030,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["phase"], json!("completed"));
@@ -1091,8 +1072,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         // Set replaces output, so only last task's output remains
@@ -1125,8 +1105,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["weather"], json!("hot"));
@@ -1148,8 +1127,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["finalValue"], json!(20));
@@ -1173,8 +1151,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // Invalid goto target should produce an error
         let result = runner.run(json!({}), &mut support).await;
@@ -1194,8 +1171,7 @@ mod tests {
         let runner = make_do_runner(vec![("conditionalExpression", set_task)]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // enabled=true, so set should execute
         let output = runner
@@ -1216,8 +1192,7 @@ mod tests {
         let runner = make_do_runner(vec![("conditionalExpression", set_task)]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         // enabled=false, so set is skipped, output is unchanged input
         let output = runner
@@ -1255,8 +1230,7 @@ mod tests {
         ]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner
             .run(json!({"colors": []}), &mut support)
@@ -1308,7 +1282,7 @@ mod tests {
         let join_set = TaskDefinition::Set(SetTaskDefinition {
             set: SetValue::Map({
                 let mut m = HashMap::new();
-                m.insert("colors".to_string(), json!("${ [.[] | .[]] }"));
+                m.insert("colors".to_string(), json!("${ [to_entries[].value[]] }"));
                 m
             }),
             common: TaskDefinitionFields::new(),
@@ -1317,12 +1291,14 @@ mod tests {
         let runner = make_do_runner(vec![("branchColors", fork_task), ("joinResult", join_set)]);
 
         let workflow = WorkflowDefinition::default();
-        let mut context = WorkflowContext::new(&workflow).unwrap();
-        let mut support = TaskSupport::new(&workflow, &mut context);
+        default_support!(workflow, context, support);
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
-        // Fork returns array of branch outputs: [{"color1":"red"}, {"color2":"blue"}]
-        // joinResult flattens: [.[] | .[]] → ["red", "blue"]
-        assert_eq!(output["colors"], json!(["red", "blue"]));
+        // Fork returns object: {setRed: {color1:"red"}, setBlue: {color2:"blue"}}
+        // joinResult: to_entries[].value[] → ["red", "blue"] (order may vary)
+        let colors = output["colors"].as_array().unwrap();
+        assert_eq!(colors.len(), 2);
+        assert!(colors.contains(&json!("red")));
+        assert!(colors.contains(&json!("blue")));
     }
 }

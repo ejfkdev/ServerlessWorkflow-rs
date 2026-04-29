@@ -1,7 +1,7 @@
 use crate::context::WorkflowContext;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::{
-    evaluate_optional_expr, traverse_and_evaluate, traverse_and_evaluate_bool,
+    traverse_and_evaluate,
     traverse_and_evaluate_obj,
 };
 use crate::handler::HandlerRegistry;
@@ -13,7 +13,6 @@ use serde_json::Value;
 use serverless_workflow_core::models::input::InputDataModelDefinition;
 use serverless_workflow_core::models::output::OutputDataModelDefinition;
 use serverless_workflow_core::models::task::{TaskDefinition, TaskDefinitionFields};
-use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 
@@ -105,6 +104,17 @@ impl<'a> TaskSupport<'a> {
         Ok(())
     }
 
+    /// Increments the iteration counter for a task and returns the new value.
+    /// Called each time a task starts execution to track how many times it has run.
+    pub fn inc_iteration(&mut self, task_name: &str) -> u32 {
+        self.context.inc_iteration(task_name)
+    }
+
+    /// Sets the retry attempt count for the current task
+    pub fn set_retry_attempt(&mut self, attempt: u32) {
+        self.context.set_retry_attempt(attempt)
+    }
+
     /// Gets the current task reference
     pub fn get_task_reference(&self) -> Option<&str> {
         self.context.get_task_reference()
@@ -130,7 +140,7 @@ impl<'a> TaskSupport<'a> {
         self.context.set_instance_ctx(value);
     }
 
-    /// Gets all variables for JQ expression evaluation
+    /// Gets all variables for JQ expression evaluation (cached internally)
     pub fn get_vars(&self) -> HashMap<String, Value> {
         self.context.get_vars()
     }
@@ -207,10 +217,7 @@ impl<'a> TaskSupport<'a> {
     ) -> WorkflowResult<bool> {
         match if_condition {
             None => Ok(true),
-            Some(condition) => {
-                let vars = self.get_vars();
-                traverse_and_evaluate_bool(condition, input, &vars)
-            }
+            Some(condition) => self.eval_bool(condition, input),
         }
     }
 
@@ -232,8 +239,40 @@ impl<'a> TaskSupport<'a> {
         }
 
         // Transform input via from expression
-        let vars = self.get_vars();
-        traverse_and_evaluate_obj(input_def.from.as_ref(), input, &vars, task_name)
+        match input_def.from {
+            Some(ref from_val) => {
+                crate::expression::evaluate_value_expr(from_val, input, &self.get_vars(), task_name)
+            }
+            None => Ok(input.clone()),
+        }
+    }
+
+    /// Processes task output: expression transformation and schema validation.
+    /// Accepts pre-computed vars to avoid redundant `get_vars()` calls in hot paths.
+    fn process_task_output_with_vars(
+        &self,
+        output_def: Option<&OutputDataModelDefinition>,
+        output: &Value,
+        task_name: &str,
+        vars: &HashMap<String, Value>,
+    ) -> WorkflowResult<Value> {
+        let output_def = match output_def {
+            Some(def) => def,
+            None => return Ok(output.clone()),
+        };
+
+        let result = match output_def.as_ {
+            Some(ref as_val) => {
+                crate::expression::evaluate_value_expr(as_val, output, vars, task_name)?
+            }
+            None => output.clone(),
+        };
+
+        if let Some(ref schema) = output_def.schema {
+            validate_schema(&result, schema, task_name)?;
+        }
+
+        Ok(result)
     }
 
     /// Processes task output: expression transformation and schema validation
@@ -243,42 +282,22 @@ impl<'a> TaskSupport<'a> {
         output: &Value,
         task_name: &str,
     ) -> WorkflowResult<Value> {
-        let output_def = match output_def {
-            Some(def) => def,
-            None => return Ok(output.clone()),
-        };
-
-        // Transform output via as expression
         let vars = self.get_vars();
-        let result = evaluate_optional_expr(output_def.as_.as_ref(), output, &vars, task_name)?;
-
-        // Validate output schema
-        if let Some(ref schema) = output_def.schema {
-            validate_schema(&result, schema, task_name)?;
-        }
-
-        Ok(result)
+        self.process_task_output_with_vars(output_def, output, task_name, &vars)
     }
 
-    /// Processes task export: sets the instance context
+    /// Processes task export: expression transformation, schema validation, and instance context update.
+    /// Reuses `process_task_output` for the expression evaluation and schema validation.
     pub fn process_task_export(
         &mut self,
         export_def: Option<&OutputDataModelDefinition>,
         output: &Value,
         task_name: &str,
     ) -> WorkflowResult<()> {
-        let export_def = match export_def {
-            Some(def) => def,
-            None => return Ok(()),
-        };
-
-        let vars = self.get_vars();
-        let result = evaluate_optional_expr(export_def.as_.as_ref(), output, &vars, task_name)?;
-
-        if let Some(ref schema) = export_def.schema {
-            validate_schema(&result, schema, task_name)?;
+        if export_def.is_none() {
+            return Ok(());
         }
-
+        let result = self.process_task_output(export_def, output, task_name)?;
         self.set_instance_ctx(result);
         Ok(())
     }
@@ -294,11 +313,21 @@ impl<'a> TaskSupport<'a> {
     ) -> WorkflowResult<Value> {
         self.set_task_raw_output(&raw_output);
 
-        // Process task output
-        let output = self.process_task_output(common.output.as_ref(), &raw_output, task_name)?;
+        // Compute vars once for both output and export processing
+        let vars = self.get_vars();
 
-        // Process task export
-        self.process_task_export(common.export.as_ref(), &output, task_name)?;
+        // Process task output
+        let output = self.process_task_output_with_vars(
+            common.output.as_ref(), &raw_output, task_name, &vars,
+        )?;
+
+        // Process task export (same expression evaluation as output)
+        if common.export.is_some() {
+            let export_result = self.process_task_output_with_vars(
+                common.export.as_ref(), &output, task_name, &vars,
+            )?;
+            self.set_instance_ctx(export_result);
+        }
 
         // Clear per-task authorization context after export
         self.context.clear_authorization();
@@ -325,6 +354,7 @@ impl<'a> TaskSupport<'a> {
         self.set_task_started_at();
         self.set_task_raw_input(input);
         self.set_task_name(task_name);
+        self.inc_iteration(task_name);
 
         self.emit_event(WorkflowEvent::TaskStarted {
             instance_id: self.context.instance_id().to_string(),

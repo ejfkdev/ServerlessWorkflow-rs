@@ -1,0 +1,23 @@
+document:
+  dsl: 1.0.0-alpha2
+  namespace: test
+  name: http-query-params
+  version: 1.0.0-alpha2
+input:
+  schema:
+    document:
+      type: object
+      required:
+        - uid
+      properties:
+        uid:
+          type: string
+do:
+  - searchStarTrekMovies:
+      call: http
+      with:
+        method: get
+        endpoint: http://localhost:9876/api/v1/rest/movie
+        query:
+          uid: ${.uid}
+      

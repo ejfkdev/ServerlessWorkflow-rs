@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![allow(clippy::result_large_err)]
 #![doc = include_str!("../README.md")]
 

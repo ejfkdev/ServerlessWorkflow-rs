@@ -1,5 +1,6 @@
 use super::*;
 use crate::context::WorkflowContext;
+use base64::Engine;
 use serde_json::json;
 use serverless_workflow_core::models::call::{
     CallHTTPDefinition, HTTPArguments, OneOfHeadersOrExpression, OneOfQueryOrExpression,
@@ -104,8 +105,7 @@ async fn test_call_http_unsupported_method() {
 
 #[tokio::test]
 async fn test_call_grpc_no_handler() {
-    use serverless_workflow_core::models::call::CallGRPCDefinition;
-    let task = CallTaskDefinition::GRPC(Box::new(CallGRPCDefinition::default()));
+    let task = CallTaskDefinition::GRPC(Box::default());
     let runner = CallTaskRunner::new("grpcTest", &task).unwrap();
     let workflow = WorkflowDefinition::default();
     let mut context = WorkflowContext::new(&workflow).unwrap();
@@ -135,7 +135,6 @@ async fn test_call_openapi_no_handler() {
 #[tokio::test]
 async fn test_call_grpc_with_custom_handler() {
     use crate::handler::CallHandler;
-    use serverless_workflow_core::models::call::CallGRPCDefinition;
 
     struct MockGrpcHandler;
 
@@ -155,7 +154,7 @@ async fn test_call_grpc_with_custom_handler() {
         }
     }
 
-    let task = CallTaskDefinition::GRPC(Box::new(CallGRPCDefinition::default()));
+    let task = CallTaskDefinition::GRPC(Box::default());
     let runner = CallTaskRunner::new("grpcWithHandler", &task).unwrap();
 
     let workflow = WorkflowDefinition::default();
@@ -249,7 +248,8 @@ async fn test_apply_authentication_sets_authorization_basic() {
     assert!(auth_info.is_some());
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Basic");
-    assert_eq!(parameter, "admin:secret123");
+    // Parameter is Base64-encoded credentials (matches Java SDK behavior)
+    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("admin:secret123"));
 }
 
 #[tokio::test]
@@ -293,11 +293,11 @@ async fn test_apply_authentication_sets_authorization_bearer() {
 #[tokio::test]
 async fn test_apply_authentication_no_auth_returns_none() {
     use serverless_workflow_core::models::authentication::{
-        AuthenticationPolicyDefinition, ReferenceableAuthenticationPolicy,
+        ReferenceableAuthenticationPolicy,
     };
 
     let policy =
-        ReferenceableAuthenticationPolicy::Policy(Box::new(AuthenticationPolicyDefinition::default()));
+        ReferenceableAuthenticationPolicy::Policy(Box::default());
 
     let client = reqwest::Client::new();
     let builder = client.get("https://example.com/api");
@@ -356,7 +356,8 @@ async fn test_apply_authentication_basic_with_secret() {
     assert!(auth_info.is_some());
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Basic");
-    assert_eq!(parameter, "admin:s3cret");
+    // Parameter is Base64-encoded credentials, not plaintext
+    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("admin:s3cret"));
 }
 
 #[tokio::test]
@@ -469,5 +470,6 @@ async fn test_apply_authentication_digest_with_secret() {
     assert!(auth_info.is_some());
     let (scheme, parameter) = auth_info.unwrap();
     assert_eq!(scheme, "Digest");
-    assert_eq!(parameter, "digestuser:digestpass");
+    // Parameter is Base64-encoded credentials, not plaintext
+    assert_eq!(parameter, base64::engine::general_purpose::STANDARD.encode("digestuser:digestpass"));
 }

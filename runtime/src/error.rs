@@ -59,83 +59,113 @@ impl ErrorFields {
     }
 }
 
-/// Runtime error types for the Serverless Workflow engine
+/// Error kind discriminator for WorkflowError
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorKind {
+    Validation,
+    Expression,
+    Runtime,
+    Timeout,
+    Communication,
+    Authentication,
+    Authorization,
+    Configuration,
+}
+
+impl ErrorKind {
+    /// Returns the short type name (e.g., "validation", "runtime")
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorKind::Validation => "validation",
+            ErrorKind::Expression => "expression",
+            ErrorKind::Runtime => "runtime",
+            ErrorKind::Timeout => "timeout",
+            ErrorKind::Communication => "communication",
+            ErrorKind::Authentication => "authentication",
+            ErrorKind::Authorization => "authorization",
+            ErrorKind::Configuration => "configuration",
+        }
+    }
+
+    /// Returns the full error type URI per the Serverless Workflow spec
+    pub fn type_uri(&self) -> &'static str {
+        match self {
+            ErrorKind::Validation => "https://serverlessworkflow.io/spec/1.0.0/errors/validation",
+            ErrorKind::Expression => "https://serverlessworkflow.io/spec/1.0.0/errors/expression",
+            ErrorKind::Runtime => "https://serverlessworkflow.io/spec/1.0.0/errors/runtime",
+            ErrorKind::Timeout => "https://serverlessworkflow.io/spec/1.0.0/errors/timeout",
+            ErrorKind::Communication => "https://serverlessworkflow.io/spec/1.0.0/errors/communication",
+            ErrorKind::Authentication => "https://serverlessworkflow.io/spec/1.0.0/errors/authentication",
+            ErrorKind::Authorization => "https://serverlessworkflow.io/spec/1.0.0/errors/authorization",
+            ErrorKind::Configuration => "https://serverlessworkflow.io/spec/1.0.0/errors/configuration",
+        }
+    }
+
+    /// Resolves an error type string to an ErrorKind.
+    /// Matches both the full URI (from ErrorTypes constants) and short names (suffix after last '/').
+    /// Returns ErrorKind::Runtime as the default for unknown types.
+    pub fn from_type_str(error_type: &str) -> Self {
+        const TYPE_MAP: &[(&str, ErrorKind)] = &[
+            ("validation", ErrorKind::Validation),
+            ("expression", ErrorKind::Expression),
+            ("timeout", ErrorKind::Timeout),
+            ("communication", ErrorKind::Communication),
+            ("authentication", ErrorKind::Authentication),
+            ("authorization", ErrorKind::Authorization),
+            ("configuration", ErrorKind::Configuration),
+        ];
+        TYPE_MAP
+            .iter()
+            .find(|(suffix, _)| {
+                error_type.ends_with(suffix)
+                    && (error_type.len() == suffix.len()
+                        || error_type.as_bytes().get(error_type.len() - suffix.len() - 1) == Some(&b'/'))
+            })
+            .map(|(_, kind)| *kind)
+            .unwrap_or(ErrorKind::Runtime)
+    }
+}
+
+/// Runtime error for the Serverless Workflow engine
 #[derive(Debug, Clone)]
-pub enum WorkflowError {
-    /// Validation error (e.g., missing required fields, invalid configuration)
-    Validation { fields: ErrorFields },
-
-    /// Expression evaluation error
-    Expression { fields: ErrorFields },
-
-    /// Runtime execution error
-    Runtime { fields: ErrorFields },
-
-    /// Timeout error
-    Timeout { fields: ErrorFields },
-
-    /// Communication error (e.g., HTTP, gRPC failures)
-    Communication { fields: ErrorFields },
-
-    /// Authentication error
-    Authentication { fields: ErrorFields },
-
-    /// Authorization error
-    Authorization { fields: ErrorFields },
-
-    /// Configuration error
-    Configuration { fields: ErrorFields },
+pub struct WorkflowError {
+    kind: ErrorKind,
+    fields: ErrorFields,
 }
 
 impl std::error::Error for WorkflowError {}
 
 impl fmt::Display for WorkflowError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let kind = match self {
-            WorkflowError::Validation { .. } => "validation",
-            WorkflowError::Expression { .. } => "expression",
-            WorkflowError::Runtime { .. } => "runtime",
-            WorkflowError::Timeout { .. } => "timeout",
-            WorkflowError::Communication { .. } => "communication",
-            WorkflowError::Authentication { .. } => "authentication",
-            WorkflowError::Authorization { .. } => "authorization",
-            WorkflowError::Configuration { .. } => "configuration",
-        };
-        let fields = self.fields();
         write!(
             f,
             "{} error in task '{}': {}",
-            kind, fields.task, fields.message
+            self.kind.as_str(),
+            self.fields.task,
+            self.fields.message
         )
     }
 }
 
 impl WorkflowError {
-    fn fields(&self) -> &ErrorFields {
-        match self {
-            WorkflowError::Validation { fields } => fields,
-            WorkflowError::Expression { fields } => fields,
-            WorkflowError::Runtime { fields } => fields,
-            WorkflowError::Timeout { fields } => fields,
-            WorkflowError::Communication { fields } => fields,
-            WorkflowError::Authentication { fields } => fields,
-            WorkflowError::Authorization { fields } => fields,
-            WorkflowError::Configuration { fields } => fields,
-        }
+    /// Returns the error kind
+    pub fn kind(&self) -> ErrorKind {
+        self.kind
+    }
+
+    /// Returns a reference to the error fields
+    pub fn fields(&self) -> &ErrorFields {
+        &self.fields
     }
 
     /// Creates a validation error
     pub fn validation(message: impl Into<String>, task: impl Into<String>) -> Self {
-        WorkflowError::Validation {
-            fields: ErrorFields::new(message, task, ""),
-        }
+        Self { kind: ErrorKind::Validation, fields: ErrorFields::new(message, task, "") }
     }
 
     /// Creates an expression error
     pub fn expression(message: impl Into<String>, task: impl Into<String>) -> Self {
-        WorkflowError::Expression {
-            fields: ErrorFields::new(message, task, ""),
-        }
+        Self { kind: ErrorKind::Expression, fields: ErrorFields::new(message, task, "") }
     }
 
     /// Creates a runtime error
@@ -144,9 +174,7 @@ impl WorkflowError {
         task: impl Into<String>,
         instance: impl Into<String>,
     ) -> Self {
-        WorkflowError::Runtime {
-            fields: ErrorFields::new(message, task, instance),
-        }
+        Self { kind: ErrorKind::Runtime, fields: ErrorFields::new(message, task, instance) }
     }
 
     /// Creates a runtime error without an instance (defaults to empty string)
@@ -157,16 +185,15 @@ impl WorkflowError {
     /// Creates a timeout error
     /// Per the Serverless Workflow spec, timeout errors have status 408
     pub fn timeout(message: impl Into<String>, task: impl Into<String>) -> Self {
-        WorkflowError::Timeout {
+        Self {
+            kind: ErrorKind::Timeout,
             fields: ErrorFields::new(message, task, "").with_status(Some(json!(408))),
         }
     }
 
     /// Creates a communication error
     pub fn communication(message: impl Into<String>, task: impl Into<String>) -> Self {
-        WorkflowError::Communication {
-            fields: ErrorFields::new(message, task, ""),
-        }
+        Self { kind: ErrorKind::Communication, fields: ErrorFields::new(message, task, "") }
     }
 
     /// Creates a communication error with an HTTP status code
@@ -175,7 +202,8 @@ impl WorkflowError {
         task: impl Into<String>,
         status_code: u16,
     ) -> Self {
-        WorkflowError::Communication {
+        Self {
+            kind: ErrorKind::Communication,
             fields: ErrorFields::new(message, task, "").with_status(Some(Value::from(status_code))),
         }
     }
@@ -189,7 +217,6 @@ impl WorkflowError {
         status: Option<Value>,
         title: Option<String>,
     ) -> Self {
-        use serverless_workflow_core::models::error::ErrorTypes;
         let details = if detail.is_empty() {
             None
         } else {
@@ -201,115 +228,52 @@ impl WorkflowError {
             .with_detail(details)
             .with_original_type(Some(error_type.to_string()));
 
-        if error_type == ErrorTypes::VALIDATION || error_type.ends_with("/validation") {
-            WorkflowError::Validation { fields }
-        } else if error_type == ErrorTypes::EXPRESSION || error_type.ends_with("/expression") {
-            WorkflowError::Expression { fields }
-        } else if error_type == ErrorTypes::TIMEOUT || error_type.ends_with("/timeout") {
-            WorkflowError::Timeout { fields }
-        } else if error_type == ErrorTypes::COMMUNICATION || error_type.ends_with("/communication")
-        {
-            WorkflowError::Communication { fields }
-        } else if error_type == ErrorTypes::AUTHENTICATION
-            || error_type.ends_with("/authentication")
-        {
-            WorkflowError::Authentication { fields }
-        } else if error_type == ErrorTypes::AUTHORIZATION || error_type.ends_with("/authorization")
-        {
-            WorkflowError::Authorization { fields }
-        } else if error_type == ErrorTypes::CONFIGURATION || error_type.ends_with("/configuration")
-        {
-            WorkflowError::Configuration { fields }
-        } else {
-            WorkflowError::Runtime { fields }
-        }
-    }
+        let kind = ErrorKind::from_type_str(error_type);
 
-    /// Returns the default error type URI for this variant
-    fn default_error_type(&self) -> &'static str {
-        match self {
-            WorkflowError::Validation { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/validation"
-            }
-            WorkflowError::Expression { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/expression"
-            }
-            WorkflowError::Runtime { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/runtime"
-            }
-            WorkflowError::Timeout { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/timeout"
-            }
-            WorkflowError::Communication { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/communication"
-            }
-            WorkflowError::Authentication { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/authentication"
-            }
-            WorkflowError::Authorization { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/authorization"
-            }
-            WorkflowError::Configuration { .. } => {
-                "https://serverlessworkflow.io/spec/1.0.0/errors/configuration"
-            }
-        }
-    }
-
-    /// Returns the default short type name for this variant
-    fn default_error_type_short(&self) -> &'static str {
-        match self {
-            WorkflowError::Validation { .. } => "validation",
-            WorkflowError::Expression { .. } => "expression",
-            WorkflowError::Runtime { .. } => "runtime",
-            WorkflowError::Timeout { .. } => "timeout",
-            WorkflowError::Communication { .. } => "communication",
-            WorkflowError::Authentication { .. } => "authentication",
-            WorkflowError::Authorization { .. } => "authorization",
-            WorkflowError::Configuration { .. } => "configuration",
-        }
+        Self { kind, fields }
     }
 
     /// Returns the error type as a full URI (prefers original type from DSL if available)
     pub fn error_type(&self) -> &str {
-        self.fields()
+        self.fields
             .original_type
             .as_deref()
-            .unwrap_or(self.default_error_type())
+            .unwrap_or(self.kind.type_uri())
     }
 
     /// Returns the short error type name (last segment of URI)
     pub fn error_type_short(&self) -> &str {
-        if let Some(ot) = &self.fields().original_type {
+        if let Some(ot) = &self.fields.original_type {
             if let Some(short) = ot.rsplit('/').next() {
                 return short;
             }
         }
-        self.default_error_type_short()
+        self.kind.as_str()
     }
 
     /// Returns the task name associated with this error
     pub fn task(&self) -> &str {
-        &self.fields().task
+        &self.fields.task
     }
 
     /// Returns the instance reference, if available
     pub fn instance(&self) -> Option<&str> {
-        self.fields().instance_opt()
+        self.fields.instance_opt()
     }
 
     /// Returns the status code, if available
     pub fn status(&self) -> Option<&Value> {
-        self.fields().status.as_ref()
+        self.fields.status.as_ref()
     }
 
     /// Returns the title, if available
     pub fn title(&self) -> Option<&str> {
-        self.fields().title.as_deref()
+        self.fields.title.as_deref()
     }
 
     /// Returns the detail, if available
     pub fn detail(&self) -> Option<&str> {
-        self.fields().detail.as_deref()
+        self.fields.detail.as_deref()
     }
 
     /// Converts the error to a JSON Value for use in expressions (e.g., $caughtError)
@@ -326,7 +290,7 @@ impl WorkflowError {
             map.insert("title".to_string(), Value::String(title.to_string()));
         }
         if let Some(detail) = self.detail() {
-            map.insert("detail".to_string(), Value::String(detail.to_string()));
+            map.insert("details".to_string(), Value::String(detail.to_string()));
         }
         if let Some(instance) = self.instance() {
             map.insert("instance".to_string(), Value::String(instance.to_string()));
@@ -337,41 +301,23 @@ impl WorkflowError {
     /// Sets the instance reference on the error if not already set
     pub fn with_instance(self, instance: impl Into<String>) -> Self {
         let new_instance = instance.into();
-        let fields = self.fields();
-        let inst = if fields.instance.is_empty() || fields.instance == "/" {
+        let inst = if self.fields.instance.is_empty() || self.fields.instance == "/" {
             new_instance
         } else {
-            fields.instance.clone()
+            self.fields.instance.clone()
         };
 
-        // Rebuild with updated instance
-        let updated_fields = ErrorFields {
-            message: fields.message.clone(),
-            task: fields.task.clone(),
-            instance: inst,
-            status: fields.status.clone(),
-            title: fields.title.clone(),
-            detail: fields.detail.clone(),
-            original_type: fields.original_type.clone(),
-        };
-
-        macro_rules! rebuild {
-            ($variant:ident) => {
-                WorkflowError::$variant {
-                    fields: updated_fields,
-                }
-            };
-        }
-
-        match self {
-            WorkflowError::Validation { .. } => rebuild!(Validation),
-            WorkflowError::Expression { .. } => rebuild!(Expression),
-            WorkflowError::Runtime { .. } => rebuild!(Runtime),
-            WorkflowError::Timeout { .. } => rebuild!(Timeout),
-            WorkflowError::Communication { .. } => rebuild!(Communication),
-            WorkflowError::Authentication { .. } => rebuild!(Authentication),
-            WorkflowError::Authorization { .. } => rebuild!(Authorization),
-            WorkflowError::Configuration { .. } => rebuild!(Configuration),
+        Self {
+            kind: self.kind,
+            fields: ErrorFields {
+                message: self.fields.message,
+                task: self.fields.task,
+                instance: inst,
+                status: self.fields.status,
+                title: self.fields.title,
+                detail: self.fields.detail,
+                original_type: self.fields.original_type,
+            },
         }
     }
 }
@@ -494,6 +440,12 @@ mod tests {
         );
         assert_eq!(val["status"], 401);
         assert_eq!(val["title"], "Auth Error");
-        assert_eq!(val["detail"], "Auth failed");
+        assert_eq!(val["details"], "Auth failed");
+    }
+
+    #[test]
+    fn test_error_kind() {
+        let err = WorkflowError::timeout("timed out", "task1");
+        assert_eq!(err.kind(), ErrorKind::Timeout);
     }
 }

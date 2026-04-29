@@ -126,8 +126,7 @@ do:
           title: Not Implemented
           detail: '${ "The workflow " + $workflow.definition.document.name + " is not implemented" }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -185,8 +184,7 @@ do:
           title: '${ "Validation failed for field: " + .field }'
           status: 400
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({"field": "email"})).await;
         assert!(result.is_err());
@@ -214,8 +212,7 @@ do:
           title: Unauthorized
           status: 401
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
@@ -250,8 +247,7 @@ do:
           status: 400
           detail: '${ "User age " + (.age | tostring) + " is below minimum of 18" }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({"age": 15})).await;
         assert!(result.is_err());
@@ -279,8 +275,7 @@ do:
           status: 403
           detail: '${ "User " + .user + " violated " + .policy }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner
             .run(json!({"user": "alice", "policy": "data-access"}))
@@ -327,8 +322,7 @@ do:
           title: Second Error
           status: 500
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let result = runner.run(json!({})).await;
         // First error is caught, second is not
@@ -368,8 +362,7 @@ do:
 "#,
                 err_type, err_type, status
             );
-            let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-            let runner = WorkflowRunner::new(workflow).unwrap();
+            let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
             let result = runner.run(json!({})).await;
             assert!(result.is_err());
@@ -415,10 +408,7 @@ do:
                 errType: "${ $err.type }"
                 errTitle: "${ $err.title }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"field": "email"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"field": "email"})).await.unwrap();
         assert!(output["errType"].as_str().unwrap().contains("validation"));
         assert_eq!(output["errTitle"], json!("Validation Failed"));
     }
@@ -459,10 +449,7 @@ do:
               set:
                 caughtType: "${ $err.type }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert!(output["caughtType"]
             .as_str()
             .unwrap()
@@ -503,8 +490,7 @@ do:
       raise:
         error: notImplemented
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -532,8 +518,7 @@ do:
           title: Compliance Error
           instance: raiseError
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -561,8 +546,7 @@ do:
           title: Not Implemented
           detail: '${ "The workflow " + $workflow.definition.document.name + ":" + $workflow.definition.document.version + " is a work in progress" }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -591,8 +575,7 @@ do:
           detail: 'Invalid credentials provided'
           instance: '/auth/login'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -623,8 +606,7 @@ do:
           title: Authentication Error
           detail: '${ "User authentication failed: " + .reason }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({"reason": "User token expired"})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -656,8 +638,7 @@ do:
           title: Authorization Error
           detail: User is under the required age
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         let result = runner.run(json!({"user": {"age": 16}})).await;
         assert!(result.is_err());
         let err = result.unwrap_err();
@@ -688,9 +669,7 @@ do:
       set:
         allowed: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"user": {"age": 25}})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"user": {"age": 25}})).await.unwrap();
         assert_eq!(output["allowed"], json!(true));
     }
 

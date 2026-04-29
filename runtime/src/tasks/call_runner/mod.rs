@@ -1,3 +1,4 @@
+use crate::tasks::task_name_impl;
 mod auth;
 mod digest;
 #[cfg(test)]
@@ -6,31 +7,21 @@ mod tests;
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::{evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj};
 use crate::task_runner::{TaskRunner, TaskSupport};
+use crate::tasks::{define_simple_task_runner};
 use serde_json::Value;
 use serverless_workflow_core::models::call::CallTaskDefinition;
 use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
-use std::collections::HashMap;
 
 use auth::apply_authentication;
 use digest::{extract_digest_info, parse_digest_challenge};
 
-/// Runner for Call tasks - executes external service calls
-///
-/// Supports HTTP calls natively. Other call types (gRPC, OpenAPI, AsyncAPI, A2A, Function)
-/// require custom handlers via the CallHandler trait.
-pub struct CallTaskRunner {
-    name: String,
-    task: CallTaskDefinition,
-}
-
-impl CallTaskRunner {
-    pub fn new(name: &str, task: &CallTaskDefinition) -> WorkflowResult<Self> {
-        Ok(Self {
-            name: name.to_string(),
-            task: task.clone(),
-        })
-    }
-}
+define_simple_task_runner!(
+    /// Runner for Call tasks - executes external service calls
+    ///
+    /// Supports HTTP calls natively. Other call types (gRPC, OpenAPI, AsyncAPI, A2A, Function)
+    /// require custom handlers via the CallHandler trait.
+    CallTaskRunner, CallTaskDefinition
+);
 
 #[async_trait::async_trait]
 impl TaskRunner for CallTaskRunner {
@@ -40,37 +31,11 @@ impl TaskRunner for CallTaskRunner {
             CallTaskDefinition::Function(func_task) => {
                 self.run_function(func_task, &input, support).await
             }
-            CallTaskDefinition::GRPC(grpc_task) => {
+            // GRPC, OpenAPI, AsyncAPI, A2A all use handler-based dispatch
+            _ => {
                 self.run_with_handler(
-                    "grpc",
-                    &CallTaskDefinition::GRPC(grpc_task.clone()),
-                    &input,
-                    support,
-                )
-                .await
-            }
-            CallTaskDefinition::OpenAPI(openapi_task) => {
-                self.run_with_handler(
-                    "openapi",
-                    &CallTaskDefinition::OpenAPI(openapi_task.clone()),
-                    &input,
-                    support,
-                )
-                .await
-            }
-            CallTaskDefinition::AsyncAPI(asyncapi_task) => {
-                self.run_with_handler(
-                    "asyncapi",
-                    &CallTaskDefinition::AsyncAPI(asyncapi_task.clone()),
-                    &input,
-                    support,
-                )
-                .await
-            }
-            CallTaskDefinition::A2A(a2a_task) => {
-                self.run_with_handler(
-                    "a2a",
-                    &CallTaskDefinition::A2A(a2a_task.clone()),
+                    self.task.call_type_name(),
+                    &self.task.clone(),
                     &input,
                     support,
                 )
@@ -79,9 +44,7 @@ impl TaskRunner for CallTaskRunner {
         }
     }
 
-    fn task_name(&self) -> &str {
-        &self.name
-    }
+    task_name_impl!();
 }
 
 impl CallTaskRunner {
@@ -355,7 +318,9 @@ impl CallTaskRunner {
         let status = response.status();
         if status.is_client_error() || status.is_server_error() {
             let status_code = status.as_u16();
-            let body_text = response.text().await.unwrap_or_default();
+            let body_text = response.text().await.unwrap_or_else(|e| {
+                format!("<failed to read response body: {}>", e)
+            });
             return Err(WorkflowError::communication_with_status(
                 format!(
                     "HTTP request returned error status {}: {}",

@@ -1,3 +1,4 @@
+#![deny(unsafe_code)]
 #![doc = include_str!("../README.md")]
 
 pub mod services;
@@ -186,7 +187,6 @@ mod unit_tests {
                     .with_detail(raise_error_detail)
                     .with_instance(raise_error_instance);
             })
-            // .do_(run_container_task_name, |task|{
             .do_(run_container_task_name, |task| {
                 task.run()
                     .container()

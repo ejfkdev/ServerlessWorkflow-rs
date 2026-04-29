@@ -1,5 +1,5 @@
 use crate::context::{SuspendState, WorkflowContext};
-use crate::error::{WorkflowError, WorkflowResult};
+use crate::error::{ErrorKind, WorkflowError, WorkflowResult};
 use crate::events::SharedEventBus;
 use crate::expression::evaluate_value_expr;
 use crate::handler::{CallHandler, CustomTaskHandler, HandlerRegistry, RunHandler};
@@ -11,7 +11,6 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
 use serverless_workflow_core::models::task::TaskDefinition;
-use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -195,7 +194,7 @@ impl WorkflowRunner {
         // Handle schedule:after — delay before starting
         if let Some(ref schedule) = self.workflow.schedule {
             if let Some(ref after_duration) = schedule.after {
-                let duration = crate::tasks::duration_to_std(after_duration);
+                let duration = crate::utils::duration_to_std(after_duration);
                 if !duration.is_zero() {
                     context.set_status(StatusPhase::Waiting);
                     tokio::time::sleep(duration).await;
@@ -218,7 +217,7 @@ impl WorkflowRunner {
         // Run the top-level do tasks (with optional workflow timeout)
         let do_runner = DoTaskRunner::new_from_workflow(&self.workflow)?;
 
-        // Resolve workflow timeout before creating mutable support (needs immutable context borrow)
+        // Resolve workflow timeout
         let workflow_timeout = self.resolve_workflow_timeout(&processed_input, &context);
 
         let mut support = TaskSupport::new(&self.workflow, &mut context);
@@ -258,7 +257,7 @@ impl WorkflowRunner {
                     error: format!("{}", e),
                 });
                 // Only set instance on Runtime errors, preserve error type for others
-                if matches!(e, WorkflowError::Runtime { .. }) {
+                if e.kind() == ErrorKind::Runtime {
                     let reference = support.get_task_reference().unwrap_or("/");
                     return Err(e.with_instance(reference));
                 }
@@ -268,8 +267,12 @@ impl WorkflowRunner {
 
         support.context.clear_task_context();
 
-        // Process output
-        let processed_output = self.process_output(&output, support.context)?;
+        // Process output using TaskSupport (reuses shared output processing logic)
+        let processed_output = support.process_task_output(
+            self.workflow.output.as_ref(),
+            &output,
+            &self.workflow.document.name,
+        )?;
 
         support.context.set_output(processed_output.clone());
         support.context.set_status(StatusPhase::Completed);
@@ -310,7 +313,7 @@ impl WorkflowRunner {
     pub fn schedule(self, input: Value) -> ScheduledWorkflow {
         if let Some(ref schedule) = self.workflow.schedule {
             if let Some(ref every_duration) = schedule.every {
-                let interval = crate::tasks::duration_to_std(every_duration);
+                let interval = crate::utils::duration_to_std(every_duration);
                 let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
                 let join_handle = tokio::spawn(async move {
                     let mut interval_timer = tokio::time::interval(interval);
@@ -350,25 +353,16 @@ impl WorkflowRunner {
         input: &Value,
         context: &WorkflowContext,
     ) -> Option<Duration> {
-        let timeout_def = match &self.workflow.timeout {
-            Some(t) => t,
-            None => return None,
-        };
-
+        let timeout_def = self.workflow.timeout.as_ref()?;
         let vars = context.get_vars();
-
-        match timeout_def {
-            OneOfTimeoutDefinitionOrReference::Timeout(t) => {
-                crate::tasks::resolve_duration_with_context(&t.after, input, &vars).ok()
-            }
-            OneOfTimeoutDefinitionOrReference::Reference(ref_name) => {
-                // Look up the timeout reference in workflow.use_.timeouts
-                let use_ = self.workflow.use_.as_ref()?;
-                let timeouts = use_.timeouts.as_ref()?;
-                let timeout = timeouts.get(ref_name)?;
-                crate::tasks::resolve_duration_with_context(&timeout.after, input, &vars).ok()
-            }
-        }
+        crate::utils::parse_duration_with_context(
+            timeout_def,
+            input,
+            &vars,
+            &self.workflow.document.name,
+            Some(&self.workflow),
+        )
+        .ok()
     }
 
     /// Processes workflow input: schema validation and expression transformation
@@ -389,28 +383,6 @@ impl WorkflowRunner {
             Some(ref from_val) => evaluate_value_expr(from_val, input, &vars, "/"),
             None => Ok(input.clone()),
         }
-    }
-
-    /// Processes workflow output: expression transformation and schema validation
-    fn process_output(&self, output: &Value, context: &WorkflowContext) -> WorkflowResult<Value> {
-        let output_def = match &self.workflow.output {
-            Some(def) => def,
-            None => return Ok(output.clone()),
-        };
-
-        // Transform output via as expression
-        let vars = context.get_vars();
-        let result = match output_def.as_ {
-            Some(ref as_val) => evaluate_value_expr(as_val, output, &vars, "/")?,
-            None => output.clone(),
-        };
-
-        // Validate output schema
-        if let Some(ref schema) = output_def.schema {
-            validate_schema(&result, schema, "/")?;
-        }
-
-        Ok(result)
     }
 }
 

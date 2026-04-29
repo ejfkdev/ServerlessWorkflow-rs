@@ -12,23 +12,35 @@ use super::enum_validators::{
 };
 use super::one_of_validators::validate_auth_policy_one_of;
 
+/// Validates a credential-based auth scheme (Basic or Digest) for mutual exclusivity.
+/// Must have either `use` (secret reference) OR username/password, not both.
+fn validate_credentials_auth(
+    scheme_name: &str,
+    use_: &Option<String>,
+    username: &Option<String>,
+    password: &Option<String>,
+    prefix: &str,
+    result: &mut ValidationResult,
+) {
+    let has_use = use_.as_ref().is_some_and(|s| !s.is_empty());
+    let has_credentials = username.as_ref().is_some_and(|s| !s.is_empty())
+        || password.as_ref().is_some_and(|s| !s.is_empty());
+    if has_use && has_credentials {
+        result.add_error(
+            &format!("{}.{}", prefix, scheme_name),
+            ValidationRule::MutualExclusion,
+            &format!("{} auth: 'use' and username/password are mutually exclusive", scheme_name),
+        );
+    }
+}
+
 /// Validates a Basic authentication scheme for mutual exclusivity
-/// Basic auth must have either `use` (secret reference) OR username/password, not both
 pub fn validate_basic_auth(
     basic: &BasicAuthenticationSchemeDefinition,
     prefix: &str,
     result: &mut ValidationResult,
 ) {
-    let has_use = basic.use_.as_ref().is_some_and(|s| !s.is_empty());
-    let has_credentials = basic.username.as_ref().is_some_and(|s| !s.is_empty())
-        || basic.password.as_ref().is_some_and(|s| !s.is_empty());
-    if has_use && has_credentials {
-        result.add_error(
-            &format!("{}.basic", prefix),
-            ValidationRule::MutualExclusion,
-            "basic auth: 'use' and username/password are mutually exclusive",
-        );
-    }
+    validate_credentials_auth("basic", &basic.use_, &basic.username, &basic.password, prefix, result);
 }
 
 /// Validates a Bearer authentication scheme for mutual exclusivity
@@ -50,25 +62,16 @@ pub fn validate_bearer_auth(
 }
 
 /// Validates a Digest authentication scheme for mutual exclusivity
-/// Digest auth must have either `use` (secret reference) OR username/password, not both
 pub fn validate_digest_auth(
     digest: &DigestAuthenticationSchemeDefinition,
     prefix: &str,
     result: &mut ValidationResult,
 ) {
-    let has_use = digest.use_.as_ref().is_some_and(|s| !s.is_empty());
-    let has_credentials = digest.username.as_ref().is_some_and(|s| !s.is_empty())
-        || digest.password.as_ref().is_some_and(|s| !s.is_empty());
-    if has_use && has_credentials {
-        result.add_error(
-            &format!("{}.digest", prefix),
-            ValidationRule::MutualExclusion,
-            "digest auth: 'use' and username/password are mutually exclusive",
-        );
-    }
+    validate_credentials_auth("digest", &digest.use_, &digest.username, &digest.password, prefix, result);
 }
 
 /// Shared validation for OAuth2-like authentication schemes (OAuth2 and OIDC)
+#[allow(clippy::too_many_arguments)]
 fn validate_oauth2_like_auth(
     scheme_name: &str,
     use_: &Option<String>,

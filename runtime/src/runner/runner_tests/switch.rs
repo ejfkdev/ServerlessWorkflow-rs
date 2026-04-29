@@ -172,10 +172,7 @@ do:
       set:
         color: "RED"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"color": "red"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"color": "red"})).await.unwrap();
         assert_eq!(output["color"], json!("RED"));
         assert!(output.get("skipped").is_none());
     }
@@ -252,8 +249,7 @@ do:
       set:
         final: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // When skip=true: step1 -> step3 -> step4
         let output = runner.run(json!({"skip": true})).await.unwrap();
@@ -287,8 +283,7 @@ do:
       set:
         final: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // When skip=false: step1 -> step2 -> step4
         let output = runner.run(json!({"skip": false})).await.unwrap();
@@ -335,8 +330,7 @@ do:
       set:
         access: basic
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Admin with level > 10 → grantAll
         let output = runner
@@ -384,8 +378,7 @@ do:
       set:
         access: basic
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Admin with level <= 10 → grantBasic
         let output = runner
@@ -433,8 +426,7 @@ do:
       set:
         access: basic
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Not admin → end immediately (no access set)
         let output = runner
@@ -478,23 +470,18 @@ do:
       set:
         category: minor
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Senior
         let output = runner.run(json!({"age": 70})).await.unwrap();
         assert_eq!(output["category"], json!("senior"));
 
         // Adult
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"age": 30})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"age": 30})).await.unwrap();
         assert_eq!(output["category"], json!("adult"));
 
         // Minor
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"age": 10})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"age": 10})).await.unwrap();
         assert_eq!(output["category"], json!("minor"));
     }
 
@@ -518,10 +505,7 @@ do:
       set:
         continued: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"color": "blue"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"color": "blue"})).await.unwrap();
         // No match and no default: switch passes through, next task runs
         assert_eq!(output["continued"], json!(true));
     }
@@ -559,15 +543,10 @@ do:
       set:
         level: guest
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"role": "admin"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"role": "admin"})).await.unwrap();
         assert_eq!(output["level"], json!("admin"));
 
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"role": "guest"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"role": "guest"})).await.unwrap();
         assert_eq!(output["level"], json!("guest"));
     }
 
@@ -597,10 +576,7 @@ do:
         counter: "${ .counter + 1 }"
       then: checkCounter
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["counter"], json!(3));
     }
 
@@ -632,8 +608,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // When skip=true: skip step2 and step3
         let output = runner.run(json!({"skip": true})).await.unwrap();
@@ -672,10 +647,7 @@ do:
       set:
         shouldNotReach: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"age": 25})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"age": 25})).await.unwrap();
         assert_eq!(output["category"], json!("adult"));
         assert!(output.get("shouldNotReach").is_none());
     }
@@ -707,10 +679,7 @@ do:
       set:
         result: low_priority
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"level": "high"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"level": "high"})).await.unwrap();
         assert_eq!(output["result"], json!("high_priority"));
 
         let workflow2: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
@@ -746,10 +715,7 @@ do:
       set:
         result: "${ $context.level }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"score": 90})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
         assert_eq!(output["result"], json!("high"));
     }
 
@@ -804,8 +770,7 @@ do:
       set:
         result: "${ .matched }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // No when matches → default case → continue
         let _output = runner.run(json!({"type": "unknown"})).await.unwrap();
@@ -835,8 +800,7 @@ do:
       set:
         classification: "${ if .age < 18 then .minorLabel else .adultLabel end }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"age": 25, "minorLabel": "child", "adultLabel": "grown-up"}))
@@ -865,10 +829,7 @@ do:
       set:
         afterSwitch: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"ok": true})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"ok": true})).await.unwrap();
         assert_eq!(output["afterSwitch"], json!(true));
     }
 
@@ -892,8 +853,7 @@ do:
       set:
         passed: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // type != "x", no match, no default → pass through
         let output = runner.run(json!({"type": "y"})).await.unwrap();
@@ -934,10 +894,7 @@ do:
       set:
         result: handledDefault
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"type": "B"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"type": "B"})).await.unwrap();
         assert_eq!(output["result"], json!("handledB"));
     }
 
@@ -966,10 +923,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"type": "X"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"type": "X"})).await.unwrap();
         assert_eq!(output["done"], json!(true));
     }
 
@@ -997,8 +951,7 @@ do:
       set:
         reached: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // Score 95 matches isHigh first (score > 50), then:end
         let output = runner.run(json!({"score": 95})).await.unwrap();
@@ -1029,9 +982,7 @@ do:
       set:
         ran: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"stop": true})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"stop": true})).await.unwrap();
         assert!(output.get("ran").is_none());
     }
 
@@ -1061,8 +1012,7 @@ do:
         bonus: true
         score: "${ .score }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
         // Score 90 → high → then:end → no bonus
         let output = runner.run(json!({"score": 90})).await.unwrap();
         assert!(output.get("bonus").is_none());
@@ -1096,9 +1046,7 @@ do:
         handler: default
         type: "${ .type }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"type": "b"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"type": "b"})).await.unwrap();
         assert_eq!(output["handler"], json!("default"));
     }
 
@@ -1215,9 +1163,7 @@ do:
       set:
         exported: '${ $context }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"score": 90})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
         // output.as: .score → 90, export.as: '.' → $context = 90
         // Without the fix, $context would be {"score": 90} (the untransformed output)
         assert_eq!(output["exported"], json!(90));
@@ -1245,9 +1191,7 @@ do:
       set:
         received: '${ . }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"score": 90})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"score": 90})).await.unwrap();
         // output.as: .score → 90 is propagated to next task
         // Without the fix, next task would receive {"score": 90} (the untransformed input)
         assert_eq!(output["received"], json!(90));
@@ -1288,10 +1232,7 @@ do:
         colors: '${ .colors + [ "blue" ] }'
       then: end
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"color": "red"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"color": "red"})).await.unwrap();
         assert_eq!(output["colors"], json!(["red"]));
     }
 
@@ -1328,10 +1269,7 @@ do:
         colors: '${ .colors + [ "blue" ] }'
       then: end
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"color": "green"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"color": "green"})).await.unwrap();
         assert_eq!(output["colors"], json!(["green"]));
     }
 
@@ -1369,8 +1307,7 @@ do:
         colors: '${ .colors + [ "default" ] }'
       then: end
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         // "yellow" doesn't match red or green, so fallback is used
         let output = runner.run(json!({"color": "yellow"})).await.unwrap();
@@ -1414,8 +1351,7 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"orderType": "electronic"}))
@@ -1460,10 +1396,7 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"orderType": "physical"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"orderType": "physical"})).await.unwrap();
         assert_eq!(output["inventory"], json!("clear"));
         assert_eq!(output["items"], json!(1));
         assert_eq!(output["address"], json!("Elmer St"));
@@ -1504,10 +1437,7 @@ do:
         log: warn
         message: "something's wrong"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"orderType": "digital"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"orderType": "digital"})).await.unwrap();
         assert_eq!(output["log"], json!("warn"));
         assert_eq!(output["message"], json!("something's wrong"));
     }
@@ -1535,9 +1465,7 @@ do:
         - default:
             then: exit
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"count": 0})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"count": 0})).await.unwrap();
         // Loop: count goes 0→1→2→3→4→5→6, then exit when count=6 (not <6)
         assert_eq!(output["count"], json!(6));
     }

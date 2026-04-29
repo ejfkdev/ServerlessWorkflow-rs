@@ -3,6 +3,9 @@ use crate::expression::evaluate_expression_str;
 use serde_json::Value;
 use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
 
+type VarsMap = std::collections::HashMap<String, Value>;
+type AuthDefs = std::collections::HashMap<String, ReferenceableAuthenticationPolicy>;
+
 /// Digest auth credentials extracted for the two-step flow
 pub(crate) struct DigestAuthInfo {
     pub username: String,
@@ -50,9 +53,9 @@ pub(crate) struct DigestChallenge {
 /// or an error if digest auth is configured but invalid.
 pub(crate) fn extract_digest_info(
     policy: &ReferenceableAuthenticationPolicy,
-    auth_definitions: Option<&std::collections::HashMap<String, ReferenceableAuthenticationPolicy>>,
+    auth_definitions: Option<&AuthDefs>,
     input: &Value,
-    vars: &std::collections::HashMap<String, Value>,
+    vars: &VarsMap,
     task_name: &str,
 ) -> WorkflowResult<Option<DigestAuthInfo>> {
     let resolved_policy = match policy {
@@ -88,19 +91,25 @@ pub(crate) fn parse_digest_challenge(www_auth: &str) -> Option<DigestChallenge> 
     let mut realm = None;
     let mut nonce = None;
     let mut opaque = None;
-    let mut algorithm = Some("MD5".to_string());
+    let mut algorithm = "MD5".to_string();
     let mut qop = None;
 
     // Parse key="value" pairs
     let re = regex_lazy();
     for cap in re.captures_iter(header) {
-        let key = cap.get(1)?.as_str();
-        let value = cap.get(2)?.as_str();
+        let key = match cap.get(1) {
+            Some(m) => m.as_str(),
+            None => continue,
+        };
+        let value = match cap.get(2) {
+            Some(m) => m.as_str(),
+            None => continue,
+        };
         match key {
             "realm" => realm = Some(value.to_string()),
             "nonce" => nonce = Some(value.to_string()),
             "opaque" => opaque = Some(value.to_string()),
-            "algorithm" => algorithm = Some(value.to_string()),
+            "algorithm" => algorithm = value.to_string(),
             "qop" => qop = Some(value.to_string()),
             _ => {}
         }
@@ -110,7 +119,7 @@ pub(crate) fn parse_digest_challenge(www_auth: &str) -> Option<DigestChallenge> 
         realm: realm?,
         nonce: nonce?,
         opaque,
-        algorithm: algorithm.unwrap_or_else(|| "MD5".to_string()),
+        algorithm,
         qop,
     })
 }
@@ -125,7 +134,7 @@ fn regex_lazy() -> std::sync::MutexGuard<'static, regex::Regex> {
             Mutex::new(Regex::new(r#"([A-Za-z]+)="([^"]*)""#).expect("static regex is valid"))
         })
         .lock()
-        .expect("auth header regex lock poisoned");
+        .unwrap_or_else(|e| e.into_inner());
     guard
 }
 

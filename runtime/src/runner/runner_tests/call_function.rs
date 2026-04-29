@@ -2,7 +2,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_function_http() {
-        use warp::Filter;
 
         let get_pet = warp::path("pets")
             .and(warp::path::param::<i32>())
@@ -22,7 +21,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_function_with_output_as() {
-        use warp::Filter;
 
         let get_pet = warp::path!("pets" / i32).map(|id: i32| {
             warp::reply::json(&serde_json::json!({
@@ -41,7 +39,6 @@ use super::*;
     // Call function: with arguments via HTTP (use mock server)
     #[tokio::test]
     async fn test_runner_call_function_with_args() {
-        use warp::Filter;
 
         let add_handler =
             warp::path("add")
@@ -52,9 +49,7 @@ use super::*;
                     warp::reply::json(&serde_json::json!({"result": a + b}))
                 });
 
-        let (addr, server_fn) = warp::serve(add_handler).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(add_handler);
 
         let yaml_str = format!(
             r#"
@@ -76,9 +71,7 @@ do:
         as: "${{ .result }}"
 "#
         );
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"x": 3, "y": 7})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"x": 3, "y": 7})).await.unwrap();
         assert_eq!(output, json!(10));
     }
 
@@ -103,16 +96,11 @@ do:
   - callGreet:
       call: greet
 "#;
-        use warp::Filter;
         let hello = warp::path("hello").map(|| warp::reply::json(&json!({"greeting": "Hello!"})));
-        let (addr, server_fn) = warp::serve(hello).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(hello);
 
         let yaml_str = yaml_str.replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["greeting"], json!("Hello!"));
     }
 
@@ -412,15 +400,12 @@ do:
     /// use.functions defines a function inline with HTTP call
     #[tokio::test]
     async fn test_runner_call_function_inline_definition() {
-        use warp::Filter;
 
         let greet = warp::path("api")
             .and(warp::path("greet"))
             .map(|| warp::reply::json(&serde_json::json!({"message": "Hello!"})));
 
-        let (addr, server_fn) = warp::serve(greet).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(greet);
 
         let yaml = r#"
 document:

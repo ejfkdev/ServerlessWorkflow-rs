@@ -6,23 +6,23 @@ use std::fmt;
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize)]
 pub struct Duration {
     /// Gets/sets the number of days, if any
-    #[serde(rename = "days", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub days: Option<u64>,
 
     /// Gets/sets the number of hours, if any
-    #[serde(rename = "hours", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hours: Option<u64>,
 
     /// Gets/sets the number of minutes, if any
-    #[serde(rename = "minutes", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub minutes: Option<u64>,
 
     /// Gets/sets the number of seconds, if any
-    #[serde(rename = "seconds", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub seconds: Option<u64>,
 
     /// Gets/sets the number of milliseconds, if any
-    #[serde(rename = "milliseconds", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub milliseconds: Option<u64>,
 }
 
@@ -97,75 +97,42 @@ impl<'de> de::Deserialize<'de> for Duration {
         deserializer.deserialize_map(DurationVisitor)
     }
 }
+macro_rules! from_unit {
+    ($name:ident, $field:ident) => {
+        pub fn $name(v: u64) -> Self {
+            Self { $field: Some(v), ..Self::default() }
+        }
+    };
+}
+
+macro_rules! total_as {
+    ($name:ident, $divisor:expr) => {
+        pub fn $name(&self) -> f64 {
+            self.total_milliseconds() as f64 / $divisor
+        }
+    };
+}
+
 impl Duration {
-    /// Initializes a new Duration from the specified amount of days
-    pub fn from_days(days: u64) -> Self {
-        Self {
-            days: Some(days),
-            ..Self::default()
-        }
-    }
+    from_unit!(from_days, days);
+    from_unit!(from_hours, hours);
+    from_unit!(from_minutes, minutes);
+    from_unit!(from_seconds, seconds);
+    from_unit!(from_milliseconds, milliseconds);
 
-    /// Initializes a new Duration from the specified amount of hours
-    pub fn from_hours(hours: u64) -> Self {
-        Self {
-            hours: Some(hours),
-            ..Self::default()
-        }
-    }
-
-    /// Initializes a new Duration from the specified amount of minutes
-    pub fn from_minutes(minutes: u64) -> Self {
-        Self {
-            minutes: Some(minutes),
-            ..Self::default()
-        }
-    }
-
-    /// Initializes a new Duration from the specified amount of seconds
-    pub fn from_seconds(seconds: u64) -> Self {
-        Self {
-            seconds: Some(seconds),
-            ..Self::default()
-        }
-    }
-
-    /// Initializes a new Duration from the specified amount of milliseconds
-    pub fn from_milliseconds(milliseconds: u64) -> Self {
-        Self {
-            milliseconds: Some(milliseconds),
-            ..Self::default()
-        }
-    }
-
-    /// Gets the the duration's total amount of days
-    pub fn total_days(&self) -> f64 {
-        self.total_milliseconds() as f64 / (24.0 * 60.0 * 60.0 * 1000.0)
-    }
-
-    /// Gets the the duration's total amount of hours
-    pub fn total_hours(&self) -> f64 {
-        self.total_milliseconds() as f64 / (60.0 * 60.0 * 1000.0)
-    }
-
-    /// Gets the the duration's total amount of minutes
-    pub fn total_minutes(&self) -> f64 {
-        self.total_milliseconds() as f64 / (60.0 * 1000.0)
-    }
-
-    /// Gets the the duration's total amount of seconds
-    pub fn total_seconds(&self) -> f64 {
-        self.total_milliseconds() as f64 / 1000.0
-    }
+    total_as!(total_days, 24.0 * 60.0 * 60.0 * 1000.0);
+    total_as!(total_hours, 60.0 * 60.0 * 1000.0);
+    total_as!(total_minutes, 60.0 * 1000.0);
+    total_as!(total_seconds, 1000.0);
 
     /// Gets the the duration's total amount of milliseconds
     pub fn total_milliseconds(&self) -> u64 {
-        let days_ms = self.days.unwrap_or(0) * 24 * 60 * 60 * 1000;
-        let hours_ms = self.hours.unwrap_or(0) * 60 * 60 * 1000;
-        let minutes_ms = self.minutes.unwrap_or(0) * 60 * 1000;
-        let seconds_ms = self.seconds.unwrap_or(0) * 1000;
-        let millis = self.milliseconds.unwrap_or(0);
-        days_ms + hours_ms + minutes_ms + seconds_ms + millis
+        let total: u128 = (self.days.unwrap_or(0) as u128) * 86_400_000
+            + (self.hours.unwrap_or(0) as u128) * 3_600_000
+            + (self.minutes.unwrap_or(0) as u128) * 60_000
+            + (self.seconds.unwrap_or(0) as u128) * 1_000
+            + self.milliseconds.unwrap_or(0) as u128;
+        total.try_into().unwrap_or(u64::MAX)
     }
 }
 impl fmt::Display for Duration {

@@ -40,9 +40,7 @@ do:
                   set:
                     deepValue: 42
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["deepValue"], json!(42));
     }
 
@@ -68,10 +66,7 @@ do:
             set:
               result: '${ $context.innerValue }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(42));
     }
 
@@ -95,8 +90,7 @@ do:
             set:
               results: "${ [.results[]] + [{name: $item, doubled: ($item * 2)}] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [3, 5, 7], "results": []}))
@@ -154,10 +148,7 @@ do:
               set:
                 outerCaught: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["innerRecovered"], json!(true));
         assert_eq!(output["continued"], json!(true));
         // Outer catch should NOT trigger because inner caught the error
@@ -189,8 +180,7 @@ do:
                   set:
                     result: "${ [.result[]] + [{group: $group.name, item: $item}] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({
@@ -234,10 +224,7 @@ do:
             set:
               result: '${ $context.shared }'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(42));
     }
 
@@ -271,8 +258,7 @@ do:
       set:
         allResults: "${ $context.results }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({
@@ -313,10 +299,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // exit should exit the inner do, then workflow continues with afterOuter
         assert_eq!(output["done"], json!(true));
         // step3 should have been skipped by exit
@@ -350,10 +333,7 @@ do:
       set:
         z: 3
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // step2 then:exit exits inner do, execution continues at afterOuter in outer scope
         assert_eq!(output["z"], json!(3));
         assert!(output.get("skipped").is_none());
@@ -380,10 +360,7 @@ do:
       set:
         reached: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // then:end in inner do exits only the inner do, outer tasks continue
         assert_eq!(output["reached"], json!(true));
     }
@@ -422,10 +399,7 @@ do:
                 caught: true
                 errorType: communication
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["caught"], json!(true));
     }
 
@@ -454,10 +428,7 @@ do:
       set:
         outerDone: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"ready": true})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"ready": true})).await.unwrap();
         // then:exit should exit inner do, but outer tasks continue
         assert!(output.get("afterInner").is_none() || output["afterInner"] == json!(true));
         assert_eq!(output["outerDone"], json!(true));
@@ -491,10 +462,7 @@ do:
       set:
         result: "${ .total }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(6));
     }
 
@@ -520,10 +488,7 @@ do:
       set:
         result: "${ $context.innerVal }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(42));
     }
 
@@ -554,10 +519,7 @@ do:
       set:
         step: d
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // innerC then:exit exits inner do, execution continues at outerD in outer scope
         assert_eq!(output["step"], json!("d"));
     }
@@ -587,10 +549,7 @@ do:
         outer: true
         result: "${ .inner }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // then:end exits inner do, outer tasks continue
         assert_eq!(output["outer"], json!(true));
         assert_eq!(output["result"], json!(1));
@@ -620,10 +579,7 @@ do:
       set:
         result: "${ .val + 1 }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["result"], json!(11));
     }
 
@@ -654,10 +610,7 @@ do:
         count: "${ .count + 1 }"
       then: check
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["count"], json!(3));
     }
 
@@ -686,10 +639,7 @@ do:
         hasY: "${ .y != null }"
         xVal: "${ .x }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"shouldRun": false})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": false})).await.unwrap();
         assert_eq!(output["xVal"], json!(1));
         assert_eq!(output["hasY"], json!(false));
     }
@@ -719,10 +669,7 @@ do:
         hasY: "${ .y != null }"
         xVal: "${ .x }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"shouldRun": true})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"shouldRun": true})).await.unwrap();
         assert_eq!(output["xVal"], json!(1));
         assert_eq!(output["hasY"], json!(true));
     }
@@ -748,8 +695,7 @@ do:
               result: "${ .result + [$item] }"
               items: "${ .items }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"items": [10, 20, 30], "result": []}))
@@ -779,9 +725,7 @@ do:
         b: 2
         a: "${ .a }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["a"], json!(1));
         assert_eq!(output["b"], json!(2));
     }
@@ -815,9 +759,7 @@ do:
         b: "${ .b }"
         c: "${ .c }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["total"], json!(6));
         assert_eq!(output["a"], json!(1));
         assert_eq!(output["b"], json!(2));
@@ -850,9 +792,7 @@ do:
         step1: "${ $context.step1 }"
         step2: "${ $context.step2 }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // step1: val=10, export step1=10
         // step2: val=10+10=20, export step1=10,step2=20
         // step3: val=20+20=40

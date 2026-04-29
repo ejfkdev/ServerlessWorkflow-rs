@@ -1,9 +1,10 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
+#[cfg(test)]
 use serverless_workflow_core::models::workflow::WorkflowDefinition;
 
 /// Generates a JSON Pointer (RFC 6901) to a target node within a workflow definition
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn generate_json_pointer(
     workflow: &WorkflowDefinition,
     target: &str,

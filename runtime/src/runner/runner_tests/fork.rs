@@ -19,10 +19,9 @@ use super::*;
         let output = run_workflow_from_yaml(&testdata("fork_wait.yaml"), json!({}))
             .await
             .unwrap();
-        // Non-compete fork with 2 branches returns array of results
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        // Non-compete fork with 2 branches returns object with branch names as keys
+        assert!(output.is_object());
+        assert_eq!(output.as_object().unwrap().len(), 2);
     }
 
     // === Emit event ===
@@ -55,10 +54,9 @@ use super::*;
         let output = run_workflow_from_yaml(&testdata("fork_no_compete.yaml"), json!({}))
             .await
             .unwrap();
-        // Non-compete with multiple branches returns array of results
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        // Non-compete with multiple branches returns object with branch names as keys
+        assert!(output.is_object());
+        assert_eq!(output.as_object().unwrap().len(), 2);
     }
 
     // === Emit: Simple (no data) ===
@@ -68,10 +66,10 @@ use super::*;
         let output = run_workflow_from_yaml(&testdata("fork_no_compete.yaml"), json!({}))
             .await
             .unwrap();
-        // Non-compete returns array of branch results
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        // Non-compete returns object with branch names as keys
+        assert!(output.is_object());
+        assert!(output.get("callNurse").is_some());
+        assert!(output.get("callDoctor").is_some());
     }
 
     // === HTTP Call: POST with body expression and output.as extracting field ===
@@ -114,10 +112,7 @@ do:
       output:
         as: .winner
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Compete mode: first branch wins (sequential handle join)
         assert!(output == json!("branch1") || output == json!("branch2"));
     }
@@ -143,16 +138,9 @@ do:
                     set:
                       value: 42
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
-        // Single branch non-compete fork: result may be array or object depending on implementation
-        if output.is_array() {
-            assert_eq!(output[0]["value"], json!(42));
-        } else {
-            assert_eq!(output["value"], json!(42));
-        }
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Single branch non-compete fork returns object with branch name as key
+        assert_eq!(output["onlyBranch"]["value"], json!(42));
     }
 
     // === Set with null and boolean values ===
@@ -186,10 +174,7 @@ do:
       output:
         as: .winner
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output, json!("fast"));
     }
 
@@ -223,10 +208,7 @@ do:
                       winner: slow
                       time: 100
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Fast branch should win in compete mode
         assert_eq!(output["winner"], json!("fast"));
     }
@@ -263,10 +245,7 @@ do:
       output:
         as: "${ {winner: .winner, elapsed: .time} }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Compete mode: fast branch wins
         assert_eq!(output["winner"], json!("fast"));
         assert_eq!(output["elapsed"], json!(10));
@@ -306,11 +285,8 @@ do:
                             set:
                               recovered: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["recovered"], json!(true));
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        assert_eq!(output["safeBranch"]["recovered"], json!(true));
     }
 
     // === Raise with all error types ===
@@ -334,11 +310,8 @@ do:
                     set:
                       value: 42
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
-        assert_eq!(output["value"], json!(42));
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        assert_eq!(output["onlyBranch"]["value"], json!(42));
     }
 
     // === Set: if condition with expression result ===
@@ -363,14 +336,10 @@ do:
               set:
                 b: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
-        // Non-compete fork with multiple branches returns array of results
-        assert!(output.is_array());
-        let results = output.as_array().unwrap();
-        assert_eq!(results.len(), 2);
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Non-compete fork with multiple branches returns object with branch names as keys
+        assert!(output.is_object());
+        assert_eq!(output.as_object().unwrap().len(), 2);
     }
 
     // === Try-catch: catch all errors ===
@@ -399,9 +368,7 @@ do:
               set:
                 winner: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["winner"], json!(true));
     }
 
@@ -429,9 +396,7 @@ do:
               set:
                 winner: fast
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["winner"], json!("fast"));
     }
 
@@ -458,9 +423,7 @@ do:
                 patientId: Smith
                 room: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Compete mode: one branch wins, output is that branch's result
         // The patientId should be either John or Smith
         let patient_id = output["patientId"].as_str();
@@ -496,9 +459,7 @@ do:
                     set:
                       winner: slow
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Fast branch should win
         assert_eq!(output["winner"], json!("fast"));
     }
@@ -528,20 +489,14 @@ do:
                 patientId: Smith
                 room: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
-        // Non-compete: both branches run, output is array of results
-        if output.is_array() {
-            let results = output.as_array().unwrap();
-            assert_eq!(results.len(), 2);
-            // Both should be present (order may vary)
-            let patient_ids: Vec<&str> = results
-                .iter()
-                .filter_map(|r| r["patientId"].as_str())
-                .collect();
-            assert!(patient_ids.contains(&"John"));
-            assert!(patient_ids.contains(&"Smith"));
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Non-compete: both branches run, output is object with branch names as keys
+        if output.is_object() {
+            assert_eq!(output.as_object().unwrap().len(), 2);
+            assert!(output.get("callNurse").is_some());
+            assert!(output.get("callDoctor").is_some());
+            assert_eq!(output["callNurse"]["patientId"], json!("John"));
+            assert_eq!(output["callDoctor"]["patientId"], json!("Smith"));
         }
     }
 
@@ -568,13 +523,10 @@ do:
               set:
                 color: blue
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
-        // Non-compete fork returns array of branch outputs
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Non-compete fork returns object with branch names as keys
+        assert!(output.is_object());
+        assert_eq!(output.as_object().unwrap().len(), 2);
     }
 
     // === Output.as + Export.as combined (Java SDK pattern) ===
@@ -602,14 +554,15 @@ do:
                 color2: blue
   - joinResult:
       set:
-        colors: "${ [.[] | .[]] }"
+        colors: "${ [to_entries[].value[]] }"
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
-        // Fork returns [{color1: "red"}, {color2: "blue"}] as array
-        // [.[] | .[]] flattens values to ["red", "blue"]
-        assert_eq!(output["colors"], json!(["red", "blue"]));
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Fork returns {setRed: {color1: "red"}, setBlue: {color2: "blue"}}
+        // to_entries | .[].value | .[] extracts values (order may vary due to concurrency)
+        let colors = output["colors"].as_array().unwrap();
+        assert_eq!(colors.len(), 2);
+        assert!(colors.contains(&json!("red")));
+        assert!(colors.contains(&json!("blue")));
     }
 
     // --- Java SDK: fork-no-compete.yaml ---
@@ -646,18 +599,13 @@ do:
                       patientId: Smith
                       room: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
-        // Fork returns array of branch outputs
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
-        // Check both branches completed
-        let nurse = arr.iter().find(|v| v.get("room") == Some(&json!(1)));
-        let doctor = arr.iter().find(|v| v.get("room") == Some(&json!(2)));
-        assert!(nurse.is_some(), "nurse branch should complete");
-        assert!(doctor.is_some(), "doctor branch should complete");
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Fork returns object with branch names as keys
+        assert!(output.is_object());
+        assert!(output.get("callNurse").is_some());
+        assert!(output.get("callDoctor").is_some());
+        assert_eq!(output["callNurse"]["room"], json!(1));
+        assert_eq!(output["callDoctor"]["room"], json!(2));
     }
 
     // --- Java SDK: fork-wait.yaml ---
@@ -692,19 +640,13 @@ do:
                     set:
                       value: 2
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({})).await.unwrap();
-        // Fork returns array of branch outputs
-        assert!(output.is_array());
-        let arr = output.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
-        let values: Vec<i64> = arr
-            .iter()
-            .filter_map(|v| v.get("value").and_then(|v| v.as_i64()))
-            .collect();
-        assert!(values.contains(&1), "should have value 1 from helloBranch");
-        assert!(values.contains(&2), "should have value 2 from byeBranch");
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
+        // Fork returns object with branch names as keys
+        assert!(output.is_object());
+        assert!(output.get("helloBranch").is_some());
+        assert!(output.get("byeBranch").is_some());
+        assert_eq!(output["helloBranch"]["value"], json!(1));
+        assert_eq!(output["byeBranch"]["value"], json!(2));
     }
 
     // =========================================================================

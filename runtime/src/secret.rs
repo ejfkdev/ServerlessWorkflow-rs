@@ -114,6 +114,14 @@ pub struct EnvSecretManager {
 
 impl EnvSecretManager {
     /// Creates a new EnvSecretManager without prefix
+    ///
+    /// **Warning:** Without a prefix, all environment variables (including sensitive ones
+    /// like PATH, HOME, AWS_SECRET_ACCESS_KEY, etc.) will be exposed as `$secret`
+    /// expression variables. Prefer [`with_prefix`](Self::with_prefix) in production.
+    #[deprecated(
+        since = "1.0.0-alpha7",
+        note = "Use `EnvSecretManager::with_prefix(\"WORKFLOW_SECRET_\")` instead to avoid exposing all environment variables"
+    )]
     pub fn new() -> Self {
         Self::default()
     }

@@ -2,7 +2,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_get() {
-        use warp::Filter;
 
         let hello = warp::path!("pets" / i32).map(|id| {
             warp::reply::json(&serde_json::json!({
@@ -21,7 +20,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_post() {
-        use warp::Filter;
 
         let create_pet = warp::post()
             .and(warp::path("pets"))
@@ -42,7 +40,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_get_output_as() {
-        use warp::Filter;
 
         let hello = warp::path!("pets" / i32).map(|id| {
             warp::reply::json(&serde_json::json!({
@@ -61,7 +58,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_try_catch_404() {
-        use warp::Filter;
 
         let not_found = warp::path("notfound")
             .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
@@ -74,7 +70,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_put() {
-        use warp::Filter;
 
         let update_pet = warp::put()
             .and(warp::path!("pets" / i32))
@@ -95,7 +90,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_delete() {
-        use warp::Filter;
 
         let delete_pet = warp::delete()
             .and(warp::path!("pets" / i32))
@@ -115,7 +109,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_query_params() {
-        use warp::Filter;
 
         let find_pets = warp::get()
             .and(warp::path("pets"))
@@ -136,7 +129,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_head() {
-        use warp::Filter;
 
         let head_handler = warp::head()
             .and(warp::path!("users" / i32))
@@ -151,7 +143,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_patch() {
-        use warp::Filter;
 
         let patch_user = warp::patch()
             .and(warp::path!("users" / i32))
@@ -171,7 +162,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_options() {
-        use warp::Filter;
 
         let options_handler = warp::options()
             .and(warp::path!("users" / i32))
@@ -192,7 +182,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_endpoint_interpolation() {
-        use warp::Filter;
 
         let get_pet = warp::path!("pets" / i32).map(|id: i32| {
             warp::reply::json(&serde_json::json!({
@@ -210,7 +199,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_post_expr() {
-        use warp::Filter;
 
         let create_user = warp::post()
             .and(warp::path("users"))
@@ -226,7 +214,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_redirect_false() {
-        use warp::Filter;
 
         let create_user = warp::post()
             .and(warp::path("users"))
@@ -243,7 +230,6 @@ use super::*;
     #[tokio::test]
     async fn test_runner_call_http_redirect_true() {
         use warp::http::StatusCode;
-        use warp::Filter;
 
         let redirect_handler = warp::get().and(warp::path("old-path")).map(|| {
             warp::http::Response::builder()
@@ -266,7 +252,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_output_response() {
-        use warp::Filter;
 
         let get_pet = warp::path!("pets" / i32).map(|id: i32| {
             warp::reply::json(&serde_json::json!({
@@ -289,7 +274,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_find_by_status() {
-        use warp::Filter;
 
         // Server that returns 404 for the find endpoint
         let not_found = warp::path!("v2" / "pet" / "findByStatus")
@@ -305,7 +289,6 @@ use super::*;
 
     #[tokio::test]
     async fn test_runner_call_http_with_headers() {
-        use warp::Filter;
 
         let headers_echo = warp::path("headers").map(|| {
             // Echo back some data to confirm the request was received
@@ -323,7 +306,6 @@ use super::*;
     #[tokio::test]
     async fn test_runner_call_http_basic_auth() {
         use crate::secret::MapSecretManager;
-        use warp::Filter;
 
         // Server that echoes back the Authorization header for verification
         let protected = warp::path("protected")
@@ -344,9 +326,7 @@ use super::*;
                 }
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         let secret_mgr = Arc::new(MapSecretManager::new().with_secret(
             "mySecret",
@@ -372,7 +352,6 @@ use super::*;
     #[tokio::test]
     async fn test_runner_call_http_basic_secret_auth() {
         use crate::secret::MapSecretManager;
-        use warp::Filter;
 
         // Server that checks Basic auth and returns JSON
         let protected = warp::path("protected")
@@ -384,9 +363,7 @@ use super::*;
                 _ => warp::reply::json(&serde_json::json!({"access": "denied"})),
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         let secret_mgr = Arc::new(MapSecretManager::new().with_secret(
             "mySecret",
@@ -413,7 +390,6 @@ use super::*;
     #[tokio::test]
     async fn test_runner_call_http_bearer_secret_auth() {
         use crate::secret::MapSecretManager;
-        use warp::Filter;
 
         // Server that checks Bearer auth
         let protected = warp::path("api")
@@ -426,9 +402,7 @@ use super::*;
                 _ => warp::reply::json(&serde_json::json!({"status": "denied"})),
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         let secret_mgr = Arc::new(MapSecretManager::new().with_secret(
             "apiToken",
@@ -454,7 +428,6 @@ use super::*;
     #[tokio::test]
     async fn test_runner_call_http_auth_export() {
         use crate::secret::MapSecretManager;
-        use warp::Filter;
 
         let protected = warp::path("protected")
             .and(warp::header::optional("Authorization"))
@@ -465,9 +438,7 @@ use super::*;
                 _ => warp::reply::json(&serde_json::json!({"access": "denied"})),
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         let secret_mgr = Arc::new(MapSecretManager::new().with_secret(
             "mySecret",
@@ -487,14 +458,14 @@ use super::*;
         let output = runner.run(json!({})).await.unwrap();
         // Verify HTTP call succeeded and export.as with $authorization works
         assert_eq!(output["authScheme"], json!("Basic"));
-        assert_eq!(output["authParam"], json!("admin:secret123"));
+        // Parameter is Base64-encoded credentials, not plaintext
+        assert_eq!(output["authParam"], json!(base64::engine::general_purpose::STANDARD.encode("admin:secret123")));
     }
 
     // === Call HTTP: authentication reference (use.authentications) ===
 
     #[tokio::test]
     async fn test_runner_call_http_auth_reference() {
-        use warp::Filter;
 
         let protected = warp::path("protected")
             .and(warp::header::optional("Authorization"))
@@ -515,7 +486,6 @@ use super::*;
     async fn test_runner_call_http_digest_auth() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let request_was_digest = Arc::new(AtomicBool::new(false));
@@ -544,16 +514,11 @@ use super::*;
                 }
             });
 
-        let (addr, server_fn) = warp::serve(digest_endpoint).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(digest_endpoint);
 
         let yaml_str = std::fs::read_to_string(testdata("call_http_digest.yaml")).unwrap();
         let yaml_str = yaml_str.replace("9876", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["access"], json!("granted"));
         assert!(
             request_was_digest.load(Ordering::SeqCst),
@@ -567,7 +532,6 @@ use super::*;
     async fn test_runner_call_http_oauth2_client_credentials() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -621,16 +585,11 @@ use super::*;
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml_str = std::fs::read_to_string(testdata("call_http_oauth2.yaml")).unwrap();
         let yaml_str = yaml_str.replace("9876", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["data"], json!("secret"));
         assert_eq!(output["authenticated"], json!(true));
         assert!(
@@ -645,7 +604,6 @@ use super::*;
     async fn test_runner_call_http_oauth2_password_grant() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -687,9 +645,7 @@ use super::*;
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml = format!(
             r#"
@@ -730,7 +686,6 @@ do:
     async fn test_runner_call_http_oauth2_client_secret_basic() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -773,9 +728,7 @@ do:
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml = format!(
             r#"
@@ -818,7 +771,6 @@ do:
     async fn test_runner_call_http_oauth2_json_encoding() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -858,9 +810,7 @@ do:
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         let yaml = format!(
             r#"
@@ -902,7 +852,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_oauth2_issuer_validation_rejects() {
-        use warp::Filter;
 
         // Token endpoint returning a token with wrong issuer
         let token_endpoint = warp::path("oauth2")
@@ -918,9 +867,7 @@ do:
                 }))
             });
 
-        let (addr, server_fn) = warp::serve(token_endpoint).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(token_endpoint);
 
         let yaml = format!(
             r#"
@@ -964,7 +911,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_redirect_no_follow() {
-        use warp::Filter;
         use warp::Reply;
 
         // /old returns 302 redirect to /new
@@ -985,9 +931,7 @@ do:
             .map(|| warp::reply::json(&serde_json::json!({"message": "target"})));
 
         let routes = redirect_endpoint.or(target_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         // With redirect:false, the 302 response is returned as-is (not followed)
         // Since 302 is not a client/server error, it's returned as the output
@@ -1025,7 +969,6 @@ do:
     async fn test_runner_call_http_oidc_client_credentials() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -1068,9 +1011,7 @@ do:
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         // OIDC authority is the full token endpoint URL
         let yaml = format!(
@@ -1116,7 +1057,6 @@ do:
     async fn test_runner_call_http_oauth2_no_endpoints() {
         use std::sync::atomic::{AtomicBool, Ordering};
         use std::sync::Arc;
-        use warp::Filter;
         use warp::Reply;
 
         let token_issued = Arc::new(AtomicBool::new(false));
@@ -1154,9 +1094,7 @@ do:
             });
 
         let routes = token_endpoint.or(protected_endpoint);
-        let (addr, server_fn) = warp::serve(routes).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(routes);
 
         // No endpoints config — should use default /oauth2/token
         let yaml = format!(
@@ -1198,7 +1136,6 @@ do:
     #[tokio::test]
     async fn test_runner_call_http_bearer_auth() {
         use crate::secret::MapSecretManager;
-        use warp::Filter;
 
         // Server that checks bearer token
         let api_data = warp::path("api")
@@ -1211,9 +1148,7 @@ do:
                 _ => warp::reply::json(&serde_json::json!({"status": "unauthorized"})),
             });
 
-        let (addr, server_fn) = warp::serve(api_data).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(api_data);
 
         let secret_mgr = Arc::new(MapSecretManager::new().with_secret(
             "apiToken",
@@ -1237,7 +1172,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_output_response_as() {
-        use warp::Filter;
 
         let get_pet = warp::path!("pets" / i32).map(|id: i32| {
             warp::reply::json(&serde_json::json!({
@@ -1255,14 +1189,11 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_404_in_try() {
-        use warp::Filter;
 
         let not_found = warp::path("missing")
             .map(|| warp::reply::with_status("Not Found", warp::http::StatusCode::NOT_FOUND));
 
-        let (addr, server_fn) = warp::serve(not_found).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(not_found);
 
         let yaml_str = r#"
 document:
@@ -1290,10 +1221,7 @@ do:
                 errorStatus: ${ $err.status }
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["errorStatus"], json!(404));
     }
 
@@ -1301,7 +1229,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_post_body_expr_output_as() {
-        use warp::Filter;
 
         let create_user = warp::post()
             .and(warp::path("users"))
@@ -1312,9 +1239,7 @@ do:
                 warp::reply::json(&response)
             });
 
-        let (addr, server_fn) = warp::serve(create_user).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(create_user);
 
         let yaml_str = r#"
 document:
@@ -1334,8 +1259,7 @@ do:
         as: .firstName
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"name": "John", "surname": "Doe"}))
@@ -1348,7 +1272,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_response_output_as_body() {
-        use warp::Filter;
 
         let get_pet = warp::path!("pets" / i32).map(|id: i32| {
             warp::reply::json(&serde_json::json!({
@@ -1358,9 +1281,7 @@ do:
             }))
         });
 
-        let (addr, server_fn) = warp::serve(get_pet).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(get_pet);
 
         let yaml_str = r#"
 document:
@@ -1380,10 +1301,7 @@ do:
         as: .body
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["id"], json!(1));
         assert_eq!(output["name"], json!("Buddy"));
     }
@@ -1392,16 +1310,13 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_post_json_body() {
-        use warp::Filter;
 
         let echo = warp::post()
             .and(warp::path("data"))
             .and(warp::body::json())
             .map(|body: serde_json::Value| warp::reply::json(&body));
 
-        let (addr, server_fn) = warp::serve(echo).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(echo);
 
         let yaml_str = r#"
 document:
@@ -1419,8 +1334,7 @@ do:
         body: "${ {firstName: .first, lastName: .last, fullName: (.first + \" \" + .last)} }"
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"first": "Jane", "last": "Smith"}))
@@ -1435,7 +1349,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_response_output_as_headers() {
-        use warp::Filter;
 
         let get_pet = warp::path("pets")
             .and(warp::path::param::<i32>())
@@ -1447,9 +1360,7 @@ do:
                 )
             });
 
-        let (addr, server_fn) = warp::serve(get_pet).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(get_pet);
 
         let yaml_str = r#"
 document:
@@ -1469,10 +1380,7 @@ do:
         as: "${ {status: .statusCode, petName: .body.name} }"
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["status"], json!(200));
         assert_eq!(output["petName"], json!("Rex"));
     }
@@ -1546,16 +1454,13 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_response_output_as_status() {
-        use warp::Filter;
 
         let post_user = warp::path("users")
             .and(warp::post())
             .and(warp::body::json())
             .map(|body: serde_json::Value| warp::reply::json(&body));
 
-        let (addr, server_fn) = warp::serve(post_user).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(post_user);
 
         let yaml_str = r#"
 document:
@@ -1579,8 +1484,7 @@ do:
         as: .statusCode
 "#
         .replace("PORT", &port.to_string());
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({
@@ -1662,7 +1566,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_secret_http_basic_auth() {
-        use warp::Filter;
         use warp::Reply;
 
         // Endpoint that checks Authorization header
@@ -1685,9 +1588,7 @@ do:
                 .into_response(),
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         // Use endpoint.authentication.basic with $secret expressions (same pattern as call_http_basic_auth.yaml)
         let yaml_str = r#"
@@ -1735,7 +1636,6 @@ do:
 
     #[tokio::test]
     async fn test_e2e_secret_http_auth() {
-        use warp::Filter;
         use warp::Reply;
 
         let protected = warp::header::optional("Authorization")
@@ -1749,9 +1649,7 @@ do:
                     .into_response(),
             });
 
-        let (addr, server_fn) = warp::serve(protected).bind_ephemeral(([127, 0, 0, 1], 0));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(protected);
 
         let yaml_str = std::fs::read_to_string(testdata("e2e_secret_http_auth.yaml")).unwrap();
         let yaml_str = yaml_str.replace("PORT", &port.to_string());
@@ -1772,7 +1670,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_put_output_as_transforms_response() {
-        use warp::Filter;
 
         let route = warp::path!("api" / "v1" / "authors" / ..)
             .and(warp::put())
@@ -1783,9 +1680,7 @@ do:
                 )
             });
 
-        let (addr, server_fn) = warp::serve(route).bind_ephemeral(([127, 0, 0, 1], 0u16));
-        let port = addr.port();
-        tokio::spawn(server_fn);
+        let port = start_mock_server(route);
 
         // Java SDK pattern: output.as extracts specific field from response
         let yaml = format!(
@@ -1818,7 +1713,6 @@ do:
 
     #[tokio::test]
     async fn test_bearer_auth_http_call() {
-        use warp::Filter;
 
         let handler = warp::path("hello")
             .and(warp::get())
@@ -1830,10 +1724,7 @@ do:
                 _ => warp::reply::json(&serde_json::json!({"authenticated": false})),
             });
 
-        let (addr, server) = warp::serve(handler).bind_ephemeral(([127, 0, 0, 1], 0));
-        tokio::spawn(server);
-
-        let port = addr.port();
+        let port = start_mock_server(handler);
 
         let workflow: WorkflowDefinition = serde_yaml::from_str(&format!(
             r#"
@@ -1864,7 +1755,6 @@ do:
 
     #[tokio::test]
     async fn test_basic_auth_http_call() {
-        use warp::Filter;
 
         let handler = warp::path("hello")
             .and(warp::get())
@@ -1876,10 +1766,7 @@ do:
                 _ => warp::reply::json(&serde_json::json!({"authenticated": false})),
             });
 
-        let (addr, server) = warp::serve(handler).bind_ephemeral(([127, 0, 0, 1], 0));
-        tokio::spawn(server);
-
-        let port = addr.port();
+        let port = start_mock_server(handler);
 
         let workflow: WorkflowDefinition = serde_yaml::from_str(&format!(
             r#"
@@ -1913,7 +1800,6 @@ do:
 
     #[tokio::test]
     async fn test_runner_call_http_output_as_expr() {
-        use warp::Filter;
 
         let api = warp::path("pets").and(warp::path::param()).map(|id: u32| {
             warp::reply::json(&serde_json::json!({

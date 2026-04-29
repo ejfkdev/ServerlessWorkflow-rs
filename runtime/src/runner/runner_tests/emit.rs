@@ -75,10 +75,7 @@ do:
       set:
         emitted: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         // Emit returns input unchanged, then set adds emitted field
         assert_eq!(output["emitted"], json!(true));
     }
@@ -106,8 +103,7 @@ do:
       set:
         emitted: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
+        let runner = WorkflowRunner::new(serde_yaml::from_str(&yaml_str).unwrap()).unwrap();
 
         let output = runner
             .run(json!({"domain": "petstore.com", "orderId": "12345"}))
@@ -147,10 +143,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
         assert_eq!(output["done"], json!(true));
     }
 
@@ -174,10 +167,7 @@ do:
       set:
         emitted: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-
-        let output = runner.run(json!({"value": 42})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"value": 42})).await.unwrap();
         assert_eq!(output["emitted"], json!(true));
     }
 
@@ -202,9 +192,7 @@ do:
             data:
               temperature: '${.temperature}'
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"temperature": 38.5})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"temperature": 38.5})).await.unwrap();
         // Emit task returns the input unchanged
         assert_eq!(output["temperature"], json!(38.5));
     }
@@ -229,9 +217,7 @@ do:
       set:
         done: true
 "#;
-        let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml_str).unwrap();
-        let runner = WorkflowRunner::new(workflow).unwrap();
-        let output = runner.run(json!({"message": "hello"})).await.unwrap();
+        let output = run_workflow_yaml(&yaml_str, json!({"message": "hello"})).await.unwrap();
         // Emit doesn't change output, next task runs
         assert_eq!(output["done"], json!(true));
     }
