@@ -398,7 +398,6 @@ impl WorkflowContext {
     }
 
     /// Gets the workflow instance ID
-
     /// Sets the task definition in the task descriptor
     pub fn set_task_def(&mut self, task: &Value) {
         self.task_descriptor_insert("definition", task.clone());

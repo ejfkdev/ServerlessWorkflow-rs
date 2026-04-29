@@ -129,11 +129,11 @@ impl TryTaskRunner {
 
         // Check optional string filters: status, title, detail, instance
         fn matches_opt_str(filter: Option<&String>, actual: Option<&str>) -> bool {
-            filter.map_or(true, |f| actual == Some(f.as_str()))
+            filter.is_none_or(|f| actual == Some(f.as_str()))
         }
 
         fn matches_opt_value(filter: Option<&Value>, actual: Option<&Value>) -> bool {
-            filter.map_or(true, |f| actual == Some(f))
+            filter.is_none_or(|f| actual == Some(f))
         }
 
         if !matches_opt_value(props.status.as_ref(), error.status()) {
@@ -300,8 +300,8 @@ impl TryTaskRunner {
             Some(j) => j,
             None => return delay_ms,
         };
-        let from_ms = jitter.from.total_milliseconds() as u64;
-        let to_ms = jitter.to.total_milliseconds() as u64;
+        let from_ms = jitter.from.total_milliseconds();
+        let to_ms = jitter.to.total_milliseconds();
         if from_ms >= to_ms {
             return delay_ms.saturating_add(from_ms);
         }
@@ -1370,7 +1370,7 @@ mod tests {
         let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
         // delay should be 100 + [10, 50] = [110, 150]
         assert!(
-            delay >= 110 && delay <= 150,
+            (110..=150).contains(&delay),
             "delay {} should be in [110, 150]",
             delay
         );
