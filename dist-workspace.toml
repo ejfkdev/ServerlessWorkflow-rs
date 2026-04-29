@@ -1,0 +1,40 @@
+[workspace]
+members = ["cargo:."]
+
+# Config for 'dist'
+[dist]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.31.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "homebrew"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+]
+# Publish jobs to run in CI
+publish-jobs = ["./publish-crates"]
+# Whether to install an updater program
+install-updater = false
+# Merge all releases into a single top-level release
+merge-top-level = true
+# Run CI tests before building release artifacts
+github-custom-runners = { "x86_64-unknown-linux-musl" = "ubuntu-22.04", "aarch64-unknown-linux-musl" = "ubuntu-22.04-arm" }
+
+# UPX compression for Linux and Windows targets
+# macOS binaries don't support UPX due to code signing
+[dist.compress]
+type = "upx"
+
+# Per-target UPX overrides: disable UPX for macOS (unsupported)
+[[dist.targets-overrides]]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+compress = false
