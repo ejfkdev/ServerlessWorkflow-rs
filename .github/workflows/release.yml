@@ -130,15 +130,13 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          if contains(join(matrix.targets, ' '), 'aarch64-unknown-linux-musl'); then
+          TARGETS="${{ join(matrix.targets, ' ') }}"
+          if echo "$TARGETS" | grep -q 'aarch64-unknown-linux-musl'; then
             sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
             mkdir -p ~/.cargo
-            cat >> ~/.cargo/config.toml << 'TOML'
-          [target.aarch64-unknown-linux-musl]
-          linker = "aarch64-linux-gnu-gcc"
-          TOML
+            printf '\n[target.aarch64-unknown-linux-musl]\nlinker = "aarch64-linux-gnu-gcc"\n' >> ~/.cargo/config.toml
           fi
-          if contains(join(matrix.targets, ' '), 'x86_64-unknown-linux-musl'); then
+          if echo "$TARGETS" | grep -q 'x86_64-unknown-linux-musl'; then
             sudo apt-get install -y musl-tools
           fi
       - name: Build artifacts
