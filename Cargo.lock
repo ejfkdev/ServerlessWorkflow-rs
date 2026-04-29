@@ -1706,6 +1706,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serverless_workflow_cli"
+version = "1.0.0-alpha7"
+dependencies = [
+ "serde_json",
+ "serde_yaml",
+ "serverless_workflow_core",
+ "serverless_workflow_runtime",
+ "tokio",
+]
+
+[[package]]
 name = "serverless_workflow_core"
 version = "1.0.0-alpha7"
 dependencies = [
@@ -1720,6 +1731,7 @@ name = "serverless_workflow_runtime"
 version = "1.0.0-alpha7"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "jaq-core",
  "jaq-interpret",

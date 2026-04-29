@@ -8,14 +8,19 @@
 *.swp
 *.swo
 *~
+*.iml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Claude Code local memory
-.claude/
-
 # Environment
 .env
 .env.*
+
+# Logs and backups
+*.log
+*.bak
+
+# Claude Code working files
+.claude/
