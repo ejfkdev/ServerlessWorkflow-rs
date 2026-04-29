@@ -7,36 +7,14 @@
 #
 # * runs tests on push/PR
 # * checks for a Git Tag that looks like a release
-# * builds artifacts with dist (archives, installers, hashes)
-# * applies UPX compression to Linux/Windows binaries
-# * uploads those artifacts to a GitHub Release
+# * builds bare executables with dist + UPX compression
+# * uploads those binaries to a GitHub Release
 # * publishes crates to crates.io
 
 name: Release
 permissions:
   "contents": "write"
 
-# This task will run whenever you push a git tag that looks like a version
-# like "1.0.0", "v0.1.0-prerelease.1", "my-app/0.1.0", "releases/v1.0.0", etc.
-# Various formats will be parsed into a VERSION and an optional PACKAGE_NAME, where
-# PACKAGE_NAME must be the name of a Cargo package in your workspace, and VERSION
-# must be a Cargo-style SemVer Version (must have at least major.minor.patch).
-#
-# If PACKAGE_NAME is specified, then the announcement will be for that
-# package (erroring out if it doesn't have the given version or isn't dist-able).
-#
-# If PACKAGE_NAME isn't specified, then the announcement will be for all
-# (dist-able) packages in the workspace with that version (this mode is
-# intended for workspaces with only one dist-able package, or with all dist-able
-# packages versioned/released in lockstep).
-#
-# If you push multiple tags at once, separate instances of this workflow will
-# spin up, creating an independent announcement for each one. However, GitHub
-# will hard limit this to 3 tags per commit, as it will assume more tags is a
-# mistake.
-#
-# If there's a prerelease-style suffix to the version, then the release(s)
-# will be marked as a prerelease.
 on:
   pull_request:
   push:
@@ -73,25 +51,18 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install dist
-        # we specify bash to get pipefail; it guards against the `curl` command
-        # failing. otherwise `sh` won't catch that `curl` returned non-0
         shell: bash
         run: "curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.31.0/cargo-dist-installer.sh | sh"
       - name: Cache dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/dist
-      # sure would be cool if github gave us proper conditionals...
-      # so here's a doubly-nested ternary-via-truthiness to try to provide the best possible
-      # functionality based on whether this is a pull_request, and whether it's from a fork.
-      # (PRs run on the *source* but secrets are usually on the *target* -- that's *good*
-      # but also really annoying to build CI around when it needs secrets to work right.)
       - id: plan
         run: |
           dist ${{ (!github.event.pull_request && format('host --steps=create --tag={0}', github.ref_name)) || 'plan' }} --output-format=json > plan-dist-manifest.json
@@ -99,7 +70,7 @@ jobs:
           cat plan-dist-manifest.json
           echo "manifest=$(jq -c "." plan-dist-manifest.json)" >> "$GITHUB_OUTPUT"
       - name: "Upload dist-manifest.json"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-plan-dist-manifest
           path: plan-dist-manifest.json
@@ -107,35 +78,23 @@ jobs:
   # Build and packages all the platform-specific things
   build-local-artifacts:
     name: build-local-artifacts (${{ join(matrix.targets, ', ') }})
-    # Let the initial task tell us to not run (currently very blunt)
     needs:
       - plan
     if: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     strategy:
       fail-fast: false
-      # Target platforms/runners are computed by dist in create-release.
-      # Each member of the matrix has the following arguments:
-      #
-      # - runner: the github runner
-      # - dist-args: cli flags to pass to dist
-      # - install-dist: expression to run to install dist on the runner
-      #
-      # Typically there will be:
-      # - 1 "global" task that builds universal installers
-      # - N "local" tasks that build each platform's binaries and platform-specific installers
       matrix: ${{ fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container && matrix.container.image || null }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/${{ join(matrix.targets, '-') }}-dist-manifest.json
-      # Set SWF_VERSION from git tag for CLI version embedding
       SWF_VERSION: ${{ !github.event.pull_request && github.ref_name || '' }}
     steps:
       - name: enable windows longpaths
         run: |
           git config --global core.longpaths true
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive
@@ -148,9 +107,8 @@ jobs:
           fi
       - name: Install dist
         run: ${{ matrix.install_dist.run }}
-      # Get the dist-manifest
       - name: Fetch local artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -159,7 +117,6 @@ jobs:
         run: |
           ${{ matrix.packages_install }}
       - name: Install cross-compilation targets
-        # Add Rust targets for cross-compilation (musl, windows-on-linux, etc.)
         if: matrix.host != matrix.targets[0]
         shell: bash
         run: |
@@ -169,14 +126,12 @@ jobs:
             fi
           done
       - name: Install musl cross-compilation toolchain
-        # Install musl-gcc for Linux musl targets
         if: contains(join(matrix.targets, ' '), 'musl') && runner.os == 'Linux'
         shell: bash
         run: |
           sudo apt-get update
           if contains(join(matrix.targets, ' '), 'aarch64-unknown-linux-musl'); then
             sudo apt-get install -y gcc-aarch64-linux-gnu musl-tools
-            # Create musl target config for cross-compilation
             mkdir -p ~/.cargo
             cat >> ~/.cargo/config.toml << 'TOML'
           [target.aarch64-unknown-linux-musl]
@@ -188,18 +143,14 @@ jobs:
           fi
       - name: Build artifacts
         run: |
-          # Actually do builds and make zips and whatnot
           dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
           echo "dist ran successfully"
       - name: Install UPX
-        # Install UPX on Linux and Windows runners for binary compression
-        # macOS doesn't support UPX due to code signing
         if: runner.os == 'Linux' || runner.os == 'Windows'
         shell: bash
         run: |
           if [ "$RUNNER_OS" = "Linux" ]; then
             sudo apt-get update && sudo apt-get install -y upx-ucl || true
-            # Fallback: download UPX directly if apt package not found
             if ! command -v upx &> /dev/null; then
               curl -L https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz | tar xJ
               sudo cp upx-4.2.4-amd64_linux/upx /usr/local/bin/
@@ -213,37 +164,70 @@ jobs:
             fi
           fi
       - name: Compress binaries with UPX
-        # Compress the built binaries with UPX (Linux and Windows only)
         if: runner.os == 'Linux' || runner.os == 'Windows'
         shell: bash
         run: |
-          # Find and compress all executable files in the distrib directory
           find target/distrib -type f \( -name 'swf' -o -name 'swf.exe' \) | while read binary; do
             if command -v upx &> /dev/null; then
               echo "Compressing $binary with UPX..."
               upx --best "$binary" || echo "UPX compression failed for $binary (non-fatal)"
             fi
           done
-      - id: cargo-dist
-        name: Post-build
-        # We force bash here just because github makes it really hard to get values up
-        # to "real" actions without writing to env-vars, and writing to env-vars has
-        # inconsistent syntax between shell and powershell.
+      - name: Prepare bare binaries for release
         shell: bash
         run: |
-          # Parse out what we just built and upload it to scratch storage
+          mkdir -p target/release-binaries
+          TARGET="${{ join(matrix.targets, '-') }}"
+          # Find the built binary and rename with platform suffix
+          find target/distrib -type f \( -name 'swf' -o -name 'swf.exe' \) | while read binary; do
+            ext="${binary##*.}"
+            if [ "$ext" = "exe" ]; then
+              cp "$binary" "target/release-binaries/swf-${TARGET}.exe"
+            else
+              cp "$binary" "target/release-binaries/swf-${TARGET}"
+            fi
+          done
+          # Also extract from archives if binary not found directly
+          for archive in target/distrib/*.tar.xz target/distrib/*.zip; do
+            if [ ! -f "$archive" ]; then continue; fi
+            tmpdir=$(mktemp -d)
+            if [[ "$archive" == *.tar.xz ]]; then
+              tar xJf "$archive" -C "$tmpdir" 2>/dev/null || true
+            elif [[ "$archive" == *.zip ]]; then
+              unzip -o "$archive" -d "$tmpdir" 2>/dev/null || true
+            fi
+            find "$tmpdir" -type f \( -name 'swf' -o -name 'swf.exe' \) | while read binary; do
+              ext="${binary##*.}"
+              if [ "$ext" = "exe" ]; then
+                cp "$binary" "target/release-binaries/swf-${TARGET}.exe"
+              else
+                cp "$binary" "target/release-binaries/swf-${TARGET}"
+              fi
+            done
+            rm -rf "$tmpdir"
+          done
+          ls -la target/release-binaries/
+      - id: cargo-dist
+        name: Post-build
+        shell: bash
+        run: |
           echo "paths<<EOF" >> "$GITHUB_OUTPUT"
           dist print-upload-files-from-manifest --manifest dist-manifest.json >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-local-${{ join(matrix.targets, '_') }}
           path: |
             ${{ steps.cargo-dist.outputs.paths }}
             ${{ env.BUILD_MANIFEST_NAME }}
+      - name: "Upload bare binaries"
+        uses: actions/upload-artifact@v6
+        with:
+          name: bare-binaries-${{ join(matrix.targets, '_') }}
+          path: target/release-binaries/
 
   # Build and package all the platform-agnostic(ish) things
   build-global-artifacts:
@@ -255,19 +239,18 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUILD_MANIFEST_NAME: target/distrib/global-dist-manifest.json
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install cached dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/
       - run: chmod +x ~/.cargo/bin/dist
-      # Get all the local artifacts for the global tasks to use (for e.g. checksums)
       - name: Fetch local artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -278,14 +261,13 @@ jobs:
           dist build ${{ needs.plan.outputs.tag-flag }} --output-format=json "--artifacts=global" > dist-manifest.json
           echo "dist ran successfully"
 
-          # Parse out what we just built and upload it to scratch storage
           echo "paths<<EOF" >> "$GITHUB_OUTPUT"
           jq --raw-output ".upload_files[]" dist-manifest.json >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           cp dist-manifest.json "$BUILD_MANIFEST_NAME"
       - name: "Upload artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts-build-global
           path: |
@@ -297,7 +279,6 @@ jobs:
       - plan
       - build-local-artifacts
       - build-global-artifacts
-    # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
     if: ${{ always() && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -305,19 +286,18 @@ jobs:
     outputs:
       val: ${{ steps.host.outputs.manifest }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive
       - name: Install cached dist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: cargo-dist-cache
           path: ~/.cargo/bin/
       - run: chmod +x ~/.cargo/bin/dist
-      # Fetch artifacts from scratch-storage
       - name: Fetch artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: artifacts-*
           path: target/distrib/
@@ -330,33 +310,29 @@ jobs:
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
       - name: "Upload dist-manifest.json"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
-          # Overwrite the previous copy
           name: artifacts-dist-manifest
           path: dist-manifest.json
-      # Create a GitHub Release while uploading all files to it
-      - name: "Download GitHub Artifacts"
-        uses: actions/download-artifact@v4
+      # Download bare binaries and upload to release
+      - name: Fetch bare binaries
+        uses: actions/download-artifact@v7
         with:
-          pattern: artifacts-*
-          path: artifacts
+          pattern: bare-binaries-*
+          path: release-binaries/
           merge-multiple: true
-      - name: Cleanup
+      - name: Upload bare binaries to release
+        if: needs.plan.outputs.tag != ''
+        shell: bash
         run: |
-          # Remove the granular manifests
-          rm -f artifacts/*-dist-manifest.json
-      - name: Create GitHub Release
-        env:
-          PRERELEASE_FLAG: "${{ fromJson(steps.host.outputs.manifest).announcement_is_prerelease && '--prerelease' || '' }}"
-          ANNOUNCEMENT_TITLE: "${{ fromJson(steps.host.outputs.manifest).announcement_title }}"
-          ANNOUNCEMENT_BODY: "${{ fromJson(steps.host.outputs.manifest).announcement_github_body }}"
-          RELEASE_COMMIT: "${{ github.sha }}"
-        run: |
-          # Write and read notes from a file to avoid quoting breaking things
-          echo "$ANNOUNCEMENT_BODY" > $RUNNER_TEMP/notes.txt
-
-          gh release create "${{ needs.plan.outputs.tag }}" --target "$RELEASE_COMMIT" $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+          TAG="${{ needs.plan.outputs.tag }}"
+          chmod +x release-binaries/swf-* 2>/dev/null || true
+          for binary in release-binaries/swf-*; do
+            if [ -f "$binary" ]; then
+              echo "Uploading $(basename $binary) to release $TAG"
+              gh release upload "$TAG" "$binary" --clobber
+            fi
+          done
 
   custom-publish-crates:
     needs:
@@ -367,7 +343,6 @@ jobs:
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
-    # publish jobs get escalated permissions
     permissions:
       "id-token": "write"
       "packages": "write"
@@ -377,15 +352,12 @@ jobs:
       - plan
       - host
       - custom-publish-crates
-    # use "always() && ..." to allow us to wait for all publish jobs while
-    # still allowing individual publish jobs to skip themselves (for prereleases).
-    # "host" however must run to completion, no skipping allowed!
     if: ${{ always() && needs.host.result == 'success' && (needs.custom-publish-crates.result == 'skipped' || needs.custom-publish-crates.result == 'success') }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
           submodules: recursive

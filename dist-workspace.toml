@@ -21,7 +21,11 @@ merge-top-level = true
 github-custom-runners = { "x86_64-unknown-linux-musl" = "ubuntu-22.04", "aarch64-unknown-linux-musl" = "ubuntu-22.04-arm" }
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
-# Allow custom modifications to release.yml without dist complaining
+# Disable separate checksum files
+checksums = []
+# Disable source tarball
+source-tarball = false
+# Skip checking whether the specified configuration files are up to date
 allow-dirty = ["ci"]
 
 # UPX compression for Linux and Windows targets
