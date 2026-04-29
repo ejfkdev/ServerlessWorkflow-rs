@@ -18,7 +18,7 @@ serverless_workflow_core = { path = "../core", version = "1.0.0-alpha7" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 jaq-core = "2"
-jaq-std = "2"
+jaq-std = "3"
 jaq-json = { version = "1", features = ["serde_json"] }
 jaq-interpret = "1"
 uuid = { version = "1", features = ["v4"] }
