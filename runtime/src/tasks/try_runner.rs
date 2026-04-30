@@ -3,14 +3,14 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::time::Duration;
 use swf_core::models::retry::{
     JitterDefinition, OneOfRetryPolicyDefinitionOrReference, RetryAttemptLimitDefinition,
     RetryPolicyDefinition, RetryPolicyLimitDefinition,
 };
 use swf_core::models::task::{ErrorCatcherDefinition, TryTaskDefinition};
 use swf_core::models::workflow::WorkflowDefinition;
-use std::collections::HashMap;
-use std::time::Duration;
 
 /// Runner for Try tasks - executes tasks with error catching and retry
 pub struct TryTaskRunner {
@@ -25,8 +25,7 @@ impl TryTaskRunner {
         task: &TryTaskDefinition,
         _workflow: &WorkflowDefinition,
     ) -> WorkflowResult<Self> {
-        let do_def =
-            swf_core::models::task::DoTaskDefinition::new(task.try_.clone());
+        let do_def = swf_core::models::task::DoTaskDefinition::new(task.try_.clone());
         let try_runner = DoTaskRunner::new(name, &do_def)?;
 
         Ok(Self {
@@ -82,9 +81,7 @@ impl TaskRunner for TryTaskRunner {
 
                 // Execute catch.do tasks if configured
                 let result = if let Some(ref catch_do) = self.catch.do_ {
-                    let do_def = swf_core::models::task::DoTaskDefinition::new(
-                        catch_do.clone(),
-                    );
+                    let do_def = swf_core::models::task::DoTaskDefinition::new(catch_do.clone());
                     let catch_runner = DoTaskRunner::new(&self.name, &do_def)?;
                     catch_runner.run(input, support).await
                 } else {
@@ -198,17 +195,18 @@ impl TryTaskRunner {
             .and_then(|a| a.count)
             .unwrap_or(3) as u32;
 
-        let delay_ms = policy.delay
+        let delay_ms = policy
+            .delay
             .as_ref()
-            .map(|d| {
-                match d {
-                    swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(dur) => dur.total_milliseconds(),
-                    swf_core::models::duration::OneOfDurationOrIso8601Expression::Iso8601Expression(expr) => {
-                        crate::utils::parse_iso8601_duration(expr)
-                            .map(|d| d.as_millis() as u64)
-                            .unwrap_or(1000)
-                    }
+            .map(|d| match d {
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(dur) => {
+                    dur.total_milliseconds()
                 }
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Iso8601Expression(
+                    expr,
+                ) => crate::utils::parse_iso8601_duration(expr)
+                    .map(|d| d.as_millis() as u64)
+                    .unwrap_or(1000),
             })
             .unwrap_or(1000);
 
@@ -348,9 +346,8 @@ mod tests {
     use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
-    use swf_core::models::error::{
-        ErrorDefinition, OneOfErrorDefinitionOrReference,
-    };
+    use std::collections::HashMap;
+    use swf_core::models::error::{ErrorDefinition, OneOfErrorDefinitionOrReference};
     use swf_core::models::map::Map;
     use swf_core::models::retry::{
         RetryAttemptLimitDefinition, RetryPolicyDefinition, RetryPolicyLimitDefinition,
@@ -360,7 +357,6 @@ mod tests {
         RaiseTaskDefinition, TaskDefinition, TaskDefinitionFields,
     };
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     /// Helper: build a TryTaskRunner from try tasks + catch config
     fn make_try_runner(
@@ -547,10 +543,17 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_constant() {
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(swf_core::models::duration::Duration::from_milliseconds(10))),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(3), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(3),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,
@@ -1014,12 +1017,17 @@ mod tests {
     async fn test_try_catch_retry_reference() {
         // Matches Java SDK's try-catch-retry-reusable - retry using reference from workflow.use.retries
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(2), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(2),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,
@@ -1067,12 +1075,17 @@ mod tests {
     async fn test_try_retry_with_when_condition() {
         // Retry policy with when condition - only retry if error status is 5xx
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(3), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(3),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: Some("${ .status >= 500 }".to_string()),
@@ -1113,12 +1126,17 @@ mod tests {
     async fn test_try_retry_with_except_when_condition() {
         // Retry policy with except_when condition - do NOT retry if error type is authentication
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(3), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(3),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,
@@ -1155,12 +1173,17 @@ mod tests {
     async fn test_try_retry_when_condition_allows_retry() {
         // Retry policy with when condition - retry allowed for 5xx errors
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(2), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(2),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: Some("${ .status >= 500 }".to_string()),
@@ -1197,21 +1220,24 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_exponential_backoff() {
         // Matches Java SDK's try-catch-retry-inline.yaml - retry with exponential backoff
-        use swf_core::models::retry::{
-            BackoffStrategyDefinition, ExponentialBackoffDefinition,
-        };
+        use swf_core::models::retry::{BackoffStrategyDefinition, ExponentialBackoffDefinition};
 
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
                 exponential: Some(ExponentialBackoffDefinition::default()),
                 linear: None,
             }),
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(3), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(3),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,
@@ -1255,14 +1281,14 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_linear_backoff() {
         // Test retry with linear backoff strategy
-        use swf_core::models::retry::{
-            BackoffStrategyDefinition, LinearBackoffDefinition,
-        };
+        use swf_core::models::retry::{BackoffStrategyDefinition, LinearBackoffDefinition};
 
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
                 exponential: None,
@@ -1272,7 +1298,10 @@ mod tests {
                 }),
             }),
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(2), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(2),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,
@@ -1306,21 +1335,24 @@ mod tests {
 
     #[tokio::test]
     async fn test_try_retry_with_jitter() {
-        use swf_core::models::retry::{
-            BackoffStrategyDefinition, JitterDefinition,
-        };
+        use swf_core::models::retry::{BackoffStrategyDefinition, JitterDefinition};
 
         let retry = RetryPolicyDefinition {
-            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                swf_core::models::duration::Duration::from_milliseconds(10)
-            )),
+            delay: Some(
+                swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                    swf_core::models::duration::Duration::from_milliseconds(10),
+                ),
+            ),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
                 exponential: None,
                 linear: None,
             }),
             limit: Some(RetryPolicyLimitDefinition {
-                attempt: Some(RetryAttemptLimitDefinition { count: Some(2), duration: None }),
+                attempt: Some(RetryAttemptLimitDefinition {
+                    count: Some(2),
+                    duration: None,
+                }),
                 duration: None,
             }),
             when: None,

@@ -52,9 +52,7 @@ fn resolve_auth_policy<'a>(
     policy: &'a ReferenceableAuthenticationPolicy,
     auth_definitions: Option<&'a AuthDefs>,
     task_name: &str,
-) -> WorkflowResult<
-    &'a swf_core::models::authentication::AuthenticationPolicyDefinition,
-> {
+) -> WorkflowResult<&'a swf_core::models::authentication::AuthenticationPolicyDefinition> {
     match policy {
         ReferenceableAuthenticationPolicy::Policy(def) => Ok(def),
         ReferenceableAuthenticationPolicy::Reference(ref_ref) => {
@@ -397,13 +395,9 @@ async fn fetch_access_token(params: TokenRequestParams, task_name: &str) -> Work
 /// Both `OAuth2AuthenticationSchemeDefinition` and `OpenIDConnectSchemeDefinition`
 /// share the same structure for these fields, so this struct consolidates extraction.
 struct OAuthTokenFields {
-    client: Option<
-        swf_core::models::authentication::OAuth2AuthenticationClientDefinition,
-    >,
+    client: Option<swf_core::models::authentication::OAuth2AuthenticationClientDefinition>,
     grant: Option<String>,
-    request: Option<
-        swf_core::models::authentication::OAuth2AuthenticationRequestDefinition,
-    >,
+    request: Option<swf_core::models::authentication::OAuth2AuthenticationRequestDefinition>,
     issuers: Option<Vec<String>>,
     scopes: Option<Vec<String>>,
     username: Option<String>,
@@ -429,9 +423,7 @@ impl OAuthTokenFields {
         }
     }
 
-    fn from_oidc(
-        oidc: &swf_core::models::authentication::OpenIDConnectSchemeDefinition,
-    ) -> Self {
+    fn from_oidc(oidc: &swf_core::models::authentication::OpenIDConnectSchemeDefinition) -> Self {
         Self {
             client: oidc.client.clone(),
             grant: oidc.grant.clone(),

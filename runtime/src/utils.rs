@@ -1,10 +1,8 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use swf_core::models::duration::{
-    Duration as SwfDuration, OneOfDurationOrIso8601Expression,
-};
-use swf_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use std::time::Duration;
+use swf_core::models::duration::{Duration as SwfDuration, OneOfDurationOrIso8601Expression};
+use swf_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 
 /// Ensures a variable name has the `$` prefix used in JQ expressions.
 /// If the name already starts with `$`, returns it unchanged.
@@ -174,9 +172,9 @@ pub fn parse_iso8601_duration(s: &str) -> Option<std::time::Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
     use swf_core::models::duration::Duration;
     use swf_core::models::timeout::TimeoutDefinition;
-    use std::collections::HashMap;
 
     #[test]
     fn test_parse_duration_with_context_struct() {

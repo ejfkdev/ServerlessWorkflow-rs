@@ -52,11 +52,11 @@ async fn test_runner_set_tasks_invalid_then() {
 
 #[tokio::test]
 async fn test_runner_simple_set_workflow() {
+    use std::collections::HashMap;
     use swf_core::models::map::Map;
     use swf_core::models::task::{
         SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
     };
-    use std::collections::HashMap;
 
     let mut map = HashMap::new();
     map.insert("greeting".to_string(), json!("hello"));

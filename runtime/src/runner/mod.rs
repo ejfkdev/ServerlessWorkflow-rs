@@ -10,11 +10,11 @@ use crate::status::StatusPhase;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
-use swf_core::models::task::TaskDefinition;
-use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
+use swf_core::models::task::TaskDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 
 /// A handle to control a running workflow from another task/thread
 ///

@@ -283,11 +283,11 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use serde_json::json;
+    use std::collections::HashMap;
     use swf_core::models::task::{
         ProcessTypeDefinition, RunTaskDefinition, ShellProcessDefinition,
     };
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     fn make_shell_task(command: &str) -> RunTaskDefinition {
         RunTaskDefinition {

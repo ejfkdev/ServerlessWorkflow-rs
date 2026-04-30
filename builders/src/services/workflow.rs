@@ -1,7 +1,7 @@
+use std::collections::HashMap;
 use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
 use swf_core::models::timeout::*;
 use swf_core::models::workflow::*;
-use std::collections::HashMap;
 
 use super::authentication::AuthenticationPolicyDefinitionBuilder;
 use super::task::TaskDefinitionBuilder;

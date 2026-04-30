@@ -25,13 +25,11 @@ fn create_workflow() {
         summary.clone(),
         None,
     );
-    let call_task = CallTaskDefinition::Function(
-        swf_core::models::call::CallFunctionDefinition {
-            call: "http".to_string(),
-            with: None,
-            common: swf_core::models::task::TaskDefinitionFields::default(),
-        },
-    );
+    let call_task = CallTaskDefinition::Function(swf_core::models::call::CallFunctionDefinition {
+        call: "http".to_string(),
+        with: None,
+        common: swf_core::models::task::TaskDefinitionFields::default(),
+    });
     let do_task = DoTaskDefinition::new(Map::from(vec![(
         "set".to_string(),
         TaskDefinition::Wait(WaitTaskDefinition::new(

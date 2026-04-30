@@ -139,9 +139,7 @@ fn test_extension_definition_minimal() {
 
 #[test]
 fn test_external_resource_definition() {
-    use swf_core::models::resource::{
-        ExternalResourceDefinition, OneOfEndpointDefinitionOrUri,
-    };
+    use swf_core::models::resource::{ExternalResourceDefinition, OneOfEndpointDefinitionOrUri};
     let resource = ExternalResourceDefinition {
         name: Some("my-resource".to_string()),
         endpoint: OneOfEndpointDefinitionOrUri::Uri("http://example.com".to_string()),

@@ -55,9 +55,9 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::task_runner::TaskSupport;
     use serde_json::json;
+    use std::collections::HashMap;
     use swf_core::models::task::TaskDefinitionFields;
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     /// Helper to create a SetTaskRunner and run it with a minimal support context
     async fn run_set(name: &str, set: SetValue, input: Value) -> WorkflowResult<Value> {

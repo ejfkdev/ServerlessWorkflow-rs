@@ -117,8 +117,8 @@ fn test_workflow_definition_roundtrip() {
 
 #[test]
 fn test_workflow_document_with_tags_and_metadata() {
-    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     use std::collections::HashMap;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     let mut tags = HashMap::new();
     tags.insert("env".to_string(), "prod".to_string());
     tags.insert("team".to_string(), "workflow".to_string());
@@ -163,10 +163,8 @@ fn test_workflow_document_roundtrip() {
 
 #[test]
 fn test_workflow_definition_with_full_document() {
-    use swf_core::models::workflow::{
-        WorkflowDefinition, WorkflowDefinitionMetadata,
-    };
     use std::collections::HashMap;
+    use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
     let mut tags = HashMap::new();
     tags.insert("env".to_string(), "dev".to_string());
     let doc = WorkflowDefinitionMetadata::new(
@@ -218,9 +216,7 @@ fn test_workflow_definition_with_use_and_do() {
 #[test]
 fn test_workflow_yaml_serialization() {
     // Test workflow YAML serialization (similar to Python SDK test_workflow_to_yaml)
-    use swf_core::models::workflow::{
-        WorkflowDefinition, WorkflowDefinitionMetadata,
-    };
+    use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
 
     let doc = WorkflowDefinitionMetadata::new(
         "default",
@@ -240,9 +236,7 @@ fn test_workflow_yaml_serialization() {
 #[test]
 fn test_workflow_yaml_roundtrip() {
     // Test workflow roundtrip serialization with YAML
-    use swf_core::models::workflow::{
-        WorkflowDefinition, WorkflowDefinitionMetadata,
-    };
+    use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
 
     let doc = WorkflowDefinitionMetadata::new("namespace", "yaml-test", "2.0.0", None, None, None);
     let workflow = WorkflowDefinition::new(doc);

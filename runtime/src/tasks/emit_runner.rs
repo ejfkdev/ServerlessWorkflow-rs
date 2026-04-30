@@ -97,10 +97,10 @@ mod tests {
     use super::*;
     use crate::default_support;
     use serde_json::json;
+    use std::collections::HashMap;
     use swf_core::models::event::EventDefinition;
     use swf_core::models::task::{EmitTaskDefinition, EventEmissionDefinition};
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_emit_task_returns_input() {

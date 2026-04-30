@@ -7,11 +7,11 @@ use crate::listener::WorkflowEvent;
 use crate::status::StatusPhase;
 use crate::tasks::*;
 use serde_json::Value;
+use std::collections::HashMap;
 use swf_core::models::input::InputDataModelDefinition;
 use swf_core::models::output::OutputDataModelDefinition;
 use swf_core::models::task::{TaskDefinition, TaskDefinitionFields};
 use swf_core::models::workflow::WorkflowDefinition;
-use std::collections::HashMap;
 
 /// Owned task support for concurrent branch execution (e.g., fork)
 /// Unlike `TaskSupport` which borrows its context, this owns both

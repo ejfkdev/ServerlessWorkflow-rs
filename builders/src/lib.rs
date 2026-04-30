@@ -12,11 +12,11 @@ mod unit_tests {
     use crate::services::workflow::WorkflowBuilder;
     use serde_json::json;
     use serde_json::Value;
+    use std::collections::HashMap;
     use swf_core::models::duration::*;
     use swf_core::models::error::OneOfErrorDefinitionOrReference;
     use swf_core::models::task::*;
     use swf_core::models::timeout::*;
-    use std::collections::HashMap;
 
     #[test]
     fn build_workflow_should_work() {
@@ -288,7 +288,9 @@ mod unit_tests {
                 .iter()
                 .any(|(name, task)| name == call_task_name && {
                     if let TaskDefinition::Call(call_def) = task {
-                        if let swf_core::models::call::CallTaskDefinition::Function(ref f) = call_def.as_ref() {
+                        if let swf_core::models::call::CallTaskDefinition::Function(ref f) =
+                            call_def.as_ref()
+                        {
                             f.call == call_function_name && f.with == Some(call_task_with.clone())
                         } else {
                             false

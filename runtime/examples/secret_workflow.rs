@@ -3,9 +3,9 @@
 //! Run with: cargo run -p swf_runtime --example secret_workflow
 
 use serde_json::json;
+use std::sync::Arc;
 use swf_core::models::workflow::WorkflowDefinition;
 use swf_runtime::{MapSecretManager, WorkflowRunner};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {

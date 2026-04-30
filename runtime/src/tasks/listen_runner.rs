@@ -427,14 +427,14 @@ mod tests {
     use crate::default_support;
     use crate::events::InMemoryEventBus;
     use serde_json::json;
+    use std::collections::HashMap;
+    use std::sync::Arc;
     use swf_core::models::event::EventConsumptionStrategyDefinition;
     use swf_core::models::event::EventFilterDefinition;
     use swf_core::models::task::ListenTaskDefinition;
     use swf_core::models::task::ListenerDefinition;
     use swf_core::models::task::TaskDefinitionFields;
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
-    use std::sync::Arc;
 
     #[test]
     fn test_listen_runner_new() {

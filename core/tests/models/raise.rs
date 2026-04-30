@@ -85,9 +85,7 @@ fn test_raise_task_definition() {
 
 #[test]
 fn test_raise_task_roundtrip() {
-    use swf_core::models::error::{
-        ErrorDefinition, OneOfErrorDefinitionOrReference,
-    };
+    use swf_core::models::error::{ErrorDefinition, OneOfErrorDefinitionOrReference};
     use swf_core::models::task::{RaiseErrorDefinition, RaiseTaskDefinition};
     let raise_error = RaiseErrorDefinition {
         error: OneOfErrorDefinitionOrReference::Error(ErrorDefinition::new(

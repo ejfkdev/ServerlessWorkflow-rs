@@ -3,9 +3,9 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
+use std::collections::HashMap;
 use swf_core::models::input::InputDataModelDefinition;
 use swf_core::models::task::{DoTaskDefinition, ForTaskDefinition};
-use std::collections::HashMap;
 
 /// Runner for For tasks - iterates over collections
 pub struct ForTaskRunner {
@@ -108,13 +108,13 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use serde_json::json;
+    use std::collections::HashMap;
     use swf_core::models::map::Map;
     use swf_core::models::task::{
         ForLoopDefinition, ForTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition,
         TaskDefinitionFields,
     };
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_for_basic_iteration() {

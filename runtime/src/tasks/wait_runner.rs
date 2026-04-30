@@ -60,8 +60,8 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use crate::utils::parse_iso8601_duration;
-    use swf_core::models::duration::Duration as SwfDuration;
     use std::time::Duration;
+    use swf_core::models::duration::Duration as SwfDuration;
 
     #[test]
     fn test_parse_iso8601_duration_seconds() {
@@ -205,12 +205,12 @@ mod tests {
         // Matches Java SDK's wait-set.yaml - wait then set
         use crate::tasks::DoTaskRunner;
         use serde_json::json;
+        use std::collections::HashMap;
         use swf_core::models::map::Map;
         use swf_core::models::task::{
             DoTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
         };
         use swf_core::models::workflow::WorkflowDefinition;
-        use std::collections::HashMap;
 
         let wait_task = TaskDefinition::Wait(WaitTaskDefinition {
             wait: OneOfDurationOrIso8601Expression::Duration(SwfDuration::from_milliseconds(50)),
@@ -245,12 +245,12 @@ mod tests {
         // set phase=started, waitExpression=PT1S → wait PT0.01S → set phase=completed, previousPhase=${ .phase }, waitExpression=${ .waitExpression }
         use crate::tasks::DoTaskRunner;
         use serde_json::json;
+        use std::collections::HashMap;
         use swf_core::models::map::Map;
         use swf_core::models::task::{
             DoTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
         };
         use swf_core::models::workflow::WorkflowDefinition;
-        use std::collections::HashMap;
 
         // Task 1: set phase=started, waitExpression=PT1S
         let set_prepare = TaskDefinition::Set(SetTaskDefinition {

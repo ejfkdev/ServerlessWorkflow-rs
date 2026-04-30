@@ -1,14 +1,14 @@
 #![deny(unsafe_code)]
 
 use serde_json::Value;
-use swf_core::models::workflow::WorkflowDefinition;
-use swf_runtime::{
-    EnvSecretManager, InMemoryEventBus, WorkflowEvent, WorkflowExecutionListener, WorkflowRunner,
-};
 use std::env;
 use std::path::Path;
 use std::process;
 use std::sync::Arc;
+use swf_core::models::workflow::WorkflowDefinition;
+use swf_runtime::{
+    EnvSecretManager, InMemoryEventBus, WorkflowEvent, WorkflowExecutionListener, WorkflowRunner,
+};
 
 /// Build-time version: prefers SWF_VERSION env var (set by CI from git tag), falls back to Cargo.toml version
 const BUILD_VERSION: &str = match option_env!("SWF_VERSION") {

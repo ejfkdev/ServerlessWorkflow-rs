@@ -3,8 +3,8 @@ use super::*;
 #[test]
 fn test_event_filter_definition_serialization() {
     // Test EventFilterDefinition serialization
-    use swf_core::models::event::EventFilterDefinition;
     use std::collections::HashMap;
+    use swf_core::models::event::EventFilterDefinition;
 
     let mut with = HashMap::new();
     with.insert("type".to_string(), serde_json::json!("my.event.type"));
@@ -25,8 +25,8 @@ fn test_event_filter_definition_serialization() {
 #[test]
 fn test_event_definition_serialization() {
     // Test EventDefinition serialization
-    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
+    use swf_core::models::event::EventDefinition;
 
     let mut with = HashMap::new();
     with.insert("id".to_string(), serde_json::json!("my-event-id"));
@@ -158,10 +158,8 @@ fn test_event_consumption_until_expression() {
 
 #[test]
 fn test_event_consumption_strategy_with_any() {
-    use swf_core::models::event::{
-        EventConsumptionStrategyDefinition, EventFilterDefinition,
-    };
     use std::collections::HashMap;
+    use swf_core::models::event::{EventConsumptionStrategyDefinition, EventFilterDefinition};
     let mut with = HashMap::new();
     with.insert("type".to_string(), serde_json::json!("example.event.type"));
     let filter = EventFilterDefinition {
@@ -179,10 +177,8 @@ fn test_event_consumption_strategy_with_any() {
 
 #[test]
 fn test_event_consumption_strategy_with_all() {
-    use swf_core::models::event::{
-        EventConsumptionStrategyDefinition, EventFilterDefinition,
-    };
     use std::collections::HashMap;
+    use swf_core::models::event::{EventConsumptionStrategyDefinition, EventFilterDefinition};
     let mut with = HashMap::new();
     with.insert(
         "source".to_string(),
@@ -202,8 +198,8 @@ fn test_event_consumption_strategy_with_all() {
 
 #[test]
 fn test_event_definition() {
-    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
+    use swf_core::models::event::EventDefinition;
     let mut with = HashMap::new();
     with.insert("id".to_string(), serde_json::json!("event-id"));
     with.insert("type".to_string(), serde_json::json!("example.event.type"));
@@ -216,10 +212,8 @@ fn test_event_definition() {
 #[test]
 fn test_event_consumption_strategy_with_until_expression() {
     // Test EventConsumptionStrategyDefinition with until expression
-    use swf_core::models::event::{
-        EventConsumptionStrategyDefinition, EventFilterDefinition,
-    };
     use std::collections::HashMap;
+    use swf_core::models::event::{EventConsumptionStrategyDefinition, EventFilterDefinition};
 
     let mut with = HashMap::new();
     with.insert("type".to_string(), serde_json::json!("example.event.type"));
@@ -290,10 +284,8 @@ fn test_event_consumption_all_strategy() {
         ]
     });
 
-    let result: Result<
-        swf_core::models::event::EventConsumptionStrategyDefinition,
-        _,
-    > = serde_json::from_value(strategy_json);
+    let result: Result<swf_core::models::event::EventConsumptionStrategyDefinition, _> =
+        serde_json::from_value(strategy_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize all strategy: {:?}",

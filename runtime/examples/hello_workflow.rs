@@ -3,9 +3,9 @@
 //! Run with: cargo run -p swf_runtime --example hello_workflow
 
 use serde_json::json;
+use std::collections::HashMap;
 use swf_builders::WorkflowBuilder;
 use swf_runtime::WorkflowRunner;
-use std::collections::HashMap;
 
 #[tokio::main]
 async fn main() {

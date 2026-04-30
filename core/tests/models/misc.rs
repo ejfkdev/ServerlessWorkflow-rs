@@ -140,8 +140,8 @@ fn test_try_task_definition() {
 #[test]
 fn test_document_with_tags_and_metadata() {
     // Test Document/WorkflowDefinitionMetadata with tags and metadata (similar to Go SDK TestDocument_JSONMarshal)
-    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     use std::collections::HashMap;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
 
     let mut tags = HashMap::new();
     tags.insert("env".to_string(), "prod".to_string());
@@ -248,10 +248,8 @@ fn test_oauth2_authentication() {
         }
     });
 
-    let result: Result<
-        swf_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
-        _,
-    > = serde_json::from_value(oauth2_json);
+    let result: Result<swf_core::models::authentication::OAuth2AuthenticationSchemeDefinition, _> =
+        serde_json::from_value(oauth2_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize OAuth2 auth: {:?}",
@@ -543,7 +541,9 @@ fn test_validation_framework() {
 
     assert!(is_valid_semver("1.0.0"));
     assert!(is_valid_hostname("example.com"));
-    assert!(swf_core::models::duration::is_iso8601_duration_valid("PT5S"));
+    assert!(swf_core::models::duration::is_iso8601_duration_valid(
+        "PT5S"
+    ));
 
     let workflow = WorkflowDefinition::new(WorkflowDefinitionMetadata::new(
         "default", "test", "1.0.0", None, None, None,

@@ -170,10 +170,8 @@ fn test_bearer_authentication_with_uri() {
         "token": "${ .token }"
     });
 
-    let result: Result<
-        swf_core::models::authentication::BearerAuthenticationSchemeDefinition,
-        _,
-    > = serde_json::from_value(bearer_json);
+    let result: Result<swf_core::models::authentication::BearerAuthenticationSchemeDefinition, _> =
+        serde_json::from_value(bearer_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize bearer auth: {:?}",
@@ -200,10 +198,8 @@ fn test_authentication_reusable() {
         }
     });
 
-    let result: Result<
-        swf_core::models::authentication::AuthenticationPolicyDefinition,
-        _,
-    > = serde_json::from_value(auth_json);
+    let result: Result<swf_core::models::authentication::AuthenticationPolicyDefinition, _> =
+        serde_json::from_value(auth_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize reusable auth: {:?}",
@@ -225,10 +221,8 @@ fn test_oidc_authentication() {
         }
     });
 
-    let result: Result<
-        swf_core::models::authentication::OpenIDConnectSchemeDefinition,
-        _,
-    > = serde_json::from_value(oidc_json);
+    let result: Result<swf_core::models::authentication::OpenIDConnectSchemeDefinition, _> =
+        serde_json::from_value(oidc_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize OIDC auth: {:?}",
@@ -246,10 +240,8 @@ fn test_digest_authentication() {
         }
     });
 
-    let result: Result<
-        swf_core::models::authentication::DigestAuthenticationSchemeDefinition,
-        _,
-    > = serde_json::from_value(digest_json);
+    let result: Result<swf_core::models::authentication::DigestAuthenticationSchemeDefinition, _> =
+        serde_json::from_value(digest_json);
     assert!(
         result.is_ok(),
         "Failed to deserialize digest auth: {:?}",

@@ -7,9 +7,7 @@
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
-use swf_core::models::task::{
-    CustomTaskDefinition, TaskDefinition, TaskDefinitionFields,
-};
+use swf_core::models::task::{CustomTaskDefinition, TaskDefinition, TaskDefinitionFields};
 use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
 use swf_runtime::{CustomTaskHandler, WorkflowResult, WorkflowRunner};
 

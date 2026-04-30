@@ -248,13 +248,13 @@ mod tests {
     use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
+    use std::collections::HashMap;
     use swf_core::models::map::Map;
     use swf_core::models::task::{
         SetTaskDefinition, SetValue, SwitchCaseDefinition, SwitchTaskDefinition,
         TaskDefinitionFields,
     };
     use swf_core::models::workflow::WorkflowDefinition;
-    use std::collections::HashMap;
 
     fn make_do_runner(tasks: Vec<(&str, TaskDefinition)>) -> DoTaskRunner {
         let entries: Vec<(String, TaskDefinition)> = tasks
@@ -929,22 +929,20 @@ mod tests {
     async fn test_conditional_raise_skipped() {
         // Matches Go SDK's raise_conditional.yaml - raise with if condition
         // When condition is false, raise is skipped and next task runs
-        let mut raise_task = TaskDefinition::Raise(
-            swf_core::models::task::RaiseTaskDefinition {
-                raise: swf_core::models::task::RaiseErrorDefinition::new(
-                    swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
-                        swf_core::models::error::ErrorDefinition::new(
-                            "authorization",
-                            "Authorization Error",
-                            json!(403),
-                            Some("User is under the required age".to_string()),
-                            None,
-                        ),
+        let mut raise_task = TaskDefinition::Raise(swf_core::models::task::RaiseTaskDefinition {
+            raise: swf_core::models::task::RaiseErrorDefinition::new(
+                swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
+                    swf_core::models::error::ErrorDefinition::new(
+                        "authorization",
+                        "Authorization Error",
+                        json!(403),
+                        Some("User is under the required age".to_string()),
+                        None,
                     ),
                 ),
-                common: TaskDefinitionFields::new(),
-            },
-        );
+            ),
+            common: TaskDefinitionFields::new(),
+        });
         if let TaskDefinition::Raise(ref mut r) = raise_task {
             r.common.if_ = Some("${ .user.age < 18 }".to_string());
         }
@@ -971,22 +969,20 @@ mod tests {
     #[tokio::test]
     async fn test_conditional_raise_triggered() {
         // Same workflow, but user is underage so raise fires
-        let mut raise_task = TaskDefinition::Raise(
-            swf_core::models::task::RaiseTaskDefinition {
-                raise: swf_core::models::task::RaiseErrorDefinition::new(
-                    swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
-                        swf_core::models::error::ErrorDefinition::new(
-                            "authorization",
-                            "Authorization Error",
-                            json!(403),
-                            Some("User is under the required age".to_string()),
-                            None,
-                        ),
+        let mut raise_task = TaskDefinition::Raise(swf_core::models::task::RaiseTaskDefinition {
+            raise: swf_core::models::task::RaiseErrorDefinition::new(
+                swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
+                    swf_core::models::error::ErrorDefinition::new(
+                        "authorization",
+                        "Authorization Error",
+                        json!(403),
+                        Some("User is under the required age".to_string()),
+                        None,
                     ),
                 ),
-                common: TaskDefinitionFields::new(),
-            },
-        );
+            ),
+            common: TaskDefinitionFields::new(),
+        });
         if let TaskDefinition::Raise(ref mut r) = raise_task {
             r.common.if_ = Some("${ .user.age < 18 }".to_string());
         }
@@ -1211,12 +1207,10 @@ mod tests {
         // on the last task
         let mut set_blue = make_set_task("colors", json!("${ .colors + [\"blue\"] }"));
         if let TaskDefinition::Set(ref mut s) = set_blue {
-            s.common.output = Some(
-                swf_core::models::output::OutputDataModelDefinition {
-                    as_: Some(json!("${ { resultColors: .colors } }")),
-                    schema: None,
-                },
-            );
+            s.common.output = Some(swf_core::models::output::OutputDataModelDefinition {
+                as_: Some(json!("${ { resultColors: .colors } }")),
+                schema: None,
+            });
         }
 
         let runner = make_do_runner(vec![

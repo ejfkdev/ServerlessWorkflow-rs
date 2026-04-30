@@ -1,4 +1,5 @@
 use serde_json::Value;
+use std::collections::HashMap;
 use swf_core::models::authentication::{
     AuthenticationPolicyReference, ReferenceableAuthenticationPolicy,
 };
@@ -15,13 +16,10 @@ use swf_core::models::error::*;
 use swf_core::models::event::*;
 use swf_core::models::input::*;
 use swf_core::models::output::*;
-use swf_core::models::resource::{
-    ExternalResourceDefinition, OneOfEndpointDefinitionOrUri,
-};
+use swf_core::models::resource::{ExternalResourceDefinition, OneOfEndpointDefinitionOrUri};
 use swf_core::models::retry::*;
 use swf_core::models::task::*;
 use swf_core::models::timeout::*;
-use std::collections::HashMap;
 
 use super::timeout::TimeoutDefinitionBuilder;
 

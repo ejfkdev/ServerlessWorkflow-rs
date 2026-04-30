@@ -4,11 +4,11 @@ use crate::listener::{WorkflowEvent, WorkflowExecutionListener};
 use crate::secret::SecretManager;
 use crate::status::{StatusPhase, StatusPhaseLog};
 use serde_json::Value;
-use swf_core::models::task::TaskDefinition;
-use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use swf_core::models::task::TaskDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 use tokio::sync::Notify;
 
 /// Generates a setter, deref-getter, and clone-getter for an `Option<Arc<T>>` field.

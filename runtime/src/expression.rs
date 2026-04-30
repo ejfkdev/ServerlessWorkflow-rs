@@ -1,8 +1,8 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use swf_core::models::expression::{is_strict_expr, sanitize_expr};
 use std::collections::HashMap;
 use std::sync::LazyLock;
+use swf_core::models::expression::{is_strict_expr, sanitize_expr};
 
 /// Compiled JQ filter cache key: (expression, sorted variable names joined by null)
 type CacheKey = (String, String);

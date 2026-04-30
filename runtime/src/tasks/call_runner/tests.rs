@@ -2,13 +2,13 @@ use super::*;
 use crate::context::WorkflowContext;
 use base64::Engine;
 use serde_json::json;
+use std::collections::HashMap;
 use swf_core::models::call::{
     CallHTTPDefinition, HTTPArguments, OneOfHeadersOrExpression, OneOfQueryOrExpression,
 };
 use swf_core::models::resource::OneOfEndpointDefinitionOrUri;
 use swf_core::models::task::TaskDefinitionFields;
 use swf_core::models::workflow::WorkflowDefinition;
-use std::collections::HashMap;
 
 fn make_http_task(method: &str, uri: &str) -> CallHTTPDefinition {
     CallHTTPDefinition {

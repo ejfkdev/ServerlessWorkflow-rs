@@ -29,8 +29,8 @@ fn test_emit_task_serialization() {
 #[test]
 fn test_emit_task_roundtrip_serialization() {
     // Test EmitTaskDefinition roundtrip serialization
-    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
+    use swf_core::models::event::EventDefinition;
 
     let mut event_with = HashMap::new();
     event_with.insert("id".to_string(), serde_json::json!("my-event-id"));

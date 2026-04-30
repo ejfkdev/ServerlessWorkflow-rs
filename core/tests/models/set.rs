@@ -148,8 +148,8 @@ fn test_set_task_with_all_fields() {
 
 #[test]
 fn test_set_task_definition() {
-    use swf_core::models::task::{SetTaskDefinition, SetValue};
     use std::collections::HashMap;
+    use swf_core::models::task::{SetTaskDefinition, SetValue};
     let mut set_map = HashMap::new();
     set_map.insert("key1".to_string(), serde_json::json!("value1"));
     set_map.insert("key2".to_string(), serde_json::json!(42));
@@ -165,8 +165,8 @@ fn test_set_task_definition() {
 
 #[test]
 fn test_set_task_roundtrip() {
-    use swf_core::models::task::{SetTaskDefinition, SetValue};
     use std::collections::HashMap;
+    use swf_core::models::task::{SetTaskDefinition, SetValue};
     let mut set_map = HashMap::new();
     set_map.insert("name".to_string(), serde_json::json!("test"));
     set_map.insert("value".to_string(), serde_json::json!(123));

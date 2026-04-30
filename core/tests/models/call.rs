@@ -57,13 +57,11 @@ fn test_call_task_with_all_fields() {
 #[test]
 fn test_call_task_roundtrip_serialization() {
     // Test CallTaskDefinition roundtrip serialization
-    let call_task = CallTaskDefinition::Function(
-        swf_core::models::call::CallFunctionDefinition {
-            call: "myFunction".to_string(),
-            with: None,
-            common: swf_core::models::task::TaskDefinitionFields::default(),
-        },
-    );
+    let call_task = CallTaskDefinition::Function(swf_core::models::call::CallFunctionDefinition {
+        call: "myFunction".to_string(),
+        with: None,
+        common: swf_core::models::task::TaskDefinitionFields::default(),
+    });
 
     let json_str = serde_json::to_string(&call_task).expect("Failed to serialize call task");
     let deserialized: CallTaskDefinition =
@@ -157,21 +155,19 @@ fn test_endpoint_definition_roundtrip() {
 
 #[test]
 fn test_call_task_roundtrip() {
-    use swf_core::models::task::{CallTaskDefinition, TaskDefinition};
     use std::collections::HashMap;
+    use swf_core::models::task::{CallTaskDefinition, TaskDefinition};
     let mut with_map = HashMap::new();
     with_map.insert("method".to_string(), serde_json::json!("GET"));
     with_map.insert(
         "endpoint".to_string(),
         serde_json::json!("http://example.com"),
     );
-    let call_fn = CallTaskDefinition::Function(
-        swf_core::models::call::CallFunctionDefinition {
-            call: "http".to_string(),
-            with: Some(with_map),
-            common: swf_core::models::task::TaskDefinitionFields::default(),
-        },
-    );
+    let call_fn = CallTaskDefinition::Function(swf_core::models::call::CallFunctionDefinition {
+        call: "http".to_string(),
+        with: Some(with_map),
+        common: swf_core::models::task::TaskDefinitionFields::default(),
+    });
     let task = TaskDefinition::Call(Box::new(call_fn));
     let json_str = serde_json::to_string(&task).expect("Failed to serialize");
     assert!(json_str.contains("http"));
@@ -824,10 +820,9 @@ fn test_call_grpc_task_serialization() {
         with: GRPCArguments {
             proto: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
-                endpoint:
-                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
-                        "http://proto.example.com/api.proto".to_string(),
-                    ),
+                endpoint: swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    "http://proto.example.com/api.proto".to_string(),
+                ),
             },
             service: GRPCServiceDefinition {
                 name: "MyService".to_string(),
@@ -868,10 +863,9 @@ fn test_call_openapi_task_serialization() {
         with: OpenAPIArguments {
             document: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
-                endpoint:
-                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
-                        "http://api.example.com/openapi.json".to_string(),
-                    ),
+                endpoint: swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    "http://api.example.com/openapi.json".to_string(),
+                ),
             },
             operation_id: "getUsers".to_string(),
             parameters: None,
@@ -907,10 +901,9 @@ fn test_call_asyncapi_task_serialization() {
         with: AsyncApiArguments {
             document: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
-                endpoint:
-                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
-                        "http://asyncapi.example.com/asyncapi.json".to_string(),
-                    ),
+                endpoint: swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    "http://asyncapi.example.com/asyncapi.json".to_string(),
+                ),
             },
             channel: Some("userUpdates".to_string()),
             operation: None,
