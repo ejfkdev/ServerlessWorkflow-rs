@@ -167,8 +167,8 @@ fn test_switch_task_unmarshaling() {
 #[test]
 fn test_switch_task_with_multiple_cases() {
     // Test SwitchTaskDefinition with multiple cases
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{SwitchCaseDefinition, SwitchTaskDefinition};
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{SwitchCaseDefinition, SwitchTaskDefinition};
 
     let mut switch_cases = Map::new();
     switch_cases.add(
@@ -259,7 +259,7 @@ fn test_switch_task_with_string_then() {
         ]
     });
 
-    let result: Result<serverless_workflow_core::models::task::SwitchTaskDefinition, _> =
+    let result: Result<swf_core::models::task::SwitchTaskDefinition, _> =
         serde_json::from_value(switch_json);
     assert!(
         result.is_ok(),

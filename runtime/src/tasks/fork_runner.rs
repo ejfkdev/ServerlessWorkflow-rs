@@ -3,8 +3,8 @@ use crate::task_runner::{create_task_runner, OwnedTaskSupport, TaskRunner, TaskS
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::task::{ForkTaskDefinition, TaskDefinition};
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::task::{ForkTaskDefinition, TaskDefinition};
+use swf_core::models::workflow::WorkflowDefinition;
 use std::future::Future;
 use std::pin::Pin;
 
@@ -150,8 +150,8 @@ mod tests {
     use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         BranchingDefinition, ForkTaskDefinition, SetTaskDefinition, SetValue, TaskDefinitionFields,
     };
     use std::collections::HashMap;
@@ -281,11 +281,11 @@ mod tests {
     #[tokio::test]
     async fn test_fork_non_compete_with_wait() {
         // Matches Java SDK's fork-wait.yaml - non-compete with wait tasks in branches
-        use serverless_workflow_core::models::duration::{
+        use swf_core::models::duration::{
             Duration, OneOfDurationOrIso8601Expression,
         };
-        use serverless_workflow_core::models::map::Map as CoreMap;
-        use serverless_workflow_core::models::task::{DoTaskDefinition, WaitTaskDefinition};
+        use swf_core::models::map::Map as CoreMap;
+        use swf_core::models::task::{DoTaskDefinition, WaitTaskDefinition};
 
         // Branch 1: wait + set value=1
         let wait1 = TaskDefinition::Wait(WaitTaskDefinition {
@@ -342,11 +342,11 @@ mod tests {
     #[tokio::test]
     async fn test_fork_no_compete_multiple_branches_with_do() {
         // Matches Java SDK's fork-no-compete.yaml - non-compete with multiple do branches
-        use serverless_workflow_core::models::duration::{
+        use swf_core::models::duration::{
             Duration, OneOfDurationOrIso8601Expression,
         };
-        use serverless_workflow_core::models::map::Map as CoreMap;
-        use serverless_workflow_core::models::task::{DoTaskDefinition, WaitTaskDefinition};
+        use swf_core::models::map::Map as CoreMap;
+        use swf_core::models::task::{DoTaskDefinition, WaitTaskDefinition};
 
         // Branch 1: wait + set
         let wait1 = TaskDefinition::Wait(WaitTaskDefinition {

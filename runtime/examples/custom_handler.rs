@@ -3,15 +3,15 @@
 //! This example demonstrates how to register a custom task handler
 //! that uppercases the "text" field from the workflow input.
 //!
-//! Run with: cargo run -p serverless_workflow_runtime --example custom_handler
+//! Run with: cargo run -p swf_runtime --example custom_handler
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
-use serverless_workflow_core::models::task::{
+use swf_core::models::task::{
     CustomTaskDefinition, TaskDefinition, TaskDefinitionFields,
 };
-use serverless_workflow_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
-use serverless_workflow_runtime::{CustomTaskHandler, WorkflowResult, WorkflowRunner};
+use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
+use swf_runtime::{CustomTaskHandler, WorkflowResult, WorkflowRunner};
 
 /// A custom task handler that uppercases the "text" field from input
 struct UppercaseHandler;

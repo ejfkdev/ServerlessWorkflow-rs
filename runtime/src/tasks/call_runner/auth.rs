@@ -2,7 +2,7 @@ use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::evaluate_expression_str;
 use base64::Engine;
 use serde_json::Value;
-use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
+use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
 
 type VarsMap = std::collections::HashMap<String, Value>;
 type AuthDefs = std::collections::HashMap<String, ReferenceableAuthenticationPolicy>;
@@ -53,7 +53,7 @@ fn resolve_auth_policy<'a>(
     auth_definitions: Option<&'a AuthDefs>,
     task_name: &str,
 ) -> WorkflowResult<
-    &'a serverless_workflow_core::models::authentication::AuthenticationPolicyDefinition,
+    &'a swf_core::models::authentication::AuthenticationPolicyDefinition,
 > {
     match policy {
         ReferenceableAuthenticationPolicy::Policy(def) => Ok(def),
@@ -398,23 +398,23 @@ async fn fetch_access_token(params: TokenRequestParams, task_name: &str) -> Work
 /// share the same structure for these fields, so this struct consolidates extraction.
 struct OAuthTokenFields {
     client: Option<
-        serverless_workflow_core::models::authentication::OAuth2AuthenticationClientDefinition,
+        swf_core::models::authentication::OAuth2AuthenticationClientDefinition,
     >,
     grant: Option<String>,
     request: Option<
-        serverless_workflow_core::models::authentication::OAuth2AuthenticationRequestDefinition,
+        swf_core::models::authentication::OAuth2AuthenticationRequestDefinition,
     >,
     issuers: Option<Vec<String>>,
     scopes: Option<Vec<String>>,
     username: Option<String>,
     password: Option<String>,
-    subject: Option<serverless_workflow_core::models::authentication::OAuth2TokenDefinition>,
-    actor: Option<serverless_workflow_core::models::authentication::OAuth2TokenDefinition>,
+    subject: Option<swf_core::models::authentication::OAuth2TokenDefinition>,
+    actor: Option<swf_core::models::authentication::OAuth2TokenDefinition>,
 }
 
 impl OAuthTokenFields {
     fn from_oauth2(
-        oauth2: &serverless_workflow_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
+        oauth2: &swf_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
     ) -> Self {
         Self {
             client: oauth2.client.clone(),
@@ -430,7 +430,7 @@ impl OAuthTokenFields {
     }
 
     fn from_oidc(
-        oidc: &serverless_workflow_core::models::authentication::OpenIDConnectSchemeDefinition,
+        oidc: &swf_core::models::authentication::OpenIDConnectSchemeDefinition,
     ) -> Self {
         Self {
             client: oidc.client.clone(),
@@ -587,7 +587,7 @@ async fn fetch_token(
 
 /// Fetches an OAuth2 access token from the token endpoint
 async fn fetch_oauth2_token(
-    oauth2: &serverless_workflow_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
+    oauth2: &swf_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
     input: &Value,
     vars: &VarsMap,
     task_name: &str,
@@ -622,7 +622,7 @@ async fn fetch_oauth2_token(
 
 /// Fetches an OIDC access token — same as OAuth2 but OIDC's authority IS the token endpoint URL
 async fn fetch_oidc_token(
-    oidc: &serverless_workflow_core::models::authentication::OpenIDConnectSchemeDefinition,
+    oidc: &swf_core::models::authentication::OpenIDConnectSchemeDefinition,
     input: &Value,
     vars: &VarsMap,
     task_name: &str,

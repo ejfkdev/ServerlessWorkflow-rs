@@ -133,10 +133,10 @@ fn test_wait_task_with_all_fields() {
 
 #[test]
 fn test_wait_task_with_duration_new() {
-    use serverless_workflow_core::models::task::WaitTaskDefinition;
+    use swf_core::models::task::WaitTaskDefinition;
     let wait_task = WaitTaskDefinition::new(
-        serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-            serverless_workflow_core::models::duration::Duration::from_seconds(10),
+        swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+            swf_core::models::duration::Duration::from_seconds(10),
         ),
     );
     let json_str = serde_json::to_string(&wait_task).expect("Failed to serialize");
@@ -153,7 +153,7 @@ fn test_wait_duration_iso8601() {
         "wait": "PT1S"
     });
 
-    let result: Result<serverless_workflow_core::models::task::WaitTaskDefinition, _> =
+    let result: Result<swf_core::models::task::WaitTaskDefinition, _> =
         serde_json::from_value(wait_json);
     assert!(
         result.is_ok(),
@@ -171,7 +171,7 @@ fn test_wait_duration_inline() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::WaitTaskDefinition, _> =
+    let result: Result<swf_core::models::task::WaitTaskDefinition, _> =
         serde_json::from_value(wait_json);
     assert!(
         result.is_ok(),

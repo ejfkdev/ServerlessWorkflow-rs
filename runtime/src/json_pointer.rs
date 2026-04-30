@@ -1,7 +1,7 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
 #[cfg(test)]
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 
 /// Generates a JSON Pointer (RFC 6901) to a target node within a workflow definition
 #[cfg(test)]
@@ -73,11 +73,11 @@ mod tests {
     use super::*;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         BranchingDefinition, ForkTaskDefinition, TaskDefinition, TaskDefinitionFields,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
 
     fn make_workflow(tasks: Vec<(&str, TaskDefinition)>) -> WorkflowDefinition {
         let entries: Vec<(String, TaskDefinition)> = tasks

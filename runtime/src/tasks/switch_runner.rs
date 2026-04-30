@@ -3,7 +3,7 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::task::SwitchTaskDefinition;
+use swf_core::models::task::SwitchTaskDefinition;
 
 /// Runner for Switch tasks - evaluates conditions and branches
 pub struct SwitchTaskRunner {
@@ -36,11 +36,11 @@ mod tests {
     use super::*;
     use crate::default_support;
     use serde_json::json;
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         SwitchCaseDefinition, SwitchTaskDefinition, TaskDefinitionFields,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
 
     #[test]
     fn test_switch_runner_new() {

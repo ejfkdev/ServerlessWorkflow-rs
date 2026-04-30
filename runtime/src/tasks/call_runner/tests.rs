@@ -2,12 +2,12 @@ use super::*;
 use crate::context::WorkflowContext;
 use base64::Engine;
 use serde_json::json;
-use serverless_workflow_core::models::call::{
+use swf_core::models::call::{
     CallHTTPDefinition, HTTPArguments, OneOfHeadersOrExpression, OneOfQueryOrExpression,
 };
-use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
-use serverless_workflow_core::models::task::TaskDefinitionFields;
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::resource::OneOfEndpointDefinitionOrUri;
+use swf_core::models::task::TaskDefinitionFields;
+use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 
 fn make_http_task(method: &str, uri: &str) -> CallHTTPDefinition {
@@ -36,7 +36,7 @@ fn test_call_runner_new() {
 
 #[test]
 fn test_call_runner_function_not_found() {
-    let func_task = serverless_workflow_core::models::call::CallFunctionDefinition {
+    let func_task = swf_core::models::call::CallFunctionDefinition {
         call: "myFunc".to_string(),
         with: None,
         common: TaskDefinitionFields::default(),
@@ -119,7 +119,7 @@ async fn test_call_grpc_no_handler() {
 
 #[tokio::test]
 async fn test_call_openapi_no_handler() {
-    use serverless_workflow_core::models::call::CallOpenAPIDefinition;
+    use swf_core::models::call::CallOpenAPIDefinition;
     let task = CallTaskDefinition::OpenAPI(CallOpenAPIDefinition::default());
     let runner = CallTaskRunner::new("openapiTest", &task).unwrap();
     let workflow = WorkflowDefinition::default();
@@ -173,7 +173,7 @@ async fn test_call_grpc_with_custom_handler() {
 #[tokio::test]
 async fn test_call_openapi_with_custom_handler() {
     use crate::handler::CallHandler;
-    use serverless_workflow_core::models::call::CallOpenAPIDefinition;
+    use swf_core::models::call::CallOpenAPIDefinition;
 
     struct MockOpenApiHandler;
 
@@ -212,7 +212,7 @@ async fn test_call_openapi_with_custom_handler() {
 
 #[tokio::test]
 async fn test_apply_authentication_sets_authorization_basic() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BasicAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
@@ -256,7 +256,7 @@ async fn test_apply_authentication_sets_authorization_basic() {
 
 #[tokio::test]
 async fn test_apply_authentication_sets_authorization_bearer() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BearerAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
@@ -294,7 +294,7 @@ async fn test_apply_authentication_sets_authorization_bearer() {
 
 #[tokio::test]
 async fn test_apply_authentication_no_auth_returns_none() {
-    use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
+    use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
 
     let policy = ReferenceableAuthenticationPolicy::Policy(Box::default());
 
@@ -317,7 +317,7 @@ async fn test_apply_authentication_no_auth_returns_none() {
 
 #[tokio::test]
 async fn test_apply_authentication_basic_with_secret() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BasicAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
@@ -364,7 +364,7 @@ async fn test_apply_authentication_basic_with_secret() {
 
 #[tokio::test]
 async fn test_apply_authentication_bearer_with_secret() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BearerAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
@@ -406,7 +406,7 @@ async fn test_apply_authentication_bearer_with_secret() {
 
 #[tokio::test]
 async fn test_apply_authentication_basic_secret_not_found() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BasicAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
@@ -435,7 +435,7 @@ async fn test_apply_authentication_basic_secret_not_found() {
 
 #[tokio::test]
 async fn test_apply_authentication_digest_with_secret() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, DigestAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };

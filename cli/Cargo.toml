@@ -1,5 +1,5 @@
 [package]
-name = "serverless_workflow_cli"
+name = "swf-cli"
 description = "CLI tool for executing Serverless Workflow definitions"
 version.workspace = true
 authors.workspace = true
@@ -11,15 +11,15 @@ rust-version.workspace = true
 readme = "README.md"
 keywords = ["serverless", "workflow", "cli", "cncf", "dsl"]
 categories = ["command-line-utilities", "development-tools"]
-documentation = "https://docs.rs/serverless_workflow_cli"
+documentation = "https://docs.rs/swf-cli"
 
 [[bin]]
 name = "swf"
 path = "src/main.rs"
 
 [dependencies]
-serverless_workflow_runtime = { path = "../runtime", version = "1.0.0-alpha7" }
-serverless_workflow_core = { path = "../core", version = "1.0.0-alpha7" }
+swf-runtime = { path = "../runtime", version = "1.0.0-alpha7" }
+swf-core = { path = "../core", version = "1.0.0-alpha7" }
 serde_json = "1.0"
 serde_yaml = "0.9"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

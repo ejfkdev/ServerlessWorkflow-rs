@@ -242,7 +242,7 @@ pub fn now_millis() -> u64 {
 /// # Example
 ///
 /// ```
-/// use serverless_workflow_runtime::listener::{WorkflowExecutionListener, WorkflowEvent};
+/// use swf_runtime::listener::{WorkflowExecutionListener, WorkflowEvent};
 ///
 /// struct LoggingListener;
 ///

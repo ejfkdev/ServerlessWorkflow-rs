@@ -128,7 +128,7 @@ fn test_digest_authentication_serialization() {
 
 #[test]
 fn test_bearer_authentication_roundtrip() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BearerAuthenticationSchemeDefinition,
     };
     let auth = AuthenticationPolicyDefinition {
@@ -146,7 +146,7 @@ fn test_bearer_authentication_roundtrip() {
 
 #[test]
 fn test_digest_authentication_roundtrip() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, DigestAuthenticationSchemeDefinition,
     };
     let auth = AuthenticationPolicyDefinition {
@@ -171,7 +171,7 @@ fn test_bearer_authentication_with_uri() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::authentication::BearerAuthenticationSchemeDefinition,
+        swf_core::models::authentication::BearerAuthenticationSchemeDefinition,
         _,
     > = serde_json::from_value(bearer_json);
     assert!(
@@ -201,7 +201,7 @@ fn test_authentication_reusable() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::authentication::AuthenticationPolicyDefinition,
+        swf_core::models::authentication::AuthenticationPolicyDefinition,
         _,
     > = serde_json::from_value(auth_json);
     assert!(
@@ -226,7 +226,7 @@ fn test_oidc_authentication() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::authentication::OpenIDConnectSchemeDefinition,
+        swf_core::models::authentication::OpenIDConnectSchemeDefinition,
         _,
     > = serde_json::from_value(oidc_json);
     assert!(
@@ -247,7 +247,7 @@ fn test_digest_authentication() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::authentication::DigestAuthenticationSchemeDefinition,
+        swf_core::models::authentication::DigestAuthenticationSchemeDefinition,
         _,
     > = serde_json::from_value(digest_json);
     assert!(

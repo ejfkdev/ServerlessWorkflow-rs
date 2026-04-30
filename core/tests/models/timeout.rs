@@ -166,7 +166,7 @@ fn test_timeout_with_inline_duration() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::timeout::TimeoutDefinition, _> =
+    let result: Result<swf_core::models::timeout::TimeoutDefinition, _> =
         serde_json::from_value(timeout_json);
     assert!(
         result.is_ok(),
@@ -182,7 +182,7 @@ fn test_timeout_with_iso8601_duration() {
         "after": "PT1H30M"
     });
 
-    let result: Result<serverless_workflow_core::models::timeout::TimeoutDefinition, _> =
+    let result: Result<swf_core::models::timeout::TimeoutDefinition, _> =
         serde_json::from_value(timeout_json);
     assert!(
         result.is_ok(),

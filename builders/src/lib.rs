@@ -12,10 +12,10 @@ mod unit_tests {
     use crate::services::workflow::WorkflowBuilder;
     use serde_json::json;
     use serde_json::Value;
-    use serverless_workflow_core::models::duration::*;
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
-    use serverless_workflow_core::models::task::*;
-    use serverless_workflow_core::models::timeout::*;
+    use swf_core::models::duration::*;
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::task::*;
+    use swf_core::models::timeout::*;
     use std::collections::HashMap;
 
     #[test]
@@ -277,7 +277,7 @@ mod unit_tests {
             workflow.use_.as_ref()
                 .and_then(|component_collection| component_collection.authentications.as_ref())
                 .and_then(|authentications| authentications.get(basic_name))
-                .map(|auth_policy| matches!(auth_policy, serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy::Policy(p) if p.basic.is_some()))
+                .map(|auth_policy| matches!(auth_policy, swf_core::models::authentication::ReferenceableAuthenticationPolicy::Policy(p) if p.basic.is_some()))
                 .unwrap_or(false),
             "Expected authentications to contain an entry with the name '{}' and a non-null `basic` property.",
             basic_name);
@@ -288,7 +288,7 @@ mod unit_tests {
                 .iter()
                 .any(|(name, task)| name == call_task_name && {
                     if let TaskDefinition::Call(call_def) = task {
-                        if let serverless_workflow_core::models::call::CallTaskDefinition::Function(ref f) = call_def.as_ref() {
+                        if let swf_core::models::call::CallTaskDefinition::Function(ref f) = call_def.as_ref() {
                             f.call == call_function_name && f.with == Some(call_task_with.clone())
                         } else {
                             false

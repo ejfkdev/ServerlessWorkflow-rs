@@ -4,7 +4,7 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
 use serde_json::Value;
-use serverless_workflow_core::models::task::EmitTaskDefinition;
+use swf_core::models::task::EmitTaskDefinition;
 
 define_simple_task_runner!(
     /// Runner for Emit tasks - emits events
@@ -97,9 +97,9 @@ mod tests {
     use super::*;
     use crate::default_support;
     use serde_json::json;
-    use serverless_workflow_core::models::event::EventDefinition;
-    use serverless_workflow_core::models::task::{EmitTaskDefinition, EventEmissionDefinition};
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::event::EventDefinition;
+    use swf_core::models::task::{EmitTaskDefinition, EventEmissionDefinition};
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     #[tokio::test]

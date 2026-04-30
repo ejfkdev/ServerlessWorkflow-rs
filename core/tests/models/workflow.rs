@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn test_workflow_definition_metadata_serialization() {
     // Test WorkflowDefinitionMetadata serialization
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
 
     let doc = WorkflowDefinitionMetadata::new(
         "namespace",
@@ -117,7 +117,7 @@ fn test_workflow_definition_roundtrip() {
 
 #[test]
 fn test_workflow_document_with_tags_and_metadata() {
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     use std::collections::HashMap;
     let mut tags = HashMap::new();
     tags.insert("env".to_string(), "prod".to_string());
@@ -142,7 +142,7 @@ fn test_workflow_document_with_tags_and_metadata() {
 
 #[test]
 fn test_workflow_document_roundtrip() {
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     let doc = WorkflowDefinitionMetadata::new(
         "ns",
         "workflow-name",
@@ -163,7 +163,7 @@ fn test_workflow_document_roundtrip() {
 
 #[test]
 fn test_workflow_definition_with_full_document() {
-    use serverless_workflow_core::models::workflow::{
+    use swf_core::models::workflow::{
         WorkflowDefinition, WorkflowDefinitionMetadata,
     };
     use std::collections::HashMap;
@@ -218,7 +218,7 @@ fn test_workflow_definition_with_use_and_do() {
 #[test]
 fn test_workflow_yaml_serialization() {
     // Test workflow YAML serialization (similar to Python SDK test_workflow_to_yaml)
-    use serverless_workflow_core::models::workflow::{
+    use swf_core::models::workflow::{
         WorkflowDefinition, WorkflowDefinitionMetadata,
     };
 
@@ -240,7 +240,7 @@ fn test_workflow_yaml_serialization() {
 #[test]
 fn test_workflow_yaml_roundtrip() {
     // Test workflow roundtrip serialization with YAML
-    use serverless_workflow_core::models::workflow::{
+    use swf_core::models::workflow::{
         WorkflowDefinition, WorkflowDefinitionMetadata,
     };
 
@@ -256,7 +256,7 @@ fn test_workflow_yaml_roundtrip() {
 #[test]
 fn test_workflow_json_and_yaml_equivalence() {
     // Test that JSON and YAML serialization produce equivalent results for workflow metadata
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
 
     let doc = WorkflowDefinitionMetadata::new(
         "test-ns",
@@ -688,7 +688,7 @@ fn test_workflow_process() {
         "version": "1.0.0"
     });
 
-    let result: Result<serverless_workflow_core::models::task::WorkflowProcessDefinition, _> =
+    let result: Result<swf_core::models::task::WorkflowProcessDefinition, _> =
         serde_json::from_value(workflow_json);
     assert!(
         result.is_ok(),
@@ -704,7 +704,7 @@ fn test_workflow_output() {
         "as": "${ .result }"
     });
 
-    let result: Result<serverless_workflow_core::models::output::OutputDataModelDefinition, _> =
+    let result: Result<swf_core::models::output::OutputDataModelDefinition, _> =
         serde_json::from_value(output_json);
     assert!(
         result.is_ok(),
@@ -730,7 +730,7 @@ fn test_workflow_input() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::input::InputDataModelDefinition, _> =
+    let result: Result<swf_core::models::input::InputDataModelDefinition, _> =
         serde_json::from_value(input_json);
     assert!(
         result.is_ok(),
@@ -743,7 +743,7 @@ fn test_workflow_input() {
 
 #[test]
 fn test_workflow_with_context() {
-    use serverless_workflow_core::models::workflow::ContextDataModelDefinition;
+    use swf_core::models::workflow::ContextDataModelDefinition;
 
     let mut workflow = WorkflowDefinition::new(WorkflowDefinitionMetadata::new(
         "default",

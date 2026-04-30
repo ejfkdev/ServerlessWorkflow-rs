@@ -1,14 +1,14 @@
 use serde_json::json;
-use serverless_workflow_core::models::authentication::*;
-use serverless_workflow_core::models::duration::*;
-use serverless_workflow_core::models::error::*;
-use serverless_workflow_core::models::extension::ExtensionDefinition;
-use serverless_workflow_core::models::map::*;
-use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
-use serverless_workflow_core::models::retry::*;
-use serverless_workflow_core::models::task::*;
-use serverless_workflow_core::models::timeout::*;
-use serverless_workflow_core::models::workflow::*;
+use swf_core::models::authentication::*;
+use swf_core::models::duration::*;
+use swf_core::models::error::*;
+use swf_core::models::extension::ExtensionDefinition;
+use swf_core::models::map::*;
+use swf_core::models::resource::OneOfEndpointDefinitionOrUri;
+use swf_core::models::retry::*;
+use swf_core::models::task::*;
+use swf_core::models::timeout::*;
+use swf_core::models::workflow::*;
 
 #[test]
 fn create_workflow() {
@@ -26,10 +26,10 @@ fn create_workflow() {
         None,
     );
     let call_task = CallTaskDefinition::Function(
-        serverless_workflow_core::models::call::CallFunctionDefinition {
+        swf_core::models::call::CallFunctionDefinition {
             call: "http".to_string(),
             with: None,
-            common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+            common: swf_core::models::task::TaskDefinitionFields::default(),
         },
     );
     let do_task = DoTaskDefinition::new(Map::from(vec![(

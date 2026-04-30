@@ -1,6 +1,6 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use serverless_workflow_core::models::schema::SchemaDefinition;
+use swf_core::models::schema::SchemaDefinition;
 
 /// Validates JSON data against a SchemaDefinition
 pub fn validate_schema(

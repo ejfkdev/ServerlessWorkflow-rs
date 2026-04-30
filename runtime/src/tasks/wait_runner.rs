@@ -4,8 +4,8 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression;
-use serverless_workflow_core::models::task::WaitTaskDefinition;
+use swf_core::models::duration::OneOfDurationOrIso8601Expression;
+use swf_core::models::task::WaitTaskDefinition;
 
 /// Runner for Wait tasks - pauses execution for a specified duration
 pub struct WaitTaskRunner {
@@ -60,7 +60,7 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use crate::utils::parse_iso8601_duration;
-    use serverless_workflow_core::models::duration::Duration as SwfDuration;
+    use swf_core::models::duration::Duration as SwfDuration;
     use std::time::Duration;
 
     #[test]
@@ -143,8 +143,8 @@ mod tests {
     #[tokio::test]
     async fn test_wait_returns_input_unchanged() {
         use serde_json::json;
-        use serverless_workflow_core::models::task::TaskDefinitionFields;
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::task::TaskDefinitionFields;
+        use swf_core::models::workflow::WorkflowDefinition;
 
         let task = WaitTaskDefinition {
             wait: OneOfDurationOrIso8601Expression::Duration(SwfDuration::from_milliseconds(10)),
@@ -163,8 +163,8 @@ mod tests {
     #[tokio::test]
     async fn test_wait_zero_duration() {
         use serde_json::json;
-        use serverless_workflow_core::models::task::TaskDefinitionFields;
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::task::TaskDefinitionFields;
+        use swf_core::models::workflow::WorkflowDefinition;
 
         let task = WaitTaskDefinition {
             wait: OneOfDurationOrIso8601Expression::Duration(SwfDuration::from_milliseconds(0)),
@@ -183,8 +183,8 @@ mod tests {
     #[tokio::test]
     async fn test_wait_with_iso8601_string() {
         use serde_json::json;
-        use serverless_workflow_core::models::task::TaskDefinitionFields;
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::task::TaskDefinitionFields;
+        use swf_core::models::workflow::WorkflowDefinition;
 
         let task = WaitTaskDefinition {
             wait: OneOfDurationOrIso8601Expression::Iso8601Expression("PT0.01S".to_string()),
@@ -205,11 +205,11 @@ mod tests {
         // Matches Java SDK's wait-set.yaml - wait then set
         use crate::tasks::DoTaskRunner;
         use serde_json::json;
-        use serverless_workflow_core::models::map::Map;
-        use serverless_workflow_core::models::task::{
+        use swf_core::models::map::Map;
+        use swf_core::models::task::{
             DoTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
         };
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::workflow::WorkflowDefinition;
         use std::collections::HashMap;
 
         let wait_task = TaskDefinition::Wait(WaitTaskDefinition {
@@ -245,11 +245,11 @@ mod tests {
         // set phase=started, waitExpression=PT1S → wait PT0.01S → set phase=completed, previousPhase=${ .phase }, waitExpression=${ .waitExpression }
         use crate::tasks::DoTaskRunner;
         use serde_json::json;
-        use serverless_workflow_core::models::map::Map;
-        use serverless_workflow_core::models::task::{
+        use swf_core::models::map::Map;
+        use swf_core::models::task::{
             DoTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
         };
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::workflow::WorkflowDefinition;
         use std::collections::HashMap;
 
         // Task 1: set phase=started, waitExpression=PT1S
@@ -305,8 +305,8 @@ mod tests {
         // When the cancellation token is triggered, wait should return a timeout error
         // instead of blocking unconditionally.
         use serde_json::json;
-        use serverless_workflow_core::models::task::TaskDefinitionFields;
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::task::TaskDefinitionFields;
+        use swf_core::models::workflow::WorkflowDefinition;
 
         let task = WaitTaskDefinition {
             // Long wait that would normally block for 10 seconds
@@ -337,8 +337,8 @@ mod tests {
     async fn test_wait_cancellation_during_wait() {
         // Test that cancelling while waiting returns timeout error promptly
         use serde_json::json;
-        use serverless_workflow_core::models::task::TaskDefinitionFields;
-        use serverless_workflow_core::models::workflow::WorkflowDefinition;
+        use swf_core::models::task::TaskDefinitionFields;
+        use swf_core::models::workflow::WorkflowDefinition;
 
         let task = WaitTaskDefinition {
             // Short wait for test speed (was 5s, reduced for performance)

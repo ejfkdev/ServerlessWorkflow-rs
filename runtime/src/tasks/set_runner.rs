@@ -3,7 +3,7 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
+use swf_core::models::task::{SetTaskDefinition, SetValue};
 
 /// Runner for Set tasks - evaluates and sets data
 pub struct SetTaskRunner {
@@ -55,8 +55,8 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::task_runner::TaskSupport;
     use serde_json::json;
-    use serverless_workflow_core::models::task::TaskDefinitionFields;
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::task::TaskDefinitionFields;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     /// Helper to create a SetTaskRunner and run it with a minimal support context

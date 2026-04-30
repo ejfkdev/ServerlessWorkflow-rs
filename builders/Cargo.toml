@@ -1,12 +1,12 @@
 [package]
-name = "serverless_workflow_builders"
+name = "swf-builders"
 description = "Programmatic builders for Serverless Workflow definitions"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-documentation = "https://docs.rs/serverless_workflow_builders"
+documentation = "https://docs.rs/swf-builders"
 edition.workspace = true
 rust-version.workspace = true
 keywords = ["serverless-workflow", "sdk", "builders"]
@@ -14,7 +14,7 @@ categories = ["config", "data-structures"]
 readme = "README.md"
 
 [dependencies]
-serverless_workflow_core = { path = "../core", version = "1.0.0-alpha7" }
+swf-core = { path = "../core", version = "1.0.0-alpha7" }
 serde_json = "1.0"
 
 [package.metadata.dist]

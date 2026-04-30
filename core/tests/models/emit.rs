@@ -29,7 +29,7 @@ fn test_emit_task_serialization() {
 #[test]
 fn test_emit_task_roundtrip_serialization() {
     // Test EmitTaskDefinition roundtrip serialization
-    use serverless_workflow_core::models::event::EventDefinition;
+    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
 
     let mut event_with = HashMap::new();
@@ -196,7 +196,7 @@ fn test_emit_task() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::EmitTaskDefinition, _> =
+    let result: Result<swf_core::models::task::EmitTaskDefinition, _> =
         serde_json::from_value(emit_json);
     assert!(
         result.is_ok(),

@@ -143,7 +143,7 @@ fn test_listen_task_with_any_and_until() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ListenTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ListenTaskDefinition, _> =
         serde_json::from_value(listen_json);
     assert!(
         result.is_ok(),
@@ -167,7 +167,7 @@ fn test_listen_task_with_one_event() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ListenTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ListenTaskDefinition, _> =
         serde_json::from_value(listen_json);
     assert!(
         result.is_ok(),
@@ -198,7 +198,7 @@ fn test_listen_task_with_all_filter() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ListenTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ListenTaskDefinition, _> =
         serde_json::from_value(listen_json);
     assert!(
         result.is_ok(),
@@ -244,7 +244,7 @@ fn test_listen_task_with_all_filter_and_correlate() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ListenTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ListenTaskDefinition, _> =
         serde_json::from_value(listen_json);
     assert!(
         result.is_ok(),

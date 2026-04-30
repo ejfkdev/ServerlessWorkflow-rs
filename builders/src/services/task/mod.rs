@@ -1,26 +1,26 @@
 use serde_json::Value;
-use serverless_workflow_core::models::authentication::{
+use swf_core::models::authentication::{
     AuthenticationPolicyReference, ReferenceableAuthenticationPolicy,
 };
-use serverless_workflow_core::models::call::CallTaskDefinition;
-use serverless_workflow_core::models::call::{
+use swf_core::models::call::CallTaskDefinition;
+use swf_core::models::call::{
     A2AArguments, AsyncApiArguments, CallA2ADefinition, CallAsyncAPIDefinition,
     CallFunctionDefinition, CallGRPCDefinition, CallHTTPDefinition, CallOpenAPIDefinition,
     GRPCArguments, GRPCServiceDefinition, HTTPArguments, OneOfA2AParametersOrExpression,
     OneOfHeadersOrExpression, OneOfQueryOrExpression, OpenAPIArguments,
 };
-use serverless_workflow_core::models::duration::*;
-use serverless_workflow_core::models::error::ErrorType;
-use serverless_workflow_core::models::error::*;
-use serverless_workflow_core::models::event::*;
-use serverless_workflow_core::models::input::*;
-use serverless_workflow_core::models::output::*;
-use serverless_workflow_core::models::resource::{
+use swf_core::models::duration::*;
+use swf_core::models::error::ErrorType;
+use swf_core::models::error::*;
+use swf_core::models::event::*;
+use swf_core::models::input::*;
+use swf_core::models::output::*;
+use swf_core::models::resource::{
     ExternalResourceDefinition, OneOfEndpointDefinitionOrUri,
 };
-use serverless_workflow_core::models::retry::*;
-use serverless_workflow_core::models::task::*;
-use serverless_workflow_core::models::timeout::*;
+use swf_core::models::retry::*;
+use swf_core::models::task::*;
+use swf_core::models::timeout::*;
 use std::collections::HashMap;
 
 use super::timeout::TimeoutDefinitionBuilder;

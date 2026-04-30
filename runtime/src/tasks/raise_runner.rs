@@ -3,10 +3,10 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
-use serverless_workflow_core::models::expression::is_strict_expr;
-use serverless_workflow_core::models::task::RaiseTaskDefinition;
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::error::OneOfErrorDefinitionOrReference;
+use swf_core::models::expression::is_strict_expr;
+use swf_core::models::task::RaiseTaskDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 
 /// Evaluates an optional strict expression string, returning the evaluated string result.
 /// If the expression is a strict JQ expression (`${...}`), it is evaluated via `eval_jq_expr`;
@@ -122,9 +122,9 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use serde_json::json;
-    use serverless_workflow_core::models::error::{ErrorDefinition, ErrorTypes};
-    use serverless_workflow_core::models::task::{RaiseErrorDefinition, TaskDefinitionFields};
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::error::{ErrorDefinition, ErrorTypes};
+    use swf_core::models::task::{RaiseErrorDefinition, TaskDefinitionFields};
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
 
     async fn run_raise(task: RaiseTaskDefinition) -> WorkflowResult<Value> {
         let workflow = WorkflowDefinition::default();
@@ -254,7 +254,7 @@ mod tests {
 
         let mut errors = std::collections::HashMap::new();
         errors.insert("notImplemented".to_string(), error_def);
-        let use_def = serverless_workflow_core::models::workflow::ComponentDefinitionCollection {
+        let use_def = swf_core::models::workflow::ComponentDefinitionCollection {
             errors: Some(errors),
             ..Default::default()
         };

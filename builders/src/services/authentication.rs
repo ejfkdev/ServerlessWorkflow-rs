@@ -1,4 +1,4 @@
-use serverless_workflow_core::models::authentication::*;
+use swf_core::models::authentication::*;
 
 /// Represents a service used to build AuthenticationPolicyDefinitions
 #[derive(Default)]

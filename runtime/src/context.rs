@@ -4,8 +4,8 @@ use crate::listener::{WorkflowEvent, WorkflowExecutionListener};
 use crate::secret::SecretManager;
 use crate::status::{StatusPhase, StatusPhaseLog};
 use serde_json::Value;
-use serverless_workflow_core::models::task::TaskDefinition;
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::task::TaskDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -216,7 +216,7 @@ impl std::fmt::Debug for WorkflowContext {
 impl WorkflowContext {
     /// Creates a new workflow context from a workflow definition
     pub fn new(
-        workflow: &serverless_workflow_core::models::workflow::WorkflowDefinition,
+        workflow: &swf_core::models::workflow::WorkflowDefinition,
     ) -> crate::error::WorkflowResult<Self> {
         let workflow_json = serde_json::to_value(workflow).map_err(|e| {
             crate::error::WorkflowError::runtime(
@@ -687,7 +687,7 @@ impl WorkflowContext {
 mod tests {
     use super::*;
     use serde_json::json;
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
 
     fn new_context() -> WorkflowContext {
         let workflow = WorkflowDefinition::default();

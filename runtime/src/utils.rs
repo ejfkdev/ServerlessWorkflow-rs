@@ -1,9 +1,9 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use serverless_workflow_core::models::duration::{
+use swf_core::models::duration::{
     Duration as SwfDuration, OneOfDurationOrIso8601Expression,
 };
-use serverless_workflow_core::models::timeout::OneOfTimeoutDefinitionOrReference;
+use swf_core::models::timeout::OneOfTimeoutDefinitionOrReference;
 use std::time::Duration;
 
 /// Ensures a variable name has the `$` prefix used in JQ expressions.
@@ -55,7 +55,7 @@ pub fn parse_duration_with_context(
     input: &Value,
     vars: &std::collections::HashMap<String, Value>,
     task_name: &str,
-    workflow: Option<&serverless_workflow_core::models::workflow::WorkflowDefinition>,
+    workflow: Option<&swf_core::models::workflow::WorkflowDefinition>,
 ) -> WorkflowResult<std::time::Duration> {
     match timeout {
         OneOfTimeoutDefinitionOrReference::Timeout(def) => {
@@ -174,8 +174,8 @@ pub fn parse_iso8601_duration(s: &str) -> Option<std::time::Duration> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serverless_workflow_core::models::duration::Duration;
-    use serverless_workflow_core::models::timeout::TimeoutDefinition;
+    use swf_core::models::duration::Duration;
+    use swf_core::models::timeout::TimeoutDefinition;
     use std::collections::HashMap;
 
     #[test]

@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn test_raise_task_serialization() {
     // Test RaiseTaskDefinition serialization (similar to Go SDK TestRaiseTask_MarshalJSON)
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
 
     let raise_task_json = json!({
         "raise": {
@@ -38,8 +38,8 @@ fn test_raise_task_serialization() {
 #[test]
 fn test_raise_task_roundtrip_serialization() {
     // Test RaiseTaskDefinition roundtrip serialization
-    use serverless_workflow_core::models::error::ErrorDefinition;
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::error::ErrorDefinition;
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
 
     let raise_task = RaiseTaskDefinition::new(RaiseErrorDefinition::new(
         OneOfErrorDefinitionOrReference::Error(ErrorDefinition::new(
@@ -64,11 +64,11 @@ fn test_raise_task_roundtrip_serialization() {
 
 #[test]
 fn test_raise_task_definition() {
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
-    use serverless_workflow_core::models::task::{RaiseErrorDefinition, RaiseTaskDefinition};
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::task::{RaiseErrorDefinition, RaiseTaskDefinition};
     let raise_error = RaiseErrorDefinition {
         error: OneOfErrorDefinitionOrReference::Error(
-            serverless_workflow_core::models::error::ErrorDefinition::new(
+            swf_core::models::error::ErrorDefinition::new(
                 "https://example.com/errors",
                 "Bad Request",
                 serde_json::json!(400),
@@ -85,10 +85,10 @@ fn test_raise_task_definition() {
 
 #[test]
 fn test_raise_task_roundtrip() {
-    use serverless_workflow_core::models::error::{
+    use swf_core::models::error::{
         ErrorDefinition, OneOfErrorDefinitionOrReference,
     };
-    use serverless_workflow_core::models::task::{RaiseErrorDefinition, RaiseTaskDefinition};
+    use swf_core::models::task::{RaiseErrorDefinition, RaiseTaskDefinition};
     let raise_error = RaiseErrorDefinition {
         error: OneOfErrorDefinitionOrReference::Error(ErrorDefinition::new(
             "https://example.com/errors",
@@ -110,7 +110,7 @@ fn test_raise_task_roundtrip() {
 #[test]
 fn test_raise_task_with_all_fields() {
     // Test RaiseTaskDefinition with all common fields
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
 
     let raise_task_json = json!({
         "if": "${condition}",
@@ -189,7 +189,7 @@ fn test_raise_task_with_error_reference() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::RaiseTaskDefinition, _> =
+    let result: Result<swf_core::models::task::RaiseTaskDefinition, _> =
         serde_json::from_value(serde_json::json!({"raise": raise_json["raise"]}));
     assert!(
         result.is_ok(),

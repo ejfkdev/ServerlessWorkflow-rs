@@ -99,10 +99,10 @@ fn test_extension_definition_roundtrip_serialization() {
         before: Some(vec![vec![(
             "task1".to_string(),
             TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-                serverless_workflow_core::models::call::CallFunctionDefinition {
+                swf_core::models::call::CallFunctionDefinition {
                     call: "func1".to_string(),
                     with: None,
-                    common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                    common: swf_core::models::task::TaskDefinitionFields::default(),
                 },
             ))),
         )]
@@ -139,7 +139,7 @@ fn test_extension_definition_minimal() {
 
 #[test]
 fn test_external_resource_definition() {
-    use serverless_workflow_core::models::resource::{
+    use swf_core::models::resource::{
         ExternalResourceDefinition, OneOfEndpointDefinitionOrUri,
     };
     let resource = ExternalResourceDefinition {
@@ -153,7 +153,7 @@ fn test_external_resource_definition() {
 
 #[test]
 fn test_schema_definition_json() {
-    use serverless_workflow_core::models::schema::SchemaDefinition;
+    use swf_core::models::schema::SchemaDefinition;
     let schema = SchemaDefinition {
         format: "json".to_string(),
         resource: None,
@@ -165,7 +165,7 @@ fn test_schema_definition_json() {
 
 #[test]
 fn test_referenceable_authentication_policy_reference() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyReference, ReferenceableAuthenticationPolicy,
     };
 
@@ -191,7 +191,7 @@ fn test_referenceable_authentication_policy_reference() {
 
 #[test]
 fn test_referenceable_authentication_policy_inline() {
-    use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
+    use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
 
     // Test inline policy with basic auth
     let json_str = r#"{"basic":{"username":"admin","password":"secret"}}"#;
@@ -225,8 +225,8 @@ fn test_extension_target_constants() {
 
 #[test]
 fn test_schema_validation() {
-    use serverless_workflow_core::models::resource::ExternalResourceDefinition;
-    use serverless_workflow_core::models::schema::{SchemaDefinition, SchemaValidationError};
+    use swf_core::models::resource::ExternalResourceDefinition;
+    use swf_core::models::schema::{SchemaDefinition, SchemaValidationError};
 
     // Neither set - should be invalid
     let schema = SchemaDefinition::default();

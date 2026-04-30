@@ -1,7 +1,7 @@
 #[cfg(test)]
 pub(crate) mod test_helpers {
     use serde_json::Value;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::task::{
         SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
     };
     use std::collections::HashMap;

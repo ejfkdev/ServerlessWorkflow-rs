@@ -101,7 +101,7 @@ impl<'a> ErrorCatcherDefinitionBuilder<'a> {
         self.parent
             .catch
             .do_
-            .get_or_insert_with(serverless_workflow_core::models::map::Map::default)
+            .get_or_insert_with(swf_core::models::map::Map::default)
             .add(name.to_string(), task);
         self
     }

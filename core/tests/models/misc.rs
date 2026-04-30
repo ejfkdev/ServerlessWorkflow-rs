@@ -7,10 +7,10 @@ fn test_roundtrip_serialization() {
     do_tasks.add(
         "task1".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "someFunction".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
@@ -88,7 +88,7 @@ fn test_oauth2_authentication_serialization() {
 
 #[test]
 fn test_oauth2_authentication_with_grant() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, OAuth2AuthenticationSchemeDefinition,
     };
     let auth = AuthenticationPolicyDefinition {
@@ -108,7 +108,7 @@ fn test_oauth2_authentication_with_grant() {
 
 #[test]
 fn test_oauth2_authentication_roundtrip() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, OAuth2AuthenticationSchemeDefinition,
     };
     let auth = AuthenticationPolicyDefinition {
@@ -128,7 +128,7 @@ fn test_oauth2_authentication_roundtrip() {
 
 #[test]
 fn test_try_task_definition() {
-    use serverless_workflow_core::models::task::TryTaskDefinition;
+    use swf_core::models::task::TryTaskDefinition;
     let try_task = TryTaskDefinition {
         try_: Map::new(),
         ..Default::default()
@@ -140,7 +140,7 @@ fn test_try_task_definition() {
 #[test]
 fn test_document_with_tags_and_metadata() {
     // Test Document/WorkflowDefinitionMetadata with tags and metadata (similar to Go SDK TestDocument_JSONMarshal)
-    use serverless_workflow_core::models::workflow::WorkflowDefinitionMetadata;
+    use swf_core::models::workflow::WorkflowDefinitionMetadata;
     use std::collections::HashMap;
 
     let mut tags = HashMap::new();
@@ -249,7 +249,7 @@ fn test_oauth2_authentication() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
+        swf_core::models::authentication::OAuth2AuthenticationSchemeDefinition,
         _,
     > = serde_json::from_value(oauth2_json);
     assert!(
@@ -336,7 +336,7 @@ fn test_schedule_with_cron() {
         "cron": "0 0 * * * *"
     });
 
-    let result: Result<serverless_workflow_core::models::workflow::WorkflowScheduleDefinition, _> =
+    let result: Result<swf_core::models::workflow::WorkflowScheduleDefinition, _> =
         serde_json::from_value(schedule_json);
     assert!(
         result.is_ok(),
@@ -358,7 +358,7 @@ fn test_schedule_event_driven() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::workflow::WorkflowScheduleDefinition, _> =
+    let result: Result<swf_core::models::workflow::WorkflowScheduleDefinition, _> =
         serde_json::from_value(schedule_json);
     assert!(
         result.is_ok(),
@@ -388,7 +388,7 @@ fn test_oauth2_grant_type_constants() {
 
 #[test]
 fn test_oauth2_endpoints_defaults() {
-    use serverless_workflow_core::models::authentication::OAuth2AuthenticationEndpointsDefinition;
+    use swf_core::models::authentication::OAuth2AuthenticationEndpointsDefinition;
 
     let json_str = r#"{}"#;
     let endpoints: OAuth2AuthenticationEndpointsDefinition =
@@ -400,7 +400,7 @@ fn test_oauth2_endpoints_defaults() {
 
 #[test]
 fn test_oauth2_request_encoding_default() {
-    use serverless_workflow_core::models::authentication::OAuth2AuthenticationRequestDefinition;
+    use swf_core::models::authentication::OAuth2AuthenticationRequestDefinition;
 
     let json_str = r#"{}"#;
     let request: OAuth2AuthenticationRequestDefinition =
@@ -412,7 +412,7 @@ fn test_oauth2_request_encoding_default() {
 
 #[test]
 fn test_oauth2_token_definition_serde() {
-    use serverless_workflow_core::models::authentication::OAuth2TokenDefinition;
+    use swf_core::models::authentication::OAuth2TokenDefinition;
     // Verify the token field serializes/deserializes correctly (was a bug: rename was "encoding" instead of "token")
     let json_str = r#"{"token": "my-token", "type": "Bearer"}"#;
     let token: OAuth2TokenDefinition =
@@ -427,14 +427,14 @@ fn test_oauth2_token_definition_serde() {
 
 #[test]
 fn test_runtime_expression_evaluation_mode() {
-    use serverless_workflow_core::models::workflow::RuntimeExpressionEvaluationMode;
+    use swf_core::models::workflow::RuntimeExpressionEvaluationMode;
     assert_eq!(RuntimeExpressionEvaluationMode::STRICT, "strict");
     assert_eq!(RuntimeExpressionEvaluationMode::LOOSE, "loose");
 }
 
 #[test]
 fn test_runtime_expressions_constants() {
-    use serverless_workflow_core::models::workflow::RuntimeExpressions;
+    use swf_core::models::workflow::RuntimeExpressions;
     assert_eq!(RuntimeExpressions::RUNTIME, "runtime");
     assert_eq!(RuntimeExpressions::WORKFLOW, "workflow");
     assert_eq!(RuntimeExpressions::CONTEXT, "context");
@@ -450,7 +450,7 @@ fn test_runtime_expressions_constants() {
 
 #[test]
 fn test_runtime_expression_evaluation_configuration_mode() {
-    use serverless_workflow_core::models::workflow::RuntimeExpressionEvaluationConfiguration;
+    use swf_core::models::workflow::RuntimeExpressionEvaluationConfiguration;
     let json_str = r#"{"language": "jq", "mode": "strict"}"#;
     let config: RuntimeExpressionEvaluationConfiguration =
         serde_json::from_str(json_str).expect("Failed to deserialize");
@@ -460,8 +460,8 @@ fn test_runtime_expression_evaluation_configuration_mode() {
 
 #[test]
 fn test_flow_directive_value_enumerated() {
-    use serverless_workflow_core::models::task::FlowDirectiveType;
-    use serverless_workflow_core::models::task::FlowDirectiveValue;
+    use swf_core::models::task::FlowDirectiveType;
+    use swf_core::models::task::FlowDirectiveValue;
 
     let cont = FlowDirectiveValue::Enumerated(FlowDirectiveType::Continue);
     assert!(cont.is_enumerated());
@@ -482,8 +482,8 @@ fn test_flow_directive_value_enumerated() {
 
 #[test]
 fn test_flow_directive_value_serde() {
-    use serverless_workflow_core::models::task::FlowDirectiveType;
-    use serverless_workflow_core::models::task::FlowDirectiveValue;
+    use swf_core::models::task::FlowDirectiveType;
+    use swf_core::models::task::FlowDirectiveValue;
 
     let cont = FlowDirectiveValue::Enumerated(FlowDirectiveType::Continue);
     let json = serde_json::to_string(&cont).unwrap();
@@ -499,8 +499,8 @@ fn test_flow_directive_value_serde() {
 
 #[test]
 fn test_context_data_model_definition() {
-    use serverless_workflow_core::models::schema::SchemaDefinition;
-    use serverless_workflow_core::models::workflow::ContextDataModelDefinition;
+    use swf_core::models::schema::SchemaDefinition;
+    use swf_core::models::workflow::ContextDataModelDefinition;
 
     let ctx = ContextDataModelDefinition {
         schema: Some(SchemaDefinition::default()),
@@ -524,7 +524,7 @@ fn test_document_metadata_field() {
 
 #[test]
 fn test_runtime_expression() {
-    use serverless_workflow_core::models::expression::*;
+    use swf_core::models::expression::*;
 
     let expr = RuntimeExpression::new("${.foo.bar}");
     assert!(expr.is_strict());
@@ -539,11 +539,11 @@ fn test_runtime_expression() {
 
 #[test]
 fn test_validation_framework() {
-    use serverless_workflow_core::validation::*;
+    use swf_core::validation::*;
 
     assert!(is_valid_semver("1.0.0"));
     assert!(is_valid_hostname("example.com"));
-    assert!(serverless_workflow_core::models::duration::is_iso8601_duration_valid("PT5S"));
+    assert!(swf_core::models::duration::is_iso8601_duration_valid("PT5S"));
 
     let workflow = WorkflowDefinition::new(WorkflowDefinitionMetadata::new(
         "default", "test", "1.0.0", None, None, None,
@@ -554,7 +554,7 @@ fn test_validation_framework() {
 
 #[test]
 fn test_validation_missing_fields() {
-    use serverless_workflow_core::validation::*;
+    use swf_core::validation::*;
 
     let workflow = WorkflowDefinition::new(WorkflowDefinitionMetadata::new(
         "default", "", "", None, None, None,

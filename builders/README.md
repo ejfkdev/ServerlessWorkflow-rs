@@ -1,11 +1,11 @@
-# serverless_workflow_builders
+# swf_builders
 
 Fluent builder API for constructing [Serverless Workflow](https://serverlessworkflow.io/) definitions programmatically in Rust.
 
 ## Example
 
 ```rust,no_run
-use serverless_workflow_builders::WorkflowBuilder;
+use swf_builders::WorkflowBuilder;
 use serde_json::json;
 use std::collections::HashMap;
 

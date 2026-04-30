@@ -5,11 +5,11 @@ use crate::task_runner::{create_task_runner, TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
-use serverless_workflow_core::models::map::Map;
-use serverless_workflow_core::models::task::{
+use swf_core::models::map::Map;
+use swf_core::models::task::{
     DoTaskDefinition, SwitchTaskDefinition, TaskDefinition, TaskDefinitionFields,
 };
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::workflow::WorkflowDefinition;
 
 /// Flow directive returned after running a task
 enum FlowDirective {
@@ -248,12 +248,12 @@ mod tests {
     use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         SetTaskDefinition, SetValue, SwitchCaseDefinition, SwitchTaskDefinition,
         TaskDefinitionFields,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     fn make_do_runner(tasks: Vec<(&str, TaskDefinition)>) -> DoTaskRunner {
@@ -261,7 +261,7 @@ mod tests {
             .into_iter()
             .map(|(name, task)| (name.to_string(), task))
             .collect();
-        let do_def = serverless_workflow_core::models::task::DoTaskDefinition::new(Map { entries });
+        let do_def = swf_core::models::task::DoTaskDefinition::new(Map { entries });
         DoTaskRunner::new("testDo", &do_def).unwrap()
     }
 
@@ -930,10 +930,10 @@ mod tests {
         // Matches Go SDK's raise_conditional.yaml - raise with if condition
         // When condition is false, raise is skipped and next task runs
         let mut raise_task = TaskDefinition::Raise(
-            serverless_workflow_core::models::task::RaiseTaskDefinition {
-                raise: serverless_workflow_core::models::task::RaiseErrorDefinition::new(
-                    serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference::Error(
-                        serverless_workflow_core::models::error::ErrorDefinition::new(
+            swf_core::models::task::RaiseTaskDefinition {
+                raise: swf_core::models::task::RaiseErrorDefinition::new(
+                    swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
+                        swf_core::models::error::ErrorDefinition::new(
                             "authorization",
                             "Authorization Error",
                             json!(403),
@@ -972,10 +972,10 @@ mod tests {
     async fn test_conditional_raise_triggered() {
         // Same workflow, but user is underage so raise fires
         let mut raise_task = TaskDefinition::Raise(
-            serverless_workflow_core::models::task::RaiseTaskDefinition {
-                raise: serverless_workflow_core::models::task::RaiseErrorDefinition::new(
-                    serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference::Error(
-                        serverless_workflow_core::models::error::ErrorDefinition::new(
+            swf_core::models::task::RaiseTaskDefinition {
+                raise: swf_core::models::task::RaiseErrorDefinition::new(
+                    swf_core::models::error::OneOfErrorDefinitionOrReference::Error(
+                        swf_core::models::error::ErrorDefinition::new(
                             "authorization",
                             "Authorization Error",
                             json!(403),
@@ -1011,8 +1011,8 @@ mod tests {
     async fn test_wait_then_set_with_iso8601() {
         // Matches Go SDK's wait_duration_iso8601.yaml
         // set phase=started, wait PT0.01S, set phase=completed
-        use serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression;
-        use serverless_workflow_core::models::task::WaitTaskDefinition;
+        use swf_core::models::duration::OneOfDurationOrIso8601Expression;
+        use swf_core::models::task::WaitTaskDefinition;
 
         let wait_task = TaskDefinition::Wait(WaitTaskDefinition {
             wait: OneOfDurationOrIso8601Expression::Iso8601Expression("PT0.01S".to_string()),
@@ -1212,7 +1212,7 @@ mod tests {
         let mut set_blue = make_set_task("colors", json!("${ .colors + [\"blue\"] }"));
         if let TaskDefinition::Set(ref mut s) = set_blue {
             s.common.output = Some(
-                serverless_workflow_core::models::output::OutputDataModelDefinition {
+                swf_core::models::output::OutputDataModelDefinition {
                     as_: Some(json!("${ { resultColors: .colors } }")),
                     schema: None,
                 },
@@ -1247,7 +1247,7 @@ mod tests {
         // Matches Go SDK's fork_simple.yaml - fork non-compete with join set
         // branchColors: fork (compete: false) with setRed/setBlue branches
         // joinResult: set colors: ${ [.[] | .[]] }
-        use serverless_workflow_core::models::task::{BranchingDefinition, ForkTaskDefinition};
+        use swf_core::models::task::{BranchingDefinition, ForkTaskDefinition};
 
         let set_red = TaskDefinition::Set(SetTaskDefinition {
             set: SetValue::Map({

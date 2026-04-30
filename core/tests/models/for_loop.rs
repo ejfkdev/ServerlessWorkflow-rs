@@ -117,7 +117,7 @@ fn test_for_task_with_while_condition() {
 
 #[test]
 fn test_for_task_definition() {
-    use serverless_workflow_core::models::task::{ForLoopDefinition, ForTaskDefinition};
+    use swf_core::models::task::{ForLoopDefinition, ForTaskDefinition};
     let for_task = ForTaskDefinition::new(
         ForLoopDefinition::new("item", "${items}", Some("index".to_string()), None),
         Map::new(),
@@ -131,7 +131,7 @@ fn test_for_task_definition() {
 
 #[test]
 fn test_for_task_roundtrip() {
-    use serverless_workflow_core::models::task::{ForLoopDefinition, ForTaskDefinition};
+    use swf_core::models::task::{ForLoopDefinition, ForTaskDefinition};
     let for_task = ForTaskDefinition::new(
         ForLoopDefinition::new("pet", ".pets", Some("index".to_string()), None),
         Map::new(),
@@ -173,7 +173,7 @@ fn test_for_task_with_while_condition_spec() {
         ]
     });
 
-    let result: Result<serverless_workflow_core::models::task::ForTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ForTaskDefinition, _> =
         serde_json::from_value(for_json);
     assert!(
         result.is_ok(),
@@ -201,7 +201,7 @@ fn test_for_task_without_while() {
         ]
     });
 
-    let result: Result<serverless_workflow_core::models::task::ForTaskDefinition, _> =
+    let result: Result<swf_core::models::task::ForTaskDefinition, _> =
         serde_json::from_value(for_json);
     assert!(
         result.is_ok(),

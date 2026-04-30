@@ -1,7 +1,7 @@
 use crate::error::WorkflowResult;
 use crate::expression::evaluate_expression_str;
 use serde_json::Value;
-use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
+use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
 
 type VarsMap = std::collections::HashMap<String, Value>;
 type AuthDefs = std::collections::HashMap<String, ReferenceableAuthenticationPolicy>;

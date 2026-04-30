@@ -10,7 +10,7 @@ use std::sync::Mutex;
 /// # Example
 ///
 /// ```
-/// use serverless_workflow_runtime::secret::SecretManager;
+/// use swf_runtime::secret::SecretManager;
 /// use serde_json::Value;
 /// use std::collections::HashMap;
 ///

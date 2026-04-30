@@ -3,12 +3,12 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
-use serverless_workflow_core::models::retry::{
+use swf_core::models::retry::{
     JitterDefinition, OneOfRetryPolicyDefinitionOrReference, RetryAttemptLimitDefinition,
     RetryPolicyDefinition, RetryPolicyLimitDefinition,
 };
-use serverless_workflow_core::models::task::{ErrorCatcherDefinition, TryTaskDefinition};
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::task::{ErrorCatcherDefinition, TryTaskDefinition};
+use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -26,7 +26,7 @@ impl TryTaskRunner {
         _workflow: &WorkflowDefinition,
     ) -> WorkflowResult<Self> {
         let do_def =
-            serverless_workflow_core::models::task::DoTaskDefinition::new(task.try_.clone());
+            swf_core::models::task::DoTaskDefinition::new(task.try_.clone());
         let try_runner = DoTaskRunner::new(name, &do_def)?;
 
         Ok(Self {
@@ -82,7 +82,7 @@ impl TaskRunner for TryTaskRunner {
 
                 // Execute catch.do tasks if configured
                 let result = if let Some(ref catch_do) = self.catch.do_ {
-                    let do_def = serverless_workflow_core::models::task::DoTaskDefinition::new(
+                    let do_def = swf_core::models::task::DoTaskDefinition::new(
                         catch_do.clone(),
                     );
                     let catch_runner = DoTaskRunner::new(&self.name, &do_def)?;
@@ -202,8 +202,8 @@ impl TryTaskRunner {
             .as_ref()
             .map(|d| {
                 match d {
-                    serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(dur) => dur.total_milliseconds(),
-                    serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Iso8601Expression(expr) => {
+                    swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(dur) => dur.total_milliseconds(),
+                    swf_core::models::duration::OneOfDurationOrIso8601Expression::Iso8601Expression(expr) => {
                         crate::utils::parse_iso8601_duration(expr)
                             .map(|d| d.as_millis() as u64)
                             .unwrap_or(1000)
@@ -348,18 +348,18 @@ mod tests {
     use crate::default_support;
     use crate::test_utils::test_helpers::make_set_task;
     use serde_json::json;
-    use serverless_workflow_core::models::error::{
+    use swf_core::models::error::{
         ErrorDefinition, OneOfErrorDefinitionOrReference,
     };
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::retry::{
+    use swf_core::models::map::Map;
+    use swf_core::models::retry::{
         RetryAttemptLimitDefinition, RetryPolicyDefinition, RetryPolicyLimitDefinition,
     };
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::task::{
         ErrorCatcherDefinition, ErrorFilterDefinition, ErrorFilterProperties, RaiseErrorDefinition,
         RaiseTaskDefinition, TaskDefinition, TaskDefinitionFields,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     /// Helper: build a TryTaskRunner from try tasks + catch config
@@ -547,7 +547,7 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_constant() {
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(serverless_workflow_core::models::duration::Duration::from_milliseconds(10))),
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(swf_core::models::duration::Duration::from_milliseconds(10))),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
                 attempt: Some(RetryAttemptLimitDefinition { count: Some(3), duration: None }),
@@ -1014,8 +1014,8 @@ mod tests {
     async fn test_try_catch_retry_reference() {
         // Matches Java SDK's try-catch-retry-reusable - retry using reference from workflow.use.retries
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
@@ -1029,7 +1029,7 @@ mod tests {
 
         let mut retries = HashMap::new();
         retries.insert("default".to_string(), retry);
-        let use_def = serverless_workflow_core::models::workflow::ComponentDefinitionCollection {
+        let use_def = swf_core::models::workflow::ComponentDefinitionCollection {
             retries: Some(retries),
             ..Default::default()
         };
@@ -1067,8 +1067,8 @@ mod tests {
     async fn test_try_retry_with_when_condition() {
         // Retry policy with when condition - only retry if error status is 5xx
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
@@ -1113,8 +1113,8 @@ mod tests {
     async fn test_try_retry_with_except_when_condition() {
         // Retry policy with except_when condition - do NOT retry if error type is authentication
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
@@ -1155,8 +1155,8 @@ mod tests {
     async fn test_try_retry_when_condition_allows_retry() {
         // Retry policy with when condition - retry allowed for 5xx errors
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: None,
             limit: Some(RetryPolicyLimitDefinition {
@@ -1197,13 +1197,13 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_exponential_backoff() {
         // Matches Java SDK's try-catch-retry-inline.yaml - retry with exponential backoff
-        use serverless_workflow_core::models::retry::{
+        use swf_core::models::retry::{
             BackoffStrategyDefinition, ExponentialBackoffDefinition,
         };
 
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
@@ -1255,19 +1255,19 @@ mod tests {
     #[tokio::test]
     async fn test_try_retry_linear_backoff() {
         // Test retry with linear backoff strategy
-        use serverless_workflow_core::models::retry::{
+        use swf_core::models::retry::{
             BackoffStrategyDefinition, LinearBackoffDefinition,
         };
 
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
                 exponential: None,
                 linear: Some(LinearBackoffDefinition {
-                    increment: Some(serverless_workflow_core::models::duration::Duration::from_milliseconds(5)),
+                    increment: Some(swf_core::models::duration::Duration::from_milliseconds(5)),
                     definition: None,
                 }),
             }),
@@ -1306,13 +1306,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_try_retry_with_jitter() {
-        use serverless_workflow_core::models::retry::{
+        use swf_core::models::retry::{
             BackoffStrategyDefinition, JitterDefinition,
         };
 
         let retry = RetryPolicyDefinition {
-            delay: Some(serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
-                serverless_workflow_core::models::duration::Duration::from_milliseconds(10)
+            delay: Some(swf_core::models::duration::OneOfDurationOrIso8601Expression::Duration(
+                swf_core::models::duration::Duration::from_milliseconds(10)
             )),
             backoff: Some(BackoffStrategyDefinition {
                 constant: None,
@@ -1326,8 +1326,8 @@ mod tests {
             when: None,
             except_when: None,
             jitter: Some(JitterDefinition {
-                from: serverless_workflow_core::models::duration::Duration::from_milliseconds(1),
-                to: serverless_workflow_core::models::duration::Duration::from_milliseconds(5),
+                from: swf_core::models::duration::Duration::from_milliseconds(1),
+                to: swf_core::models::duration::Duration::from_milliseconds(5),
             }),
         };
 
@@ -1364,8 +1364,8 @@ mod tests {
     #[test]
     fn test_apply_jitter_with_range() {
         let jitter = JitterDefinition {
-            from: serverless_workflow_core::models::duration::Duration::from_milliseconds(10),
-            to: serverless_workflow_core::models::duration::Duration::from_milliseconds(50),
+            from: swf_core::models::duration::Duration::from_milliseconds(10),
+            to: swf_core::models::duration::Duration::from_milliseconds(50),
         };
         let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
         // delay should be 100 + [10, 50] = [110, 150]
@@ -1379,8 +1379,8 @@ mod tests {
     #[test]
     fn test_apply_jitter_equal_from_to() {
         let jitter = JitterDefinition {
-            from: serverless_workflow_core::models::duration::Duration::from_milliseconds(20),
-            to: serverless_workflow_core::models::duration::Duration::from_milliseconds(20),
+            from: swf_core::models::duration::Duration::from_milliseconds(20),
+            to: swf_core::models::duration::Duration::from_milliseconds(20),
         };
         let delay = TryTaskRunner::apply_jitter(100, Some(&jitter));
         assert_eq!(delay, 120);

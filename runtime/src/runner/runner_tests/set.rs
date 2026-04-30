@@ -52,8 +52,8 @@ async fn test_runner_set_tasks_invalid_then() {
 
 #[tokio::test]
 async fn test_runner_simple_set_workflow() {
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         SetTaskDefinition, SetValue, TaskDefinition, TaskDefinitionFields,
     };
     use std::collections::HashMap;

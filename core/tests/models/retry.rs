@@ -175,7 +175,7 @@ fn test_jitter_definition_serialization() {
 
 #[test]
 fn test_retry_policy_with_backoff() {
-    use serverless_workflow_core::models::retry::{
+    use swf_core::models::retry::{
         BackoffStrategyDefinition, ExponentialBackoffDefinition, RetryPolicyDefinition,
     };
     let retry = RetryPolicyDefinition {
@@ -195,7 +195,7 @@ fn test_retry_policy_with_backoff() {
 
 #[test]
 fn test_retry_policy_roundtrip() {
-    use serverless_workflow_core::models::retry::{LinearBackoffDefinition, RetryPolicyDefinition};
+    use swf_core::models::retry::{LinearBackoffDefinition, RetryPolicyDefinition};
     let retry = RetryPolicyDefinition {
         when: Some("${ .shouldRetry }".to_string()),
         delay: Some(OneOfDurationOrIso8601Expression::Duration(
@@ -215,7 +215,7 @@ fn test_retry_policy_roundtrip() {
 
 #[test]
 fn test_retry_policy_with_all_fields() {
-    use serverless_workflow_core::models::retry::{
+    use swf_core::models::retry::{
         BackoffStrategyDefinition, ExponentialBackoffDefinition, JitterDefinition,
         RetryAttemptLimitDefinition, RetryPolicyDefinition, RetryPolicyLimitDefinition,
     };
@@ -254,7 +254,7 @@ fn test_retry_policy_with_all_fields() {
 
 #[test]
 fn test_retry_policy_roundtrip_with_all_fields() {
-    use serverless_workflow_core::models::retry::{
+    use swf_core::models::retry::{
         BackoffStrategyDefinition, ConstantBackoffDefinition, JitterDefinition,
         RetryPolicyDefinition,
     };
@@ -299,7 +299,7 @@ fn test_retry_with_linear_backoff() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::retry::RetryPolicyDefinition, _> =
+    let result: Result<swf_core::models::retry::RetryPolicyDefinition, _> =
         serde_json::from_value(retry_json);
     assert!(
         result.is_ok(),
@@ -327,7 +327,7 @@ fn test_retry_with_constant_backoff() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::retry::RetryPolicyDefinition, _> =
+    let result: Result<swf_core::models::retry::RetryPolicyDefinition, _> =
         serde_json::from_value(retry_json);
     assert!(
         result.is_ok(),
@@ -353,7 +353,7 @@ fn test_retry_with_exponential_backoff() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::retry::RetryPolicyDefinition, _> =
+    let result: Result<swf_core::models::retry::RetryPolicyDefinition, _> =
         serde_json::from_value(retry_json);
     assert!(
         result.is_ok(),
@@ -364,7 +364,7 @@ fn test_retry_with_exponential_backoff() {
 
 #[test]
 fn test_backoff_definition_with_parameters() {
-    use serverless_workflow_core::models::retry::*;
+    use swf_core::models::retry::*;
 
     // Test constant backoff with definition
     let constant = ConstantBackoffDefinition {

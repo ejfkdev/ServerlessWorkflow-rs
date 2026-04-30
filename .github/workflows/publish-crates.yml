@@ -22,7 +22,7 @@ jobs:
         shell: bash
         run: |
           # Publish in dependency order: core → builders → runtime → cli
-          for crate in serverless_workflow_core serverless_workflow_builders serverless_workflow_runtime serverless_workflow_cli; do
+          for crate in swf-core swf-builders swf-runtime swf-cli; do
             echo "Publishing $crate..."
             cargo publish -p "$crate" --registry crates-io --allow-dirty
             echo "Waiting for index to sync..."

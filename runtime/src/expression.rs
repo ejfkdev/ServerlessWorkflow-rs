@@ -1,6 +1,6 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
-use serverless_workflow_core::models::expression::{is_strict_expr, sanitize_expr};
+use swf_core::models::expression::{is_strict_expr, sanitize_expr};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -156,7 +156,7 @@ pub fn traverse_and_evaluate_bool(
     let normalized = if is_strict_expr(expr) {
         expr.to_string()
     } else {
-        serverless_workflow_core::models::expression::normalize_expr(expr)
+        swf_core::models::expression::normalize_expr(expr)
     };
 
     let sanitized = sanitize_expr(&normalized);
@@ -291,7 +291,7 @@ pub fn prepare_expression(expr: &str) -> String {
     if is_strict_expr(expr) {
         sanitize_expr(expr)
     } else {
-        let normalized = serverless_workflow_core::models::expression::normalize_expr(expr);
+        let normalized = swf_core::models::expression::normalize_expr(expr);
         sanitize_expr(&normalized)
     }
 }

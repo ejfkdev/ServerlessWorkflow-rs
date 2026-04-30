@@ -12,7 +12,7 @@ use std::sync::Arc;
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use serverless_workflow_runtime::{CallHandler, WorkflowResult};
+/// use swf_runtime::{CallHandler, WorkflowResult};
 ///
 /// struct GrpcCallHandler;
 ///
@@ -55,7 +55,7 @@ pub trait CallHandler: Send + Sync {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use serverless_workflow_runtime::{RunHandler, WorkflowResult};
+/// use swf_runtime::{RunHandler, WorkflowResult};
 ///
 /// struct ContainerRunHandler;
 ///
@@ -99,7 +99,7 @@ pub trait RunHandler: Send + Sync {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use serverless_workflow_runtime::{CustomTaskHandler, WorkflowResult};
+/// use swf_runtime::{CustomTaskHandler, WorkflowResult};
 ///
 /// struct UppercaseHandler;
 ///

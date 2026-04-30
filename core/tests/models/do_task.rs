@@ -62,10 +62,10 @@ fn test_do_task_roundtrip_serialization() {
     do_tasks.add(
         "task1".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "func1".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );

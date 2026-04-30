@@ -30,10 +30,10 @@ fn test_fork_task_roundtrip_serialization() {
     branches.add(
         "task1".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "func1".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
@@ -84,10 +84,10 @@ fn test_branching_definition_serialization() {
     branches.add(
         "task1".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "http".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
@@ -100,8 +100,8 @@ fn test_branching_definition_serialization() {
 
 #[test]
 fn test_fork_task_definition() {
-    use serverless_workflow_core::models::task::BranchingDefinition;
-    use serverless_workflow_core::models::task::ForkTaskDefinition;
+    use swf_core::models::task::BranchingDefinition;
+    use swf_core::models::task::ForkTaskDefinition;
     let fork_task = ForkTaskDefinition {
         fork: BranchingDefinition {
             branches: Map::new(),
@@ -115,8 +115,8 @@ fn test_fork_task_definition() {
 
 #[test]
 fn test_fork_task_roundtrip() {
-    use serverless_workflow_core::models::task::BranchingDefinition;
-    use serverless_workflow_core::models::task::ForkTaskDefinition;
+    use swf_core::models::task::BranchingDefinition;
+    use swf_core::models::task::ForkTaskDefinition;
     let fork_task = ForkTaskDefinition {
         fork: BranchingDefinition {
             branches: Map::new(),
@@ -167,8 +167,8 @@ fn test_fork_task_with_branches() {
 #[test]
 fn test_fork_task_branches_construction() {
     // Test ForkTaskDefinition with multiple branches and compete flag
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         BranchingDefinition, CallTaskDefinition, ForkTaskDefinition, TaskDefinition,
     };
 
@@ -176,10 +176,10 @@ fn test_fork_task_branches_construction() {
     branch1.add(
         "callNurse".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "http".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
@@ -188,10 +188,10 @@ fn test_fork_task_branches_construction() {
     branch2.add(
         "callDoctor".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "http".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
@@ -199,11 +199,11 @@ fn test_fork_task_branches_construction() {
     let mut branches = Map::new();
     branches.add(
         "branch1".to_string(),
-        TaskDefinition::Do(serverless_workflow_core::models::task::DoTaskDefinition::new(branch1)),
+        TaskDefinition::Do(swf_core::models::task::DoTaskDefinition::new(branch1)),
     );
     branches.add(
         "branch2".to_string(),
-        TaskDefinition::Do(serverless_workflow_core::models::task::DoTaskDefinition::new(branch2)),
+        TaskDefinition::Do(swf_core::models::task::DoTaskDefinition::new(branch2)),
     );
 
     let fork = BranchingDefinition::new(branches, true);

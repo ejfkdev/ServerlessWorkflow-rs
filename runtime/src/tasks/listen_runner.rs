@@ -4,11 +4,11 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
 use serde_json::Value;
-use serverless_workflow_core::models::event::{
+use swf_core::models::event::{
     EventConsumptionStrategyDefinition, EventFilterDefinition,
     OneOfEventConsumptionStrategyDefinitionOrExpression,
 };
-use serverless_workflow_core::models::task::ListenTaskDefinition;
+use swf_core::models::task::ListenTaskDefinition;
 
 define_simple_task_runner!(
     /// Runner for Listen tasks - subscribes to events from the EventBus
@@ -277,7 +277,7 @@ impl ListenTaskRunner {
     async fn process_foreach(
         &self,
         events_array: &Value,
-        foreach: &serverless_workflow_core::models::task::SubscriptionIteratorDefinition,
+        foreach: &swf_core::models::task::SubscriptionIteratorDefinition,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
         let items = match events_array.as_array() {
@@ -427,12 +427,12 @@ mod tests {
     use crate::default_support;
     use crate::events::InMemoryEventBus;
     use serde_json::json;
-    use serverless_workflow_core::models::event::EventConsumptionStrategyDefinition;
-    use serverless_workflow_core::models::event::EventFilterDefinition;
-    use serverless_workflow_core::models::task::ListenTaskDefinition;
-    use serverless_workflow_core::models::task::ListenerDefinition;
-    use serverless_workflow_core::models::task::TaskDefinitionFields;
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::event::EventConsumptionStrategyDefinition;
+    use swf_core::models::event::EventFilterDefinition;
+    use swf_core::models::task::ListenTaskDefinition;
+    use swf_core::models::task::ListenerDefinition;
+    use swf_core::models::task::TaskDefinitionFields;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
     use std::sync::Arc;
 

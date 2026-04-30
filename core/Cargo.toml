@@ -1,12 +1,12 @@
 [package]
-name = "serverless_workflow_core"
+name = "swf-core"
 description = "Serverless Workflow DSL models — data structures, serialization, and validation"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-documentation = "https://docs.rs/serverless_workflow_core"
+documentation = "https://docs.rs/swf-core"
 edition.workspace = true
 rust-version.workspace = true
 keywords = ["serverless-workflow", "sdk", "core"]

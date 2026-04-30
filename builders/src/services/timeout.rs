@@ -1,5 +1,5 @@
-use serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression;
-use serverless_workflow_core::models::timeout::TimeoutDefinition;
+use swf_core::models::duration::OneOfDurationOrIso8601Expression;
+use swf_core::models::timeout::TimeoutDefinition;
 
 /// Builder for TimeoutDefinition
 pub struct TimeoutDefinitionBuilder {

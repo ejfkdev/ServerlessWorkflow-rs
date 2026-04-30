@@ -1,11 +1,11 @@
-# serverless_workflow_cli
+# swf_cli
 
 CLI tool for executing [Serverless Workflow](https://serverlessworkflow.io/) definitions.
 
 ## Installation
 
 ```bash
-cargo install serverless_workflow_cli
+cargo install swf_cli
 ```
 
 Or download a pre-built binary from [GitHub Releases](https://github.com/ejfkdev/ServerlessWorkflow-rs/releases).

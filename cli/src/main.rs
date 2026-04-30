@@ -1,8 +1,8 @@
 #![deny(unsafe_code)]
 
 use serde_json::Value;
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
-use serverless_workflow_runtime::{
+use swf_core::models::workflow::WorkflowDefinition;
+use swf_runtime::{
     EnvSecretManager, InMemoryEventBus, WorkflowEvent, WorkflowExecutionListener, WorkflowRunner,
 };
 use std::env;

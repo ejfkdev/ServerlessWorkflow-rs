@@ -13,10 +13,10 @@ This project provides a complete Rust implementation of the Serverless Workflow 
 
 | Crate | Version | Description |
 |-------|---------|-------------|
-| [`serverless_workflow_core`](./core) | `1.0.0-alpha7` | Data models, serialization (JSON/YAML), and validation |
-| [`serverless_workflow_builders`](./builders) | `1.0.0-alpha7` | Fluent builder API for constructing workflow definitions |
-| [`serverless_workflow_runtime`](./runtime) | `1.0.0-alpha7` | Workflow execution engine with HTTP/shell/auth support |
-| [`serverless_workflow_cli`](./cli) | `1.0.0-alpha7` | CLI tool (`swf`) for executing workflow YAML files |
+| [`swf_core`](./core) | `1.0.0-alpha7` | Data models, serialization (JSON/YAML), and validation |
+| [`swf_builders`](./builders) | `1.0.0-alpha7` | Fluent builder API for constructing workflow definitions |
+| [`swf_runtime`](./runtime) | `1.0.0-alpha7` | Workflow execution engine with HTTP/shell/auth support |
+| [`swf_cli`](./cli) | `1.0.0-alpha7` | CLI tool (`swf`) for executing workflow YAML files |
 
 ## Quick Start
 
@@ -24,15 +24,15 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-serverless_workflow_core = "1.0.0-alpha7"
-serverless_workflow_runtime = "1.0.0-alpha7"
+swf_core = "1.0.0-alpha7"
+swf_runtime = "1.0.0-alpha7"
 ```
 
 ### Parse and run a workflow from YAML
 
 ```rust,no_run
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
-use serverless_workflow_runtime::WorkflowRunner;
+use swf_core::models::workflow::WorkflowDefinition;
+use swf_runtime::WorkflowRunner;
 
 let yaml = std::fs::read_to_string("workflow.yaml")?;
 let workflow: WorkflowDefinition = serde_yaml::from_str(&yaml)?;
@@ -45,7 +45,7 @@ println!("{}", serde_json::to_string_pretty(&result)?);
 ### Build a workflow programmatically
 
 ```rust,no_run
-use serverless_workflow_builders::WorkflowBuilder;
+use swf_builders::WorkflowBuilder;
 use serde_json::json;
 use std::collections::HashMap;
 
@@ -65,7 +65,7 @@ let workflow = WorkflowBuilder::new()
 ### Use secrets in workflows
 
 ```rust,no_run
-use serverless_workflow_runtime::{WorkflowRunner, secret::MapSecretManager};
+use swf_runtime::{WorkflowRunner, secret::MapSecretManager};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -85,7 +85,7 @@ let result = runner.run(json!({})).await?;
 ```rust,no_run
 use async_trait::async_trait;
 use serde_json::Value;
-use serverless_workflow_runtime::{CustomTaskHandler, WorkflowError, WorkflowResult};
+use swf_runtime::{CustomTaskHandler, WorkflowError, WorkflowResult};
 
 struct MyHandler;
 
@@ -116,7 +116,7 @@ The `swf` command-line tool executes Serverless Workflow YAML definitions direct
 Download a pre-built binary from [GitHub Releases](https://github.com/ejfkdev/ServerlessWorkflow-rs/releases) (8 platforms), or build from source:
 
 ```bash
-cargo install serverless_workflow_cli
+cargo install swf_cli
 ```
 
 ### Usage
@@ -244,7 +244,7 @@ Full validation matching the official Go SDK's struct tag rules:
 Run an example:
 
 ```bash
-cargo run -p serverless_workflow_runtime --example hello_workflow
+cargo run -p swf_runtime --example hello_workflow
 ```
 
 ## Running Tests

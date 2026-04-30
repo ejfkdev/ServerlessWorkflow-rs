@@ -3,8 +3,8 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
-use serverless_workflow_core::models::input::InputDataModelDefinition;
-use serverless_workflow_core::models::task::{DoTaskDefinition, ForTaskDefinition};
+use swf_core::models::input::InputDataModelDefinition;
+use swf_core::models::task::{DoTaskDefinition, ForTaskDefinition};
 use std::collections::HashMap;
 
 /// Runner for For tasks - iterates over collections
@@ -108,12 +108,12 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use serde_json::json;
-    use serverless_workflow_core::models::map::Map;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::map::Map;
+    use swf_core::models::task::{
         ForLoopDefinition, ForTaskDefinition, SetTaskDefinition, SetValue, TaskDefinition,
         TaskDefinitionFields,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     #[tokio::test]
@@ -644,7 +644,7 @@ mod tests {
 
         let do_entries = vec![("sumIndex".to_string(), set_task)];
 
-        let for_input = serverless_workflow_core::models::input::InputDataModelDefinition {
+        let for_input = swf_core::models::input::InputDataModelDefinition {
             from: Some(json!("${ {input: .input, output: []} }")),
             schema: None,
         };
@@ -695,7 +695,7 @@ mod tests {
 
         let do_entries = vec![("doubleIt".to_string(), set_task)];
 
-        let for_input = serverless_workflow_core::models::input::InputDataModelDefinition {
+        let for_input = swf_core::models::input::InputDataModelDefinition {
             from: Some(json!("${ {items: .items, results: []} }")),
             schema: None,
         };

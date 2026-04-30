@@ -1,4 +1,4 @@
-# serverless_workflow_core
+# swf_core
 
 Core data models, serialization, and validation for the [Serverless Workflow](https://serverlessworkflow.io/) DSL specification v1.0.0.
 

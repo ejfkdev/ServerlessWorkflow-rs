@@ -1697,61 +1697,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serverless_workflow_builders"
-version = "1.0.0-alpha7"
-dependencies = [
- "serde_json",
- "serverless_workflow_core",
-]
-
-[[package]]
-name = "serverless_workflow_cli"
-version = "1.0.0-alpha7"
-dependencies = [
- "serde_json",
- "serde_yaml",
- "serverless_workflow_core",
- "serverless_workflow_runtime",
- "tokio",
-]
-
-[[package]]
-name = "serverless_workflow_core"
-version = "1.0.0-alpha7"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
-]
-
-[[package]]
-name = "serverless_workflow_runtime"
-version = "1.0.0-alpha7"
-dependencies = [
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "jaq-core",
- "jaq-interpret",
- "jaq-json",
- "jaq-std",
- "jsonschema",
- "md-5",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "serverless_workflow_builders",
- "serverless_workflow_core",
- "tokio",
- "tokio-util",
- "uuid",
- "warp",
-]
-
-[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1833,6 +1778,61 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "swf-builders"
+version = "1.0.0-alpha7"
+dependencies = [
+ "serde_json",
+ "swf-core",
+]
+
+[[package]]
+name = "swf-cli"
+version = "1.0.0-alpha7"
+dependencies = [
+ "serde_json",
+ "serde_yaml",
+ "swf-core",
+ "swf-runtime",
+ "tokio",
+]
+
+[[package]]
+name = "swf-core"
+version = "1.0.0-alpha7"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
+name = "swf-runtime"
+version = "1.0.0-alpha7"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "jaq-core",
+ "jaq-interpret",
+ "jaq-json",
+ "jaq-std",
+ "jsonschema",
+ "md-5",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "swf-builders",
+ "swf-core",
+ "tokio",
+ "tokio-util",
+ "uuid",
+ "warp",
+]
 
 [[package]]
 name = "syn"

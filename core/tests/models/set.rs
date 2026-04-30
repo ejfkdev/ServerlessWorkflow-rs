@@ -148,7 +148,7 @@ fn test_set_task_with_all_fields() {
 
 #[test]
 fn test_set_task_definition() {
-    use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
+    use swf_core::models::task::{SetTaskDefinition, SetValue};
     use std::collections::HashMap;
     let mut set_map = HashMap::new();
     set_map.insert("key1".to_string(), serde_json::json!("value1"));
@@ -165,7 +165,7 @@ fn test_set_task_definition() {
 
 #[test]
 fn test_set_task_roundtrip() {
-    use serverless_workflow_core::models::task::{SetTaskDefinition, SetValue};
+    use swf_core::models::task::{SetTaskDefinition, SetValue};
     use std::collections::HashMap;
     let mut set_map = HashMap::new();
     set_map.insert("name".to_string(), serde_json::json!("test"));
@@ -183,37 +183,37 @@ fn test_set_task_roundtrip() {
 #[test]
 fn test_map_serialization_order() {
     // Test that Map entries maintain serialization order
-    use serverless_workflow_core::models::task::CallTaskDefinition;
-    use serverless_workflow_core::models::task::TaskDefinition;
+    use swf_core::models::task::CallTaskDefinition;
+    use swf_core::models::task::TaskDefinition;
 
     let mut map = Map::new();
     map.add(
         "first".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "func1".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
     map.add(
         "second".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "func2".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );
     map.add(
         "third".to_string(),
         TaskDefinition::Call(Box::new(CallTaskDefinition::Function(
-            serverless_workflow_core::models::call::CallFunctionDefinition {
+            swf_core::models::call::CallFunctionDefinition {
                 call: "func3".to_string(),
                 with: None,
-                common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+                common: swf_core::models::task::TaskDefinitionFields::default(),
             },
         ))),
     );

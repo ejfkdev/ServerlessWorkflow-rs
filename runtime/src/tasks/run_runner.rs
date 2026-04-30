@@ -3,7 +3,7 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
 use serde_json::Value;
-use serverless_workflow_core::models::task::{
+use swf_core::models::task::{
     OneOfRunArguments, RunTaskDefinition, ShellProcessDefinition, WorkflowProcessDefinition,
 };
 
@@ -283,10 +283,10 @@ mod tests {
     use crate::context::WorkflowContext;
     use crate::default_support;
     use serde_json::json;
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::task::{
         ProcessTypeDefinition, RunTaskDefinition, ShellProcessDefinition,
     };
-    use serverless_workflow_core::models::workflow::WorkflowDefinition;
+    use swf_core::models::workflow::WorkflowDefinition;
     use std::collections::HashMap;
 
     fn make_shell_task(command: &str) -> RunTaskDefinition {
@@ -307,7 +307,7 @@ mod tests {
         }
     }
 
-    use serverless_workflow_core::models::task::TaskDefinitionFields;
+    use swf_core::models::task::TaskDefinitionFields;
 
     #[tokio::test]
     async fn test_run_shell_echo() {
@@ -407,7 +407,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_container_unsupported() {
-        use serverless_workflow_core::models::task::ContainerProcessDefinition;
+        use swf_core::models::task::ContainerProcessDefinition;
 
         let task = RunTaskDefinition {
             run: ProcessTypeDefinition {
@@ -435,7 +435,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_script_unsupported() {
-        use serverless_workflow_core::models::task::ScriptProcessDefinition;
+        use swf_core::models::task::ScriptProcessDefinition;
 
         let task = RunTaskDefinition {
             run: ProcessTypeDefinition {
@@ -464,7 +464,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_container_with_custom_handler() {
         use crate::handler::RunHandler;
-        use serverless_workflow_core::models::task::ContainerProcessDefinition;
+        use swf_core::models::task::ContainerProcessDefinition;
 
         struct MockContainerHandler;
 
@@ -514,7 +514,7 @@ mod tests {
     #[tokio::test]
     async fn test_run_script_with_custom_handler() {
         use crate::handler::RunHandler;
-        use serverless_workflow_core::models::task::ScriptProcessDefinition;
+        use swf_core::models::task::ScriptProcessDefinition;
 
         struct MockScriptHandler;
 

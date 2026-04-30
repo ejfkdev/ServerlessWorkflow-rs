@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn test_event_filter_definition_serialization() {
     // Test EventFilterDefinition serialization
-    use serverless_workflow_core::models::event::EventFilterDefinition;
+    use swf_core::models::event::EventFilterDefinition;
     use std::collections::HashMap;
 
     let mut with = HashMap::new();
@@ -25,7 +25,7 @@ fn test_event_filter_definition_serialization() {
 #[test]
 fn test_event_definition_serialization() {
     // Test EventDefinition serialization
-    use serverless_workflow_core::models::event::EventDefinition;
+    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
 
     let mut with = HashMap::new();
@@ -42,7 +42,7 @@ fn test_event_definition_serialization() {
 #[test]
 fn test_event_definition_with_all_fields() {
     // Test EventDefinition with all fields (matching Go SDK EventProperties)
-    use serverless_workflow_core::models::event::EventDefinition;
+    use swf_core::models::event::EventDefinition;
 
     let event_json = json!({
         "id": "my-event-id",
@@ -84,7 +84,7 @@ fn test_event_definition_with_all_fields() {
 #[test]
 fn test_event_definition_roundtrip() {
     // Test EventDefinition roundtrip serialization with all fields
-    use serverless_workflow_core::models::event::EventDefinition;
+    use swf_core::models::event::EventDefinition;
 
     let event = EventDefinition {
         id: Some("test-id".to_string()),
@@ -110,7 +110,7 @@ fn test_event_definition_roundtrip() {
 #[test]
 fn test_event_consumption_until_false() {
     // Test EventConsumptionStrategyDefinition with until: false (disabled)
-    use serverless_workflow_core::models::event::{
+    use swf_core::models::event::{
         EventConsumptionStrategyDefinition, OneOfEventConsumptionStrategyDefinitionOrExpression,
     };
 
@@ -135,7 +135,7 @@ fn test_event_consumption_until_false() {
 #[test]
 fn test_event_consumption_until_expression() {
     // Test EventConsumptionStrategyDefinition with until: expression
-    use serverless_workflow_core::models::event::{
+    use swf_core::models::event::{
         EventConsumptionStrategyDefinition, OneOfEventConsumptionStrategyDefinitionOrExpression,
     };
 
@@ -158,7 +158,7 @@ fn test_event_consumption_until_expression() {
 
 #[test]
 fn test_event_consumption_strategy_with_any() {
-    use serverless_workflow_core::models::event::{
+    use swf_core::models::event::{
         EventConsumptionStrategyDefinition, EventFilterDefinition,
     };
     use std::collections::HashMap;
@@ -179,7 +179,7 @@ fn test_event_consumption_strategy_with_any() {
 
 #[test]
 fn test_event_consumption_strategy_with_all() {
-    use serverless_workflow_core::models::event::{
+    use swf_core::models::event::{
         EventConsumptionStrategyDefinition, EventFilterDefinition,
     };
     use std::collections::HashMap;
@@ -202,7 +202,7 @@ fn test_event_consumption_strategy_with_all() {
 
 #[test]
 fn test_event_definition() {
-    use serverless_workflow_core::models::event::EventDefinition;
+    use swf_core::models::event::EventDefinition;
     use std::collections::HashMap;
     let mut with = HashMap::new();
     with.insert("id".to_string(), serde_json::json!("event-id"));
@@ -216,7 +216,7 @@ fn test_event_definition() {
 #[test]
 fn test_event_consumption_strategy_with_until_expression() {
     // Test EventConsumptionStrategyDefinition with until expression
-    use serverless_workflow_core::models::event::{
+    use swf_core::models::event::{
         EventConsumptionStrategyDefinition, EventFilterDefinition,
     };
     use std::collections::HashMap;
@@ -229,7 +229,7 @@ fn test_event_consumption_strategy_with_until_expression() {
             with: Some(with),
             ..Default::default()
         }]),
-        until: Some(Box::new(serverless_workflow_core::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Expression("workflow.data.done == true".to_string()))),
+        until: Some(Box::new(swf_core::models::event::OneOfEventConsumptionStrategyDefinitionOrExpression::Expression("workflow.data.done == true".to_string()))),
         ..Default::default()
     };
 
@@ -241,7 +241,7 @@ fn test_event_consumption_strategy_with_until_expression() {
 #[test]
 fn test_correlation_key_definition() {
     // Test CorrelationKeyDefinition serialization
-    use serverless_workflow_core::models::event::CorrelationKeyDefinition;
+    use swf_core::models::event::CorrelationKeyDefinition;
 
     let correlation =
         CorrelationKeyDefinition::new("event.source", Some("http://example.com".to_string()));
@@ -256,7 +256,7 @@ fn test_correlation_key_definition() {
 #[test]
 fn test_subscription_iterator_definition() {
     // Test SubscriptionIteratorDefinition serialization
-    use serverless_workflow_core::models::task::SubscriptionIteratorDefinition;
+    use swf_core::models::task::SubscriptionIteratorDefinition;
 
     let iterator = SubscriptionIteratorDefinition {
         item: Some("item".to_string()),
@@ -291,7 +291,7 @@ fn test_event_consumption_all_strategy() {
     });
 
     let result: Result<
-        serverless_workflow_core::models::event::EventConsumptionStrategyDefinition,
+        swf_core::models::event::EventConsumptionStrategyDefinition,
         _,
     > = serde_json::from_value(strategy_json);
     assert!(
@@ -308,7 +308,7 @@ fn test_subscription_iterator() {
         "IEF": "someExpression"
     });
 
-    let result: Result<serverless_workflow_core::models::task::SubscriptionIteratorDefinition, _> =
+    let result: Result<swf_core::models::task::SubscriptionIteratorDefinition, _> =
         serde_json::from_value(iterator_json);
     assert!(
         result.is_ok(),
@@ -329,7 +329,7 @@ fn test_event_definition_with_multiple_attributes() {
     );
     with.insert("id".to_string(), serde_json::json!("event-123"));
 
-    let event_def = serverless_workflow_core::models::event::EventDefinition::new(with);
+    let event_def = swf_core::models::event::EventDefinition::new(with);
     let json_str = serde_json::to_string(&event_def).expect("Failed to serialize");
     assert!(json_str.contains("com.example.event"));
 }

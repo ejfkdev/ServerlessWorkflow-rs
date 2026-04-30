@@ -7,10 +7,10 @@ use crate::listener::WorkflowEvent;
 use crate::status::StatusPhase;
 use crate::tasks::*;
 use serde_json::Value;
-use serverless_workflow_core::models::input::InputDataModelDefinition;
-use serverless_workflow_core::models::output::OutputDataModelDefinition;
-use serverless_workflow_core::models::task::{TaskDefinition, TaskDefinitionFields};
-use serverless_workflow_core::models::workflow::WorkflowDefinition;
+use swf_core::models::input::InputDataModelDefinition;
+use swf_core::models::output::OutputDataModelDefinition;
+use swf_core::models::task::{TaskDefinition, TaskDefinitionFields};
+use swf_core::models::workflow::WorkflowDefinition;
 use std::collections::HashMap;
 
 /// Owned task support for concurrent branch execution (e.g., fork)
@@ -195,7 +195,7 @@ impl<'a> TaskSupport<'a> {
     /// Resolves a duration expression with current context vars
     pub fn eval_duration(
         &self,
-        expr: &serverless_workflow_core::models::duration::OneOfDurationOrIso8601Expression,
+        expr: &swf_core::models::duration::OneOfDurationOrIso8601Expression,
         input: &Value,
         task_name: &str,
     ) -> WorkflowResult<std::time::Duration> {

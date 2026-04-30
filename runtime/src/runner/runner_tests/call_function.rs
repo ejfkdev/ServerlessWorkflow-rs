@@ -435,9 +435,9 @@ async fn test_call_function_with_catalog() {
     // Register a function that sets a value, then call it via call: function
     let mut set_map = HashMap::new();
     set_map.insert("greeting".to_string(), json!("hello from catalog"));
-    let set_task = TaskDefinition::Set(serverless_workflow_core::models::task::SetTaskDefinition {
-        set: serverless_workflow_core::models::task::SetValue::Map(set_map),
-        common: serverless_workflow_core::models::task::TaskDefinitionFields::new(),
+    let set_task = TaskDefinition::Set(swf_core::models::task::SetTaskDefinition {
+        set: swf_core::models::task::SetValue::Map(set_map),
+        common: swf_core::models::task::TaskDefinitionFields::new(),
     });
     let workflow: WorkflowDefinition = serde_yaml::from_str(
         r#"
@@ -465,9 +465,9 @@ async fn test_call_function_with_catalog_name() {
     // Test functionName@catalogName syntax — catalog name is ignored
     let mut set_map = HashMap::new();
     set_map.insert("source".to_string(), json!("cataloged"));
-    let set_task = TaskDefinition::Set(serverless_workflow_core::models::task::SetTaskDefinition {
-        set: serverless_workflow_core::models::task::SetValue::Map(set_map),
-        common: serverless_workflow_core::models::task::TaskDefinitionFields::new(),
+    let set_task = TaskDefinition::Set(swf_core::models::task::SetTaskDefinition {
+        set: swf_core::models::task::SetValue::Map(set_map),
+        common: swf_core::models::task::TaskDefinitionFields::new(),
     });
     let workflow: WorkflowDefinition = serde_yaml::from_str(
         r#"

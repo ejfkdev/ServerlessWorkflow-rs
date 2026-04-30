@@ -58,10 +58,10 @@ fn test_call_task_with_all_fields() {
 fn test_call_task_roundtrip_serialization() {
     // Test CallTaskDefinition roundtrip serialization
     let call_task = CallTaskDefinition::Function(
-        serverless_workflow_core::models::call::CallFunctionDefinition {
+        swf_core::models::call::CallFunctionDefinition {
             call: "myFunction".to_string(),
             with: None,
-            common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+            common: swf_core::models::task::TaskDefinitionFields::default(),
         },
     );
 
@@ -88,10 +88,10 @@ fn test_call_task_with_arguments() {
     .into_iter()
     .collect();
 
-    let call_task = serverless_workflow_core::models::call::CallFunctionDefinition {
+    let call_task = swf_core::models::call::CallFunctionDefinition {
         call: "myFunction".to_string(),
         with: Some(arguments),
-        common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+        common: swf_core::models::task::TaskDefinitionFields::default(),
     };
     assert_eq!(call_task.call, "myFunction");
     assert!(call_task.with.is_some());
@@ -102,7 +102,7 @@ fn test_call_task_with_arguments() {
 
 #[test]
 fn test_endpoint_definition_with_uri() {
-    use serverless_workflow_core::models::resource::EndpointDefinition;
+    use swf_core::models::resource::EndpointDefinition;
     let endpoint = EndpointDefinition {
         uri: "http://example.com/{id}".to_string(),
         authentication: None,
@@ -116,11 +116,11 @@ fn test_endpoint_definition_with_uri() {
 
 #[test]
 fn test_endpoint_definition_with_authentication() {
-    use serverless_workflow_core::models::authentication::{
+    use swf_core::models::authentication::{
         AuthenticationPolicyDefinition, BasicAuthenticationSchemeDefinition,
         ReferenceableAuthenticationPolicy,
     };
-    use serverless_workflow_core::models::resource::EndpointDefinition;
+    use swf_core::models::resource::EndpointDefinition;
     let endpoint = EndpointDefinition {
         uri: "http://example.com/{id}".to_string(),
         authentication: Some(ReferenceableAuthenticationPolicy::Policy(Box::new(
@@ -144,7 +144,7 @@ fn test_endpoint_definition_with_authentication() {
 
 #[test]
 fn test_endpoint_definition_roundtrip() {
-    use serverless_workflow_core::models::resource::EndpointDefinition;
+    use swf_core::models::resource::EndpointDefinition;
     let endpoint = EndpointDefinition {
         uri: "http://example.com/{id}".to_string(),
         authentication: None,
@@ -157,7 +157,7 @@ fn test_endpoint_definition_roundtrip() {
 
 #[test]
 fn test_call_task_roundtrip() {
-    use serverless_workflow_core::models::task::{CallTaskDefinition, TaskDefinition};
+    use swf_core::models::task::{CallTaskDefinition, TaskDefinition};
     use std::collections::HashMap;
     let mut with_map = HashMap::new();
     with_map.insert("method".to_string(), serde_json::json!("GET"));
@@ -166,10 +166,10 @@ fn test_call_task_roundtrip() {
         serde_json::json!("http://example.com"),
     );
     let call_fn = CallTaskDefinition::Function(
-        serverless_workflow_core::models::call::CallFunctionDefinition {
+        swf_core::models::call::CallFunctionDefinition {
             call: "http".to_string(),
             with: Some(with_map),
-            common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+            common: swf_core::models::task::TaskDefinitionFields::default(),
         },
     );
     let task = TaskDefinition::Call(Box::new(call_fn));
@@ -197,7 +197,7 @@ fn test_call_http_with_headers_and_query() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -217,7 +217,7 @@ fn test_call_task_with_interpolated_endpoint() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -240,7 +240,7 @@ fn test_call_openapi_task() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -260,7 +260,7 @@ fn test_call_custom_function() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -290,7 +290,7 @@ fn test_call_grpc() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -332,7 +332,7 @@ fn test_call_mcp() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -366,7 +366,7 @@ fn test_call_task_with_export() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -407,7 +407,7 @@ fn test_call_asyncapi() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::CallTaskDefinition, _> =
+    let result: Result<swf_core::models::task::CallTaskDefinition, _> =
         serde_json::from_value(call_json);
     assert!(
         result.is_ok(),
@@ -431,7 +431,7 @@ fn test_http_output_format_constants() {
 
 #[test]
 fn test_call_http_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "http",
@@ -465,7 +465,7 @@ fn test_call_http_definition() {
 
 #[test]
 fn test_call_grpc_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "grpc",
@@ -497,7 +497,7 @@ fn test_call_grpc_definition() {
 
 #[test]
 fn test_call_openapi_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "openapi",
@@ -526,7 +526,7 @@ fn test_call_openapi_definition() {
 
 #[test]
 fn test_call_a2a_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "a2a",
@@ -554,7 +554,7 @@ fn test_call_a2a_definition() {
 
 #[test]
 fn test_call_function_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "myFunction",
@@ -574,7 +574,7 @@ fn test_call_function_definition() {
 
 #[test]
 fn test_call_asyncapi_definition() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     let json_str = r#"{
         "call": "asyncapi",
@@ -606,7 +606,7 @@ fn test_call_asyncapi_definition() {
 
 #[test]
 fn test_asyncapi_message_consumption_policy() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     // Test amount-based consumption
     let amount_json = r#"{"amount": 5}"#;
@@ -642,7 +642,7 @@ fn test_asyncapi_message_consumption_policy() {
 
 #[test]
 fn test_a2a_method_constants() {
-    use serverless_workflow_core::models::call::A2AMethod;
+    use swf_core::models::call::A2AMethod;
     assert_eq!(A2AMethod::MESSAGE_SEND, "message/send");
     assert_eq!(A2AMethod::MESSAGE_STREAM, "message/stream");
     assert_eq!(A2AMethod::TASKS_GET, "tasks/get");
@@ -657,7 +657,7 @@ fn test_a2a_method_constants() {
 
 #[test]
 fn test_asyncapi_protocol_constants() {
-    use serverless_workflow_core::models::call::AsyncApiProtocol;
+    use swf_core::models::call::AsyncApiProtocol;
     assert_eq!(AsyncApiProtocol::KAFKA, "kafka");
     assert_eq!(AsyncApiProtocol::AMQP, "amqp");
     assert_eq!(AsyncApiProtocol::MQTT, "mqtt");
@@ -668,7 +668,7 @@ fn test_asyncapi_protocol_constants() {
 
 #[test]
 fn test_call_type_constants() {
-    use serverless_workflow_core::models::call::CallType;
+    use swf_core::models::call::CallType;
     assert_eq!(CallType::ASYNCAPI, "asyncapi");
     assert_eq!(CallType::GRPC, "grpc");
     assert_eq!(CallType::HTTP, "http");
@@ -678,8 +678,8 @@ fn test_call_type_constants() {
 
 #[test]
 fn test_endpoint_with_referenceable_auth() {
-    use serverless_workflow_core::models::authentication::ReferenceableAuthenticationPolicy;
-    use serverless_workflow_core::models::resource::EndpointDefinition;
+    use swf_core::models::authentication::ReferenceableAuthenticationPolicy;
+    use swf_core::models::resource::EndpointDefinition;
 
     // Test endpoint with reference authentication
     let json_str = r#"{
@@ -712,7 +712,7 @@ fn test_endpoint_with_referenceable_auth() {
 
 #[test]
 fn test_http_headers_expression() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
 
     // Test with map headers
     let json_str = r#"{
@@ -761,13 +761,13 @@ fn test_http_headers_expression() {
 
 #[test]
 fn test_call_task_definition_enum_variants() {
-    use serverless_workflow_core::models::call::{CallFunctionDefinition, CallTaskDefinition};
+    use swf_core::models::call::{CallFunctionDefinition, CallTaskDefinition};
 
     // Test Function variant
     let func = CallFunctionDefinition {
         call: "myFunction".to_string(),
         with: None,
-        common: serverless_workflow_core::models::task::TaskDefinitionFields::default(),
+        common: swf_core::models::task::TaskDefinitionFields::default(),
     };
     let call = CallTaskDefinition::Function(func);
     if let CallTaskDefinition::Function(f) = call {
@@ -781,7 +781,7 @@ fn test_call_task_definition_enum_variants() {
 
 #[test]
 fn test_call_http_task_serialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let http_task = CallHTTPDefinition {
         call: "http".to_string(),
         with: HTTPArguments {
@@ -804,7 +804,7 @@ fn test_call_http_task_serialization() {
 
 #[test]
 fn test_call_http_task_deserialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let json = r#"{"call":"http","with":{"method":"POST","endpoint":"http://api.example.com","body":{"key":"value"}}}"#;
     let call: CallTaskDefinition = serde_json::from_str(json).expect("Failed to deserialize");
     match call {
@@ -818,14 +818,14 @@ fn test_call_http_task_deserialization() {
 
 #[test]
 fn test_call_grpc_task_serialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let grpc_task = CallGRPCDefinition {
         call: "grpc".to_string(),
         with: GRPCArguments {
-            proto: serverless_workflow_core::models::resource::ExternalResourceDefinition {
+            proto: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
                 endpoint:
-                    serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
                         "http://proto.example.com/api.proto".to_string(),
                     ),
             },
@@ -848,7 +848,7 @@ fn test_call_grpc_task_serialization() {
 
 #[test]
 fn test_call_grpc_task_deserialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let json = r#"{"call":"grpc","with":{"proto":{"endpoint":"http://proto.example.com/api.proto"},"service":{"name":"Greeter","host":"localhost","port":50051},"method":"SayHello"}}"#;
     let call: CallTaskDefinition = serde_json::from_str(json).expect("Failed to deserialize");
     match call {
@@ -862,14 +862,14 @@ fn test_call_grpc_task_deserialization() {
 
 #[test]
 fn test_call_openapi_task_serialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let openapi_task = CallOpenAPIDefinition {
         call: "openapi".to_string(),
         with: OpenAPIArguments {
-            document: serverless_workflow_core::models::resource::ExternalResourceDefinition {
+            document: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
                 endpoint:
-                    serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
                         "http://api.example.com/openapi.json".to_string(),
                     ),
             },
@@ -888,7 +888,7 @@ fn test_call_openapi_task_serialization() {
 
 #[test]
 fn test_call_openapi_task_deserialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let json = r#"{"call":"openapi","with":{"document":{"endpoint":"http://api.example.com/openapi.json"},"operationId":"getUsers"}}"#;
     let call: CallTaskDefinition = serde_json::from_str(json).expect("Failed to deserialize");
     match call {
@@ -901,14 +901,14 @@ fn test_call_openapi_task_deserialization() {
 
 #[test]
 fn test_call_asyncapi_task_serialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let asyncapi_task = CallAsyncAPIDefinition {
         call: "asyncapi".to_string(),
         with: AsyncApiArguments {
-            document: serverless_workflow_core::models::resource::ExternalResourceDefinition {
+            document: swf_core::models::resource::ExternalResourceDefinition {
                 name: None,
                 endpoint:
-                    serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
+                    swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(
                         "http://asyncapi.example.com/asyncapi.json".to_string(),
                     ),
             },
@@ -929,7 +929,7 @@ fn test_call_asyncapi_task_serialization() {
 
 #[test]
 fn test_call_asyncapi_task_deserialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let json = r#"{"call":"asyncapi","with":{"document":{"endpoint":"http://asyncapi.example.com/asyncapi.json"},"channel":"userUpdates"}}"#;
     let call: CallTaskDefinition = serde_json::from_str(json).expect("Failed to deserialize");
     match call {
@@ -942,7 +942,7 @@ fn test_call_asyncapi_task_deserialization() {
 
 #[test]
 fn test_call_a2a_task_serialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let a2a_task = CallA2ADefinition {
         call: "a2a".to_string(),
         with: A2AArguments {
@@ -960,7 +960,7 @@ fn test_call_a2a_task_serialization() {
 
 #[test]
 fn test_call_a2a_task_deserialization() {
-    use serverless_workflow_core::models::call::*;
+    use swf_core::models::call::*;
     let json = r#"{"call":"a2a","with":{"method":"tasks/get"}}"#;
     let call: CallTaskDefinition = serde_json::from_str(json).expect("Failed to deserialize");
     match call {

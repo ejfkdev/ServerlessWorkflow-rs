@@ -1,4 +1,4 @@
-# serverless_workflow_runtime
+# swf_runtime
 
 Execution engine for [Serverless Workflow](https://serverlessworkflow.io/) DSL v1.0.0 — parse, validate, and run workflows.
 

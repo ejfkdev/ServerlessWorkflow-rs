@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn test_script_process_arguments_array_deserialization() {
-    use serverless_workflow_core::models::task::ScriptProcessDefinition;
+    use swf_core::models::task::ScriptProcessDefinition;
 
     let script_process_json = serde_json::json!({
         "language": "javascript",
@@ -28,7 +28,7 @@ fn test_script_process_arguments_array_deserialization() {
 
 #[test]
 fn test_script_process_with_stdin_deserialization() {
-    use serverless_workflow_core::models::task::ScriptProcessDefinition;
+    use swf_core::models::task::ScriptProcessDefinition;
 
     let script_process_json = serde_json::json!({
         "language": "python",
@@ -147,7 +147,7 @@ fn test_run_task_with_workflow() {
 
 #[test]
 fn test_run_task_definition() {
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::task::{
         ProcessTypeDefinition, RunTaskDefinition, WorkflowProcessDefinition,
     };
     let run_task = RunTaskDefinition {
@@ -169,7 +169,7 @@ fn test_run_task_definition() {
 
 #[test]
 fn test_run_task_roundtrip() {
-    use serverless_workflow_core::models::task::{
+    use swf_core::models::task::{
         ProcessTypeDefinition, RunTaskDefinition, WorkflowProcessDefinition,
     };
     let run_task = RunTaskDefinition {
@@ -232,7 +232,7 @@ fn test_run_task_container() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::RunTaskDefinition, _> =
+    let result: Result<swf_core::models::task::RunTaskDefinition, _> =
         serde_json::from_value(serde_json::json!({"run": run_json["run"]}));
     assert!(
         result.is_ok(),
@@ -255,7 +255,7 @@ fn test_run_task_script() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::RunTaskDefinition, _> =
+    let result: Result<swf_core::models::task::RunTaskDefinition, _> =
         serde_json::from_value(serde_json::json!({"run": run_json["run"]}));
     assert!(
         result.is_ok(),
@@ -275,7 +275,7 @@ fn test_run_task_shell() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::RunTaskDefinition, _> =
+    let result: Result<swf_core::models::task::RunTaskDefinition, _> =
         serde_json::from_value(serde_json::json!({"run": run_json["run"]}));
     assert!(
         result.is_ok(),
@@ -292,7 +292,7 @@ fn test_container_process_with_pull_policy() {
         "pullPolicy": "Always"
     });
 
-    let result: Result<serverless_workflow_core::models::task::ContainerProcessDefinition, _> =
+    let result: Result<swf_core::models::task::ContainerProcessDefinition, _> =
         serde_json::from_value(container_json);
     assert!(
         result.is_ok(),
@@ -317,7 +317,7 @@ fn test_container_process_with_lifetime_eventually() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ContainerProcessDefinition, _> =
+    let result: Result<swf_core::models::task::ContainerProcessDefinition, _> =
         serde_json::from_value(container_json);
     assert!(
         result.is_ok(),
@@ -341,7 +341,7 @@ fn test_container_process_with_lifetime_always() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ContainerProcessDefinition, _> =
+    let result: Result<swf_core::models::task::ContainerProcessDefinition, _> =
         serde_json::from_value(container_json);
     assert!(
         result.is_ok(),
@@ -365,7 +365,7 @@ fn test_container_process_with_lifetime_never() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ContainerProcessDefinition, _> =
+    let result: Result<swf_core::models::task::ContainerProcessDefinition, _> =
         serde_json::from_value(container_json);
     assert!(
         result.is_ok(),
@@ -399,7 +399,7 @@ fn test_container_process_with_all_fields() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ContainerProcessDefinition, _> =
+    let result: Result<swf_core::models::task::ContainerProcessDefinition, _> =
         serde_json::from_value(container_json);
     assert!(
         result.is_ok(),

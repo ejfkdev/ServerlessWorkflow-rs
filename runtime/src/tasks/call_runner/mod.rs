@@ -11,8 +11,8 @@ use crate::expression::{
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use serde_json::Value;
-use serverless_workflow_core::models::call::CallTaskDefinition;
-use serverless_workflow_core::models::resource::OneOfEndpointDefinitionOrUri;
+use swf_core::models::call::CallTaskDefinition;
+use swf_core::models::resource::OneOfEndpointDefinitionOrUri;
 
 use auth::apply_authentication;
 use digest::{extract_digest_info, parse_digest_challenge};
@@ -81,7 +81,7 @@ impl CallTaskRunner {
     /// (the function name before '@' is used for lookup).
     async fn run_function(
         &self,
-        func_task: &serverless_workflow_core::models::call::CallFunctionDefinition,
+        func_task: &swf_core::models::call::CallFunctionDefinition,
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
@@ -134,7 +134,7 @@ impl CallTaskRunner {
 
     async fn run_http(
         &self,
-        http_task: &serverless_workflow_core::models::call::CallHTTPDefinition,
+        http_task: &swf_core::models::call::CallHTTPDefinition,
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
@@ -403,9 +403,9 @@ fn build_request(
 /// Shared between the initial request and digest-retry request paths.
 fn apply_request_options(
     mut builder: reqwest::RequestBuilder,
-    headers: Option<&serverless_workflow_core::models::call::OneOfHeadersOrExpression>,
+    headers: Option<&swf_core::models::call::OneOfHeadersOrExpression>,
     body: Option<&Value>,
-    query: Option<&serverless_workflow_core::models::call::OneOfQueryOrExpression>,
+    query: Option<&swf_core::models::call::OneOfQueryOrExpression>,
     input: &Value,
     vars: &std::collections::HashMap<String, Value>,
     task_name: &str,
@@ -413,13 +413,13 @@ fn apply_request_options(
     // Add headers
     if let Some(headers) = headers {
         match headers {
-            serverless_workflow_core::models::call::OneOfHeadersOrExpression::Map(map) => {
+            swf_core::models::call::OneOfHeadersOrExpression::Map(map) => {
                 for (key, value) in map {
                     let evaluated_value = evaluate_expression_str(value, input, vars, task_name)?;
                     builder = builder.header(key.as_str(), evaluated_value.as_str());
                 }
             }
-            serverless_workflow_core::models::call::OneOfHeadersOrExpression::Expression(expr) => {
+            swf_core::models::call::OneOfHeadersOrExpression::Expression(expr) => {
                 let headers_val = evaluate_expression_json(expr, input, vars, task_name)?;
                 if let Some(obj) = headers_val.as_object() {
                     for (key, val) in obj {
@@ -441,13 +441,13 @@ fn apply_request_options(
     // Add query parameters
     if let Some(query) = query {
         match query {
-            serverless_workflow_core::models::call::OneOfQueryOrExpression::Map(map) => {
+            swf_core::models::call::OneOfQueryOrExpression::Map(map) => {
                 for (key, value) in map {
                     let evaluated_value = evaluate_expression_str(value, input, vars, task_name)?;
                     builder = builder.query(&[(key.as_str(), evaluated_value.as_str())]);
                 }
             }
-            serverless_workflow_core::models::call::OneOfQueryOrExpression::Expression(expr) => {
+            swf_core::models::call::OneOfQueryOrExpression::Expression(expr) => {
                 let query_val = evaluate_expression_json(expr, input, vars, task_name)?;
                 if let Some(obj) = query_val.as_object() {
                     for (key, val) in obj {

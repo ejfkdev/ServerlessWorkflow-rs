@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn test_error_definition_with_status() {
     // Test ErrorDefinition with numeric status
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
 
     let error_json = json!({
         "type": "http://example.com/error",
@@ -44,7 +44,7 @@ fn test_error_definition_with_instance() {
 
 #[test]
 fn test_error_definition() {
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
     let error = ErrorDefinition::new(
         "https://example.com/errors",
         "Bad Request",
@@ -59,7 +59,7 @@ fn test_error_definition() {
 
 #[test]
 fn test_error_definition_roundtrip() {
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
     let error = ErrorDefinition::new(
         "https://example.com/errors",
         "Not Found",
@@ -77,7 +77,7 @@ fn test_error_definition_roundtrip() {
 #[test]
 fn test_error_type_constants() {
     // Test ErrorTypes constants
-    use serverless_workflow_core::models::error::ErrorTypes;
+    use swf_core::models::error::ErrorTypes;
 
     assert_eq!(
         ErrorTypes::CONFIGURATION,
@@ -116,7 +116,7 @@ fn test_error_type_constants() {
 #[test]
 fn test_error_convenience_constructors() {
     // Test ErrorDefinition convenience constructors
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
 
     let config_err = ErrorDefinition::configuration_error(
         Some("config detail".to_string()),
@@ -137,7 +137,7 @@ fn test_error_convenience_constructors() {
 #[test]
 fn test_error_classification_functions() {
     // Test ErrorDefinition classification functions
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
 
     let validation_err =
         ErrorDefinition::validation_error(Some("validation failed".to_string()), None);
@@ -153,7 +153,7 @@ fn test_error_classification_functions() {
 #[test]
 fn test_error_definition_reference() {
     // Test ErrorDefinition with reference (using OneOfErrorDefinitionOrReference::Reference)
-    use serverless_workflow_core::models::error::OneOfErrorDefinitionOrReference;
+    use swf_core::models::error::OneOfErrorDefinitionOrReference;
 
     let error_ref = OneOfErrorDefinitionOrReference::Reference("myError".to_string());
     let json_str = serde_json::to_string(&error_ref).expect("Failed to serialize error reference");
@@ -172,7 +172,7 @@ fn test_error_definition_reference() {
 #[test]
 fn test_error_definition_with_string_status() {
     // Test ErrorDefinition with string status
-    use serverless_workflow_core::models::error::ErrorDefinition;
+    use swf_core::models::error::ErrorDefinition;
 
     let error_json = json!({
         "type": "https://example.com/errors",
@@ -203,7 +203,7 @@ fn test_error_filter_with_status() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ErrorFilterDefinition, _> =
+    let result: Result<swf_core::models::task::ErrorFilterDefinition, _> =
         serde_json::from_value(error_filter_json);
     assert!(
         result.is_ok(),
@@ -236,7 +236,7 @@ fn test_error_catcher_with_retry() {
         }
     });
 
-    let result: Result<serverless_workflow_core::models::task::ErrorCatcherDefinition, _> =
+    let result: Result<swf_core::models::task::ErrorCatcherDefinition, _> =
         serde_json::from_value(error_catcher_json);
     assert!(
         result.is_ok(),
@@ -263,7 +263,7 @@ fn test_error_definition_is_type_checks() {
 
 #[test]
 fn test_error_filter_properties() {
-    use serverless_workflow_core::models::task::ErrorFilterProperties;
+    use swf_core::models::task::ErrorFilterProperties;
     let props = ErrorFilterProperties {
         type_: Some("https://serverlessworkflow.io/spec/1.0.0/errors/communication".to_string()),
         status: Some(json!(500)),
@@ -280,7 +280,7 @@ fn test_error_filter_properties() {
 
 #[test]
 fn test_error_filter_definition_serde() {
-    use serverless_workflow_core::models::task::ErrorFilterDefinition;
+    use swf_core::models::task::ErrorFilterDefinition;
     let json_str = r#"{"with": {"type": "https://serverlessworkflow.io/spec/1.0.0/errors/communication", "status": 500}}"#;
     let filter: ErrorFilterDefinition =
         serde_json::from_str(json_str).expect("Failed to deserialize");
@@ -295,7 +295,7 @@ fn test_error_filter_definition_serde() {
 
 #[test]
 fn test_error_type_enum() {
-    use serverless_workflow_core::models::error::ErrorType;
+    use swf_core::models::error::ErrorType;
     let uri = ErrorType::uri_template("https://serverlessworkflow.io/spec/1.0.0/errors/timeout");
     assert_eq!(
         uri.as_str(),
@@ -320,7 +320,7 @@ fn test_error_definition_with_error_type() {
 
 #[test]
 fn test_error_type_serde() {
-    use serverless_workflow_core::models::error::ErrorType;
+    use swf_core::models::error::ErrorType;
     // URI template
     let json_str = r#""https://serverlessworkflow.io/spec/1.0.0/errors/timeout""#;
     let et: ErrorType = serde_json::from_str(json_str).expect("Failed to deserialize");
