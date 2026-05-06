@@ -34,7 +34,7 @@ base64 = "0.22"
 
 [dev-dependencies]
 serde_yaml = "0.9"
-warp = "0.3"
+warp = "0.4"
 swf-builders = { path = "../builders", version = "1.0.0-alpha8" }
 
 [package.metadata.dist]
