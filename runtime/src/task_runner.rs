@@ -144,10 +144,12 @@ impl<'a> TaskSupport<'a> {
         self.context.get_vars()
     }
 
-    /// Evaluates a JQ expression against the given input using current context vars
+    /// Evaluates a JQ expression against the given input using current context vars.
+    /// Supports engine-prefixed expressions (e.g., "cel: ...") via registered expression engines.
     pub fn eval_jq(&self, expr: &str, input: &Value, task_name: &str) -> WorkflowResult<Value> {
         let vars = self.get_vars();
-        crate::expression::evaluate_jq(expr, input, &vars)
+        let engines = self.context.get_expression_engines();
+        crate::expression::evaluate_with_engines(expr, input, &vars, engines)
             .map_err(|e| crate::error::WorkflowError::expression(format!("{}", e), task_name))
     }
 

@@ -122,6 +122,7 @@ async fn test_runner_call_grpc_with_custom_handler() {
             _task_name: &str,
             _call_config: &Value,
             input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"grpc_result": input["message"].as_str().unwrap_or("default")}))
         }
@@ -171,6 +172,7 @@ async fn test_runner_call_openapi_with_custom_handler() {
             _task_name: &str,
             _call_config: &Value,
             _input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"openapi_status": "ok"}))
         }
@@ -251,6 +253,7 @@ async fn test_runner_multiple_call_handlers() {
             _task_name: &str,
             _call_config: &Value,
             _input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"asyncapi_channel": "messages"}))
         }
@@ -269,6 +272,7 @@ async fn test_runner_multiple_call_handlers() {
             _task_name: &str,
             _call_config: &Value,
             _input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"a2a_agent": "response"}))
         }
@@ -328,6 +332,7 @@ async fn test_runner_custom_task_with_handler() {
             _task_type: &str,
             task_config: &Value,
             input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             let name = input
                 .get("name")

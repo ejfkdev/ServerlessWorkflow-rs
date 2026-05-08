@@ -1,4 +1,5 @@
 use crate::error::{WorkflowError, WorkflowResult};
+use crate::handler::HandlerContext;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
@@ -24,7 +25,8 @@ impl TaskRunner for CustomTaskRunner {
         match handler {
             Some(handler) => {
                 let config = crate::error::serialize_to_value(&self.task, "custom task config", &self.name)?;
-                handler.handle(&self.name, task_type, &config, &input).await
+                let ctx = HandlerContext::from_vars(&support.get_vars());
+                handler.handle(&self.name, task_type, &config, &input, &ctx).await
             }
             None => Err(WorkflowError::runtime_simple(
                 format!("custom task '{}' requires a CustomTaskHandler (register one via WorkflowRunner::with_custom_task_handler())", task_type),

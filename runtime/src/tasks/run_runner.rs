@@ -1,4 +1,5 @@
 use crate::error::{WorkflowError, WorkflowResult};
+use crate::handler::HandlerContext;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
@@ -60,7 +61,10 @@ impl RunTaskRunner {
     ) -> WorkflowResult<Value> {
         let handler = support.get_handler_registry().get_run_handler(run_type);
         match handler {
-            Some(handler) => handler.handle(&self.name, config, input).await,
+            Some(handler) => {
+                let ctx = HandlerContext::from_vars(&support.get_vars());
+                handler.handle(&self.name, config, input, &ctx).await
+            }
             None => Err(WorkflowError::runtime_simple(
                 format!("{} process requires a custom RunHandler (register one via WorkflowRunner::with_run_handler())", run_type),
                 &self.name,
@@ -463,6 +467,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_container_with_custom_handler() {
+        use crate::handler::HandlerContext;
         use crate::handler::RunHandler;
         use swf_core::models::task::ContainerProcessDefinition;
 
@@ -479,6 +484,7 @@ mod tests {
                 _task_name: &str,
                 _config: &Value,
                 input: &Value,
+                _context: &HandlerContext,
             ) -> WorkflowResult<Value> {
                 Ok(json!({"containerOutput": input}))
             }
@@ -513,6 +519,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_run_script_with_custom_handler() {
+        use crate::handler::HandlerContext;
         use crate::handler::RunHandler;
         use swf_core::models::task::ScriptProcessDefinition;
 
@@ -529,6 +536,7 @@ mod tests {
                 _task_name: &str,
                 _config: &Value,
                 input: &Value,
+                _context: &HandlerContext,
             ) -> WorkflowResult<Value> {
                 Ok(json!({"scriptResult": input}))
             }

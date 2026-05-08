@@ -2,6 +2,86 @@ use crate::error::WorkflowResult;
 use serde_json::Value;
 use std::sync::Arc;
 
+/// Read-only snapshot of workflow context variables available to task handlers.
+///
+/// Provides access to `$context`, `$secret`, `$workflow`, and other runtime variables
+/// that were previously inaccessible from custom handlers.
+///
+/// # Example
+///
+/// ```no_run
+/// use async_trait::async_trait;
+/// use serde_json::Value;
+/// use swf_runtime::{CustomTaskHandler, HandlerContext, WorkflowResult};
+///
+/// struct SmartHandler;
+///
+/// #[async_trait]
+/// impl CustomTaskHandler for SmartHandler {
+///     fn task_type(&self) -> &str { "smart" }
+///
+///     async fn handle(
+///         &self,
+///         task_name: &str,
+///         task_type: &str,
+///         task_config: &Value,
+///         input: &Value,
+///         context: &HandlerContext,
+///     ) -> WorkflowResult<Value> {
+///         // Access $context to read workflow state
+///         let preferred = context.context().get("provider").and_then(|v| v.as_str());
+///         // Access $secret for credentials
+///         let api_key = context.secret().and_then(|s| s.get("API_KEY")).and_then(|v| v.as_str());
+///         Ok(input.clone())
+///     }
+/// }
+/// ```
+#[derive(Debug, Clone)]
+pub struct HandlerContext {
+    context: Value,
+    secret: Option<Value>,
+    workflow: Value,
+    authorization: Option<Value>,
+}
+
+impl HandlerContext {
+    /// Creates a new HandlerContext from the current workflow context variables
+    pub(crate) fn from_vars(vars: &std::collections::HashMap<String, Value>) -> Self {
+        Self {
+            context: vars
+                .get(crate::context::vars::CONTEXT)
+                .cloned()
+                .unwrap_or(Value::Null),
+            secret: vars.get(crate::context::vars::SECRET).cloned(),
+            workflow: vars
+                .get(crate::context::vars::WORKFLOW)
+                .cloned()
+                .unwrap_or(Value::Null),
+            authorization: vars.get(crate::context::vars::AUTHORIZATION).cloned(),
+        }
+    }
+
+    /// Returns the `$context` value (workflow instance state set by `export.as`)
+    pub fn context(&self) -> &Value {
+        &self.context
+    }
+
+    /// Returns the `$secret` value (all resolved secrets), if a secret manager is configured
+    pub fn secret(&self) -> Option<&Value> {
+        self.secret.as_ref()
+    }
+
+    /// Returns the `$workflow` descriptor (workflow metadata)
+    pub fn workflow(&self) -> &Value {
+        &self.workflow
+    }
+
+    /// Returns the `$authorization` value (set after HTTP authentication), if any
+    pub fn authorization(&self) -> Option<&Value> {
+        self.authorization.as_ref()
+    }
+}
+
 /// Handler for call task types that require custom implementations.
 ///
 /// Implement this trait to provide support for call types like gRPC, OpenAPI,
@@ -12,7 +92,7 @@ use std::sync::Arc;
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use swf_runtime::{CallHandler, WorkflowResult};
+/// use swf_runtime::{CallHandler, HandlerContext, WorkflowResult};
 ///
 /// struct GrpcCallHandler;
 ///
@@ -25,6 +105,7 @@ use std::sync::Arc;
 ///         task_name: &str,
 ///         call_config: &Value,
 ///         input: &Value,
+///         context: &HandlerContext,
 ///     ) -> WorkflowResult<Value> {
 ///         // Implement gRPC call logic here
 ///         Ok(serde_json::json!({ "result": "grpc response" }))
@@ -36,12 +117,13 @@ pub trait CallHandler: Send + Sync {
     /// Returns the call type this handler supports (e.g., "grpc", "openapi", "asyncapi", "a2a")
     fn call_type(&self) -> &str;
 
-    /// Executes the call with the given configuration and input.
+    /// Executes the call with the given configuration, input, and workflow context.
     async fn handle(
         &self,
         task_name: &str,
         call_config: &Value,
         input: &Value,
+        context: &HandlerContext,
     ) -> WorkflowResult<Value>;
 }
 
@@ -55,7 +137,7 @@ pub trait CallHandler: Send + Sync {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use swf_runtime::{RunHandler, WorkflowResult};
+/// use swf_runtime::{RunHandler, HandlerContext, WorkflowResult};
 ///
 /// struct ContainerRunHandler;
 ///
@@ -68,6 +150,7 @@ pub trait CallHandler: Send + Sync {
 ///         task_name: &str,
 ///         run_config: &Value,
 ///         input: &Value,
+///         context: &HandlerContext,
 ///     ) -> WorkflowResult<Value> {
 ///         // Implement container run logic here
 ///         Ok(serde_json::json!({ "exitCode": 0 }))
@@ -79,12 +162,13 @@ pub trait RunHandler: Send + Sync {
     /// Returns the run type this handler supports (e.g., "container", "script")
     fn run_type(&self) -> &str;
 
-    /// Executes the run with the given configuration and input.
+    /// Executes the run with the given configuration, input, and workflow context.
     async fn handle(
         &self,
         task_name: &str,
         run_config: &Value,
         input: &Value,
+        context: &HandlerContext,
     ) -> WorkflowResult<Value>;
 }
 
@@ -99,7 +183,7 @@ pub trait RunHandler: Send + Sync {
 /// ```no_run
 /// use async_trait::async_trait;
 /// use serde_json::Value;
-/// use swf_runtime::{CustomTaskHandler, WorkflowResult};
+/// use swf_runtime::{CustomTaskHandler, HandlerContext, WorkflowResult};
 ///
 /// struct UppercaseHandler;
 ///
@@ -113,6 +197,7 @@ pub trait RunHandler: Send + Sync {
 ///         task_type: &str,
 ///         task_config: &Value,
 ///         input: &Value,
+///         context: &HandlerContext,
 ///     ) -> WorkflowResult<Value> {
 ///         let text = input["text"].as_str().unwrap_or("");
 ///         Ok(serde_json::json!({ "result": text.to_uppercase() }))
@@ -124,13 +209,14 @@ pub trait CustomTaskHandler: Send + Sync {
     /// Returns the custom task type this handler supports (e.g., "myCustomTask")
     fn task_type(&self) -> &str;
 
-    /// Executes the custom task with the given configuration and input.
+    /// Executes the custom task with the given configuration, input, and workflow context.
     async fn handle(
         &self,
         task_name: &str,
         task_type: &str,
         task_config: &Value,
         input: &Value,
+        context: &HandlerContext,
     ) -> WorkflowResult<Value>;
 }
 

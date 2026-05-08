@@ -134,6 +134,7 @@ async fn test_call_openapi_no_handler() {
 #[tokio::test]
 async fn test_call_grpc_with_custom_handler() {
     use crate::handler::CallHandler;
+    use crate::handler::HandlerContext;
 
     struct MockGrpcHandler;
 
@@ -148,6 +149,7 @@ async fn test_call_grpc_with_custom_handler() {
             _task_name: &str,
             _config: &Value,
             input: &Value,
+            _context: &HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"grpcResponse": input}))
         }
@@ -173,6 +175,7 @@ async fn test_call_grpc_with_custom_handler() {
 #[tokio::test]
 async fn test_call_openapi_with_custom_handler() {
     use crate::handler::CallHandler;
+    use crate::handler::HandlerContext;
     use swf_core::models::call::CallOpenAPIDefinition;
 
     struct MockOpenApiHandler;
@@ -188,6 +191,7 @@ async fn test_call_openapi_with_custom_handler() {
             _task_name: &str,
             _config: &Value,
             input: &Value,
+            _context: &HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"openapiResult": input}))
         }

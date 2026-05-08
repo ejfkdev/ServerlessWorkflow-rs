@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use swf_core::models::task::{CustomTaskDefinition, TaskDefinition, TaskDefinitionFields};
 use swf_core::models::workflow::{WorkflowDefinition, WorkflowDefinitionMetadata};
-use swf_runtime::{CustomTaskHandler, WorkflowResult, WorkflowRunner};
+use swf_runtime::{CustomTaskHandler, HandlerContext, WorkflowResult, WorkflowRunner};
 
 /// A custom task handler that uppercases the "text" field from input
 struct UppercaseHandler;
@@ -26,6 +26,7 @@ impl CustomTaskHandler for UppercaseHandler {
         _task_type: &str,
         _config: &Value,
         input: &Value,
+        _context: &HandlerContext,
     ) -> WorkflowResult<Value> {
         let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
         Ok(json!({ "text": text.to_uppercase() }))

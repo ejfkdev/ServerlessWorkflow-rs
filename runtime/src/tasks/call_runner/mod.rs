@@ -8,6 +8,7 @@ use crate::error::{WorkflowError, WorkflowResult};
 use crate::expression::{
     evaluate_expression_json, evaluate_expression_str, traverse_and_evaluate_obj,
 };
+use crate::handler::HandlerContext;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use serde_json::Value;
@@ -62,7 +63,8 @@ impl CallTaskRunner {
         match handler {
             Some(handler) => {
                 let config = crate::error::serialize_to_value(task, "call config", &self.name)?;
-                handler.handle(&self.name, &config, input).await
+                let ctx = HandlerContext::from_vars(&support.get_vars());
+                handler.handle(&self.name, &config, input, &ctx).await
             }
             None => Err(WorkflowError::runtime_simple(
                 format!("{} calls require a custom CallHandler (register one via WorkflowRunner::with_call_handler())", call_type),

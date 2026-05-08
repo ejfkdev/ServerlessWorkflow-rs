@@ -827,6 +827,7 @@ async fn test_runner_run_container_with_custom_handler() {
             _task_name: &str,
             _run_config: &Value,
             input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"container_output": input["image"].as_str().unwrap_or("default")}))
         }
@@ -871,6 +872,7 @@ async fn test_runner_run_script_with_custom_handler() {
             _task_name: &str,
             _run_config: &Value,
             _input: &Value,
+            _context: &crate::handler::HandlerContext,
         ) -> WorkflowResult<Value> {
             Ok(json!({"script_output": "executed"}))
         }

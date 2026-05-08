@@ -24,7 +24,8 @@ pub(crate) mod test_utils;
 pub use context::WorkflowContext;
 pub use error::{ErrorFields, WorkflowError, WorkflowResult};
 pub use events::{CloudEvent, EventBus, EventSubscription, InMemoryEventBus, SharedEventBus};
-pub use handler::{CallHandler, CustomTaskHandler, HandlerRegistry, RunHandler};
+pub use expression::ExpressionEngine;
+pub use handler::{CallHandler, CustomTaskHandler, HandlerContext, HandlerRegistry, RunHandler};
 pub use listener::{
     CollectingListener, MultiListener, NoOpListener, WorkflowEvent, WorkflowExecutionListener,
 };

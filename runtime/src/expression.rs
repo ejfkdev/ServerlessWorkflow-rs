@@ -4,6 +4,115 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 use swf_core::models::expression::{is_strict_expr, sanitize_expr};
 
+/// Trait for pluggable expression evaluation engines.
+///
+/// Implement this trait to add support for expression languages beyond JQ
+/// (e.g., CEL, JavaScript). Register engines with `WorkflowRunner::with_expression_engine()`.
+///
+/// Expression routing uses the `engine:` prefix convention:
+/// - `jq: .foo` → JQ engine
+/// - `cel: payload.model.startsWith("gpt")` → CEL engine
+/// - No prefix → default engine (JQ)
+///
+/// # Example
+///
+/// ```no_run
+/// use async_trait::async_trait;
+/// use serde_json::Value;
+/// use std::collections::HashMap;
+/// use swf_runtime::{ExpressionEngine, WorkflowResult};
+///
+/// struct CelEngine;
+///
+/// #[async_trait]
+/// impl ExpressionEngine for CelEngine {
+///     fn engine_prefix(&self) -> &str { "cel" }
+///
+///     fn evaluate(
+///         &self,
+///         expression: &str,
+///         input: &Value,
+///         vars: &HashMap<String, Value>,
+///     ) -> WorkflowResult<Value> {
+///         // Implement CEL evaluation here
+///         Ok(Value::Null)
+///     }
+/// }
+/// ```
+pub trait ExpressionEngine: Send + Sync {
+    /// Returns the prefix that routes expressions to this engine (e.g., "cel", "js").
+    fn engine_prefix(&self) -> &str;
+
+    /// Evaluates an expression against the given input with variable bindings.
+    fn evaluate(
+        &self,
+        expression: &str,
+        input: &Value,
+        vars: &HashMap<String, Value>,
+    ) -> WorkflowResult<Value>;
+}
+
+/// Registry of expression engines, keyed by prefix.
+#[derive(Default, Clone)]
+pub(crate) struct ExpressionEngineRegistry {
+    engines: std::sync::Arc<HashMap<String, std::sync::Arc<dyn ExpressionEngine>>>,
+}
+
+impl ExpressionEngineRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register(&mut self, engine: std::sync::Arc<dyn ExpressionEngine>) {
+        let key = engine.engine_prefix().to_string();
+        std::sync::Arc::make_mut(&mut self.engines).insert(key, engine);
+    }
+
+    pub fn get(&self, prefix: &str) -> Option<std::sync::Arc<dyn ExpressionEngine>> {
+        self.engines.get(prefix).cloned()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.engines.is_empty()
+    }
+}
+
+/// Checks if an expression has an engine prefix (e.g., "cel:", "jq:").
+/// Returns (prefix, remaining_expression) if a prefix is found.
+pub fn strip_engine_prefix(expr: &str) -> Option<(&str, &str)> {
+    // Match patterns like "cel:" or "jq:" at the start
+    let expr = expr.trim_start();
+    for sep in &[':'] {
+        if let Some(pos) = expr.find(*sep) {
+            let prefix = &expr[..pos];
+            // Only accept alphabetic prefixes (not JQ operators like `.foo`)
+            if prefix.chars().all(|c| c.is_ascii_alphabetic()) && !prefix.is_empty() {
+                let rest = expr[pos + 1..].trim_start();
+                return Some((prefix, rest));
+            }
+        }
+    }
+    None
+}
+
+/// Evaluates an expression, routing to the appropriate engine based on prefix.
+/// Falls back to JQ evaluation if no prefix is found.
+pub fn evaluate_with_engines(
+    expression: &str,
+    input: &Value,
+    vars: &HashMap<String, Value>,
+    engines: &ExpressionEngineRegistry,
+) -> WorkflowResult<Value> {
+    // Try to strip engine prefix
+    if let Some((prefix, rest)) = strip_engine_prefix(expression) {
+        if let Some(engine) = engines.get(prefix) {
+            return engine.evaluate(rest, input, vars);
+        }
+        // Unknown prefix: fall through to JQ (treat as JQ expression with colon)
+    }
+    evaluate_jq(expression, input, vars)
+}
+
 /// Compiled JQ filter cache key: (expression, sorted variable names joined by null)
 type CacheKey = (String, String);
 

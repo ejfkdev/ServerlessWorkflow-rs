@@ -1,4 +1,5 @@
 use crate::events::SharedEventBus;
+use crate::expression::ExpressionEngineRegistry;
 use crate::handler::HandlerRegistry;
 use crate::listener::{WorkflowEvent, WorkflowExecutionListener};
 use crate::secret::SecretManager;
@@ -150,6 +151,8 @@ pub struct WorkflowContext {
     suspend_state: SuspendState,
     /// Handler registry for custom call/run handlers
     handler_registry: HandlerRegistry,
+    /// Expression engine registry for pluggable expression evaluation
+    expression_engines: ExpressionEngineRegistry,
     /// Registered function definitions for call.function resolution (catalog mechanism)
     functions: HashMap<String, TaskDefinition>,
     /// Overall workflow status log
@@ -181,6 +184,7 @@ impl Clone for WorkflowContext {
             cancellation_token: self.cancellation_token.clone(),
             suspend_state: self.suspend_state.clone(),
             handler_registry: self.handler_registry.clone(),
+            expression_engines: self.expression_engines.clone(),
             functions: self.functions.clone(),
             status_log: self.status_log.clone(),
             task_status: self.task_status.clone(),
@@ -246,6 +250,7 @@ impl WorkflowContext {
             cancellation_token: CancellationToken::new(),
             suspend_state: SuspendState::new(),
             handler_registry: HandlerRegistry::new(),
+            expression_engines: ExpressionEngineRegistry::new(),
             functions: HashMap::new(),
             status_log: Vec::new(),
             task_status: HashMap::new(),
@@ -510,6 +515,18 @@ impl WorkflowContext {
     /// Clones the handler registry (for propagating to child runners)
     pub fn clone_handler_registry(&self) -> HandlerRegistry {
         self.handler_registry.clone()
+    }
+
+    // ---- Expression Engines ----
+
+    /// Sets the expression engine registry
+    pub fn set_expression_engines(&mut self, engines: ExpressionEngineRegistry) {
+        self.expression_engines = engines;
+    }
+
+    /// Gets a reference to the expression engine registry
+    pub fn get_expression_engines(&self) -> &ExpressionEngineRegistry {
+        &self.expression_engines
     }
 
     // ---- Functions (Catalog) ----

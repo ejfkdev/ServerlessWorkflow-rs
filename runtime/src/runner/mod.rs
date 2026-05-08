@@ -1,7 +1,7 @@
 use crate::context::{SuspendState, WorkflowContext};
 use crate::error::{ErrorKind, WorkflowError, WorkflowResult};
 use crate::events::SharedEventBus;
-use crate::expression::evaluate_value_expr;
+use crate::expression::{evaluate_value_expr, ExpressionEngine, ExpressionEngineRegistry};
 use crate::handler::{CallHandler, CustomTaskHandler, HandlerRegistry, RunHandler};
 use crate::json_schema::validate_schema;
 use crate::listener::{WorkflowEvent, WorkflowExecutionListener};
@@ -69,10 +69,10 @@ pub struct WorkflowRunner {
     listener: Option<Arc<dyn WorkflowExecutionListener>>,
     event_bus: Option<SharedEventBus>,
     sub_workflows: HashMap<String, WorkflowDefinition>,
-    /// External function definitions registered via with_function()
     functions: HashMap<String, TaskDefinition>,
     handler_registry: HandlerRegistry,
-    /// Shared suspend/resume state (cloned into WorkflowContext during run())
+    expression_engines: ExpressionEngineRegistry,
+    custom_vars: HashMap<String, Value>,
     suspend_state: SuspendState,
 }
 
@@ -87,6 +87,8 @@ impl WorkflowRunner {
             sub_workflows: HashMap::new(),
             functions: HashMap::new(),
             handler_registry: HandlerRegistry::new(),
+            expression_engines: ExpressionEngineRegistry::new(),
+            custom_vars: HashMap::new(),
             suspend_state: SuspendState::new(),
         })
     }
@@ -154,6 +156,39 @@ impl WorkflowRunner {
         self
     }
 
+    /// Registers a custom expression engine for a specific prefix (e.g., "cel", "js")
+    ///
+    /// Expressions prefixed with `engine_prefix:` will be routed to this engine.
+    /// Unprefixed expressions default to JQ.
+    pub fn with_expression_engine(mut self, engine: Arc<dyn ExpressionEngine>) -> Self {
+        self.expression_engines.register(engine);
+        self
+    }
+
+    /// Injects a custom variable into the JQ expression context.
+    ///
+    /// The variable will be available as `$name` in all expressions (input.from,
+    /// output.as, switch conditions, etc.). This is useful for passing external
+    /// configuration or environment information into the workflow.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use swf_runtime::WorkflowRunner;
+    /// use serde_json::json;
+    ///
+    /// let runner = WorkflowRunner::new(workflow)
+    ///     .expect("failed to create runner")
+    ///     .with_variable("config", json!({"base_url": "https://api.example.com"}))
+    ///     .with_variable("env", json!({"region": "us-east-1"}));
+    /// ```
+    pub fn with_variable(mut self, name: impl Into<String>, value: Value) -> Self {
+        // Store as a sub-workflow-independent variable — we'll inject into context in run()
+        // For simplicity, we use a dedicated field on WorkflowRunner
+        self.custom_vars.insert(name.into(), value);
+        self
+    }
+
     /// Runs the workflow with the given input and returns the output
     pub async fn run(&self, input: Value) -> WorkflowResult<Value> {
         let mut context = WorkflowContext::new(&self.workflow)?;
@@ -180,6 +215,14 @@ impl WorkflowRunner {
 
         // Set handler registry
         context.set_handler_registry(self.handler_registry.clone());
+
+        // Set expression engines
+        context.set_expression_engines(self.expression_engines.clone());
+
+        // Inject custom variables into the JQ context
+        if !self.custom_vars.is_empty() {
+            context.add_local_expr_vars(self.custom_vars.clone());
+        }
 
         // Set registered function definitions
         if !self.functions.is_empty() {
