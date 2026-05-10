@@ -54,7 +54,7 @@ pub trait ExpressionEngine: Send + Sync {
 
 /// Registry of expression engines, keyed by prefix.
 #[derive(Default, Clone)]
-pub(crate) struct ExpressionEngineRegistry {
+pub struct ExpressionEngineRegistry {
     engines: std::sync::Arc<HashMap<String, std::sync::Arc<dyn ExpressionEngine>>>,
 }
 
@@ -70,10 +70,6 @@ impl ExpressionEngineRegistry {
 
     pub fn get(&self, prefix: &str) -> Option<std::sync::Arc<dyn ExpressionEngine>> {
         self.engines.get(prefix).cloned()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.engines.is_empty()
     }
 }
 

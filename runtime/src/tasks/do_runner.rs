@@ -5,6 +5,7 @@ use crate::task_runner::{create_task_runner, TaskRunner, TaskSupport};
 use crate::tasks::task_name_impl;
 
 use serde_json::Value;
+use std::collections::HashMap;
 use swf_core::models::map::Map;
 use swf_core::models::task::{
     DoTaskDefinition, SwitchTaskDefinition, TaskDefinition, TaskDefinitionFields,
@@ -100,6 +101,23 @@ impl DoTaskRunner {
 
             support.set_task_status(name, StatusPhase::Pending);
 
+            let task_type = task_type_str(task);
+            let task_span = tracing::info_span!(
+                "task",
+                name = %name,
+                type = %task_type,
+            );
+            let _task_enter = task_span.enter();
+
+            // Run extension before tasks
+            run_extension_before_tasks(task, &output, support).await?;
+
+            // Restore main task context after before extensions
+            let task_value =
+                crate::error::serialize_to_value(task, "task", name)?;
+            support.set_task_def(&task_value);
+            support.set_task_reference_from_name(name)?;
+
             // Determine flow directive from task execution
             let directive = if let TaskDefinition::Switch(switch_task) = task {
                 // Switch tasks: evaluate conditions to get then directive
@@ -132,6 +150,7 @@ impl DoTaskRunner {
                     .await?;
 
                 support.set_task_status(name, StatusPhase::Completed);
+                tracing::debug!(task = %name, type = %task_type, "task completed");
 
                 // Check the task's `then` directive
                 match common.then.as_deref() {
@@ -139,6 +158,9 @@ impl DoTaskRunner {
                     None => FlowDirective::Continue,
                 }
             };
+
+            // Run extension after tasks
+            run_extension_after_tasks(task, &output, support).await?;
 
             // Apply flow directive
             match directive {
@@ -240,6 +262,150 @@ impl TaskRunner for DoTaskRunner {
 /// Extracts the `if` condition from a TaskDefinition
 fn get_if_condition(task: &TaskDefinition) -> Option<&str> {
     task.common_fields().if_.as_deref()
+}
+
+/// Returns the task type strings that this task matches for extension purposes.
+/// Every task matches "all"; composite tasks also match "composite".
+fn task_type_str(task: &TaskDefinition) -> &'static str {
+    match task {
+        TaskDefinition::Call(_) => "call",
+        TaskDefinition::Set(_) => "set",
+        TaskDefinition::Wait(_) => "wait",
+        TaskDefinition::Raise(_) => "raise",
+        TaskDefinition::Emit(_) => "emit",
+        TaskDefinition::Listen(_) => "listen",
+        TaskDefinition::Run(_) => "run",
+        TaskDefinition::Switch(_) => "switch",
+        TaskDefinition::Try(_) => "try",
+        TaskDefinition::For(_) => "for",
+        TaskDefinition::Do(_) => "do",
+        TaskDefinition::Fork(_) => "fork",
+        TaskDefinition::Custom(_) => "custom",
+    }
+}
+
+/// Returns the task type strings that this task matches for extension purposes.
+/// Every task matches "all"; composite tasks also match "composite".
+fn task_extension_types(task: &TaskDefinition) -> Vec<String> {
+    let mut types = match task {
+        TaskDefinition::Call(_) => vec!["call".to_string()],
+        TaskDefinition::Set(_) => vec!["set".to_string()],
+        TaskDefinition::Wait(_) => vec!["wait".to_string()],
+        TaskDefinition::Raise(_) => vec!["raise".to_string()],
+        TaskDefinition::Emit(_) => vec!["emit".to_string()],
+        TaskDefinition::Listen(_) => vec!["listen".to_string()],
+        TaskDefinition::Run(_) => vec!["run".to_string()],
+        TaskDefinition::Switch(_) => vec!["switch".to_string(), "composite".to_string()],
+        TaskDefinition::Try(_) => vec!["try".to_string(), "composite".to_string()],
+        TaskDefinition::For(_) => vec!["for".to_string(), "composite".to_string()],
+        TaskDefinition::Do(_) => vec!["do".to_string(), "composite".to_string()],
+        TaskDefinition::Fork(_) => vec!["fork".to_string(), "composite".to_string()],
+        TaskDefinition::Custom(t) => {
+            let mut v = vec!["custom".to_string()];
+            if let Some(ref type_name) = t.type_ {
+                v.push(type_name.clone());
+            }
+            v
+        }
+    };
+    types.push("all".to_string());
+    types
+}
+
+/// Runs a list of extension tasks sequentially, preserving side effects (export, events)
+/// but discarding their output so the main data flow is not affected.
+async fn run_extension_task_list(
+    tasks: &[HashMap<String, TaskDefinition>],
+    input: &Value,
+    support: &mut TaskSupport<'_>,
+) -> WorkflowResult<()> {
+    for task_map in tasks {
+        for (name, task_def) in task_map {
+            let runner = create_task_runner(name, task_def, support.workflow)?;
+            let common = task_def.common_fields();
+            let raw_output = support
+                .run_task_with_input_and_timeout(name, common, input, &*runner)
+                .await?;
+            let _ = support
+                .execute_task_lifecycle(name, common, input, raw_output)
+                .await?;
+        }
+    }
+    Ok(())
+}
+
+/// Runs extension before tasks for matching extensions.
+/// Before tasks' output is discarded — the main task receives the original input.
+async fn run_extension_before_tasks(
+    task: &TaskDefinition,
+    input: &Value,
+    support: &mut TaskSupport<'_>,
+) -> WorkflowResult<()> {
+    let extensions = match support
+        .workflow
+        .use_
+        .as_ref()
+        .and_then(|u| u.extensions.as_ref())
+    {
+        Some(exts) => exts,
+        None => return Ok(()),
+    };
+
+    let task_types = task_extension_types(task);
+
+    for ext_map in extensions {
+        for ext in ext_map.values() {
+            if !task_types.iter().any(|t| t == &ext.extend) {
+                continue;
+            }
+            if let Some(ref when) = ext.when {
+                if !support.eval_bool(when, input).unwrap_or(false) {
+                    continue;
+                }
+            }
+            if let Some(ref before) = ext.before {
+                run_extension_task_list(before, input, support).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Runs extension after tasks for matching extensions.
+/// After tasks receive the main task's output but their output is discarded.
+async fn run_extension_after_tasks(
+    task: &TaskDefinition,
+    output: &Value,
+    support: &mut TaskSupport<'_>,
+) -> WorkflowResult<()> {
+    let extensions = match support
+        .workflow
+        .use_
+        .as_ref()
+        .and_then(|u| u.extensions.as_ref())
+    {
+        Some(exts) => exts,
+        None => return Ok(()),
+    };
+
+    let task_types = task_extension_types(task);
+
+    for ext_map in extensions {
+        for ext in ext_map.values() {
+            if !task_types.iter().any(|t| t == &ext.extend) {
+                continue;
+            }
+            if let Some(ref when) = ext.when {
+                if !support.eval_bool(when, output).unwrap_or(false) {
+                    continue;
+                }
+            }
+            if let Some(ref after) = ext.after {
+                run_extension_task_list(after, output, support).await?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1296,5 +1462,321 @@ mod tests {
         assert_eq!(colors.len(), 2);
         assert!(colors.contains(&json!("red")));
         assert!(colors.contains(&json!("blue")));
+    }
+
+    // --- Extension before/after tests ---
+
+    use swf_core::models::extension::ExtensionDefinition;
+    use swf_core::models::workflow::ComponentDefinitionCollection;
+
+    fn make_workflow_with_extensions(
+        tasks: Vec<(&str, TaskDefinition)>,
+        extensions: Vec<HashMap<String, ExtensionDefinition>>,
+    ) -> WorkflowDefinition {
+        let mut workflow = WorkflowDefinition::default();
+        let entries: Vec<(String, TaskDefinition)> = tasks
+            .into_iter()
+            .map(|(name, task)| (name.to_string(), task))
+            .collect();
+        workflow.do_ = Map { entries };
+        workflow.use_ = Some(ComponentDefinitionCollection {
+            extensions: Some(extensions),
+            ..Default::default()
+        });
+        workflow
+    }
+
+    #[tokio::test]
+    async fn test_extension_before_set() {
+        // Extension with before task that exports to $context
+        let before_task = make_set_task("preKey", json!("preValue"));
+        let before_task_with_export = {
+            let mut t = before_task;
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {preKey: .preKey} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "set".to_string(),
+            when: None,
+            before: Some(vec![HashMap::from([(
+                "preTask".to_string(),
+                before_task_with_export,
+            )])]),
+            after: None,
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(42)))],
+            vec![HashMap::from([("myExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner.run(json!({}), &mut support).await.unwrap();
+        // Main task output is preserved (before task output is discarded)
+        assert_eq!(output["result"], json!(42));
+        // Before task's export updated $context
+        let ctx = support.context.get_instance_ctx().unwrap();
+        assert_eq!(ctx["preKey"], json!("preValue"));
+    }
+
+    #[tokio::test]
+    async fn test_extension_after_set() {
+        // Extension with after task that exports to $context
+        let after_task = make_set_task("postKey", json!("postValue"));
+        let after_task_with_export = {
+            let mut t = after_task;
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {postKey: .postKey} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "set".to_string(),
+            when: None,
+            before: None,
+            after: Some(vec![HashMap::from([(
+                "postTask".to_string(),
+                after_task_with_export,
+            )])]),
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(42)))],
+            vec![HashMap::from([("myExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner.run(json!({}), &mut support).await.unwrap();
+        // Main task output is preserved
+        assert_eq!(output["result"], json!(42));
+        // After task's export updated $context
+        let ctx = support.context.get_instance_ctx().unwrap();
+        assert_eq!(ctx["postKey"], json!("postValue"));
+    }
+
+    #[tokio::test]
+    async fn test_extension_before_and_after() {
+        let before_task = {
+            let mut t = make_set_task("preKey", json!("before"));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {preKey: .preKey} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+        let after_task = {
+            let mut t = make_set_task("postKey", json!("after"));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {postKey: .postKey} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "set".to_string(),
+            when: None,
+            before: Some(vec![HashMap::from([(
+                "preTask".to_string(),
+                before_task,
+            )])]),
+            after: Some(vec![HashMap::from([(
+                "postTask".to_string(),
+                after_task,
+            )])]),
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(42)))],
+            vec![HashMap::from([("myExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner.run(json!({}), &mut support).await.unwrap();
+        assert_eq!(output["result"], json!(42));
+        // Before export then after export — last export wins
+        let ctx = support.context.get_instance_ctx().unwrap();
+        assert_eq!(ctx["postKey"], json!("after"));
+    }
+
+    #[tokio::test]
+    async fn test_extension_when_condition_true() {
+        let before_task = {
+            let mut t = make_set_task("touched", json!(true));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {touched: .touched} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "set".to_string(),
+            when: Some(".enabled".to_string()),
+            before: Some(vec![HashMap::from([(
+                "condTask".to_string(),
+                before_task,
+            )])]),
+            after: None,
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(1)))],
+            vec![HashMap::from([("condExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner
+            .run(json!({"enabled": true}), &mut support)
+            .await
+            .unwrap();
+        assert_eq!(output["result"], json!(1));
+        let ctx = support.context.get_instance_ctx().unwrap();
+        assert_eq!(ctx["touched"], json!(true));
+    }
+
+    #[tokio::test]
+    async fn test_extension_when_condition_false() {
+        let before_task = {
+            let mut t = make_set_task("touched", json!(true));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {touched: .touched} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "set".to_string(),
+            when: Some(".enabled".to_string()),
+            before: Some(vec![HashMap::from([(
+                "condTask".to_string(),
+                before_task,
+            )])]),
+            after: None,
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(1)))],
+            vec![HashMap::from([("condExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner
+            .run(json!({"enabled": false}), &mut support)
+            .await
+            .unwrap();
+        assert_eq!(output["result"], json!(1));
+        // Extension was skipped because when condition is false
+        let ctx = support.context.get_instance_ctx();
+        assert!(ctx.is_none() || ctx.unwrap().get("touched").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_extension_extend_all() {
+        let after_task = {
+            let mut t = make_set_task("logMsg", json!("logged"));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {logMsg: .logMsg} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        let ext = ExtensionDefinition {
+            extend: "all".to_string(),
+            when: None,
+            before: None,
+            after: Some(vec![HashMap::from([(
+                "logAfter".to_string(),
+                after_task,
+            )])]),
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![
+                ("task1", make_set_task("a", json!(1))),
+                ("task2", make_set_task("b", json!(2))),
+            ],
+            vec![HashMap::from([("logExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner.run(json!({}), &mut support).await.unwrap();
+        // Both tasks run, "all" extension runs after each
+        assert_eq!(output["b"], json!(2));
+        let ctx = support.context.get_instance_ctx().unwrap();
+        assert_eq!(ctx["logMsg"], json!("logged"));
+    }
+
+    #[tokio::test]
+    async fn test_extension_no_match() {
+        let before_task = {
+            let mut t = make_set_task("touched", json!(true));
+            if let TaskDefinition::Set(ref mut s) = t {
+                s.common.export = Some(swf_core::models::output::OutputDataModelDefinition {
+                    as_: Some(json!("${ {touched: .touched} }")),
+                    schema: None,
+                });
+            }
+            t
+        };
+
+        // Extension targets "call" but we only have "set" tasks
+        let ext = ExtensionDefinition {
+            extend: "call".to_string(),
+            when: None,
+            before: Some(vec![HashMap::from([(
+                "callBefore".to_string(),
+                before_task,
+            )])]),
+            after: None,
+        };
+
+        let workflow = make_workflow_with_extensions(
+            vec![("mainSet", make_set_task("result", json!(1)))],
+            vec![HashMap::from([("callExt".to_string(), ext)])],
+        );
+
+        let do_runner = DoTaskRunner::new_from_workflow(&workflow).unwrap();
+        default_support!(workflow, context, support);
+
+        let output = do_runner.run(json!({}), &mut support).await.unwrap();
+        assert_eq!(output["result"], json!(1));
+        // Extension didn't match, so no side effects
+        let ctx = support.context.get_instance_ctx();
+        assert!(ctx.is_none() || ctx.unwrap().get("touched").is_none());
     }
 }

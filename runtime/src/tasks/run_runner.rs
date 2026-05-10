@@ -125,6 +125,9 @@ impl RunTaskRunner {
         // Since HandlerRegistry uses Arc internally, clone is cheap
         child_runner = child_runner.with_handler_registry(support.context.clone_handler_registry());
 
+        // Propagate expression engines for sub-workflows (e.g., cel: prefix support)
+        child_runner = child_runner.with_expression_engine_registry(support.context.clone_expression_engines());
+
         child_runner.run(sub_input).await
     }
 

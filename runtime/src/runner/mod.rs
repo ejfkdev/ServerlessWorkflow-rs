@@ -11,6 +11,7 @@ use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::DoTaskRunner;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use swf_core::models::task::TaskDefinition;
@@ -165,6 +166,13 @@ impl WorkflowRunner {
         self
     }
 
+    /// Sets the expression engine registry (replaces all previously registered engines).
+    /// Useful for propagating engines from a parent runner to a child runner.
+    pub fn with_expression_engine_registry(mut self, registry: ExpressionEngineRegistry) -> Self {
+        self.expression_engines = registry;
+        self
+    }
+
     /// Injects a custom variable into the JQ expression context.
     ///
     /// The variable will be available as `$name` in all expressions (input.from,
@@ -191,6 +199,13 @@ impl WorkflowRunner {
 
     /// Runs the workflow with the given input and returns the output
     pub async fn run(&self, input: Value) -> WorkflowResult<Value> {
+        let span = tracing::info_span!(
+            "workflow",
+            name = %self.workflow.document.name,
+            version = %self.workflow.document.version,
+        );
+        let _enter = span.enter();
+
         let mut context = WorkflowContext::new(&self.workflow)?;
 
         // Set secret manager if configured
@@ -233,6 +248,7 @@ impl WorkflowRunner {
         context.set_suspend_state(self.suspend_state.clone());
 
         let instance_id = context.instance_id().to_string();
+        tracing::info!(instance_id = %instance_id, "workflow started");
 
         // Handle schedule:after — delay before starting
         if let Some(ref schedule) = self.workflow.schedule {
@@ -299,6 +315,7 @@ impl WorkflowRunner {
                     instance_id: instance_id.clone(),
                     error: format!("{}", e),
                 });
+                tracing::error!(instance_id = %instance_id, error = %e, "workflow failed");
                 // Only set instance on Runtime errors, preserve error type for others
                 if e.kind() == ErrorKind::Runtime {
                     let reference = support.get_task_reference().unwrap_or("/");
@@ -327,6 +344,8 @@ impl WorkflowRunner {
                 output: processed_output.clone(),
             });
 
+        tracing::info!(instance_id = %instance_id, "workflow completed");
+
         Ok(processed_output)
     }
 
@@ -349,7 +368,7 @@ impl WorkflowRunner {
     /// `schedule.every` or `schedule.cron` definition.
     ///
     /// For `every`: runs the workflow at fixed intervals.
-    /// For `cron`: currently not supported (requires cron parsing library).
+    /// For `cron`: runs the workflow according to the cron expression schedule.
     ///
     /// Returns a `ScheduledWorkflow` that can be cancelled to stop the schedule.
     /// If no schedule is defined, runs once and returns a completed handle.
@@ -376,7 +395,46 @@ impl WorkflowRunner {
                     cancel_tx,
                 };
             }
-            // Cron/after/on: run once (cron scheduling not yet supported)
+            if let Some(ref cron_expr) = schedule.cron {
+                let (cancel_tx, mut cancel_rx) = tokio::sync::watch::channel(false);
+                let cron_expr = cron_expr.clone();
+                let join_handle = tokio::spawn(async move {
+                    // Parse the cron expression (standard 5-field: min hour dom month dow)
+                    let schedule = match cron::Schedule::from_str(&cron_expr) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!("invalid cron expression '{}': {}", cron_expr, e);
+                            return;
+                        }
+                    };
+                    loop {
+                        let next = schedule.upcoming(chrono::Utc).next();
+                        let next = match next {
+                            Some(t) => t,
+                            None => break,
+                        };
+                        let delay = next - chrono::Utc::now();
+                        let delay_std = delay.to_std().unwrap_or(Duration::ZERO);
+                        if delay_std.is_zero() {
+                            let _ = self.run(input.clone()).await;
+                            continue;
+                        }
+                        tokio::select! {
+                            _ = tokio::time::sleep(delay_std) => {
+                                let _ = self.run(input.clone()).await;
+                            }
+                            _ = cancel_rx.changed() => {
+                                break;
+                            }
+                        }
+                    }
+                });
+                return ScheduledWorkflow {
+                    join_handle,
+                    cancel_tx,
+                };
+            }
+            // after/on: run once (event-based scheduling not yet supported)
         }
 
         // No schedule or non-recurring: run once

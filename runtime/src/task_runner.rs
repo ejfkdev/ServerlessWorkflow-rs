@@ -373,11 +373,13 @@ impl<'a> TaskSupport<'a> {
             task_name: task_name.to_string(),
         });
 
+        tracing::debug!(task = %task_name, "task started");
+
         // Process task input
         let task_input = self.process_task_input(common.input.as_ref(), input, task_name)?;
 
         // Execute the task (with optional timeout)
-        if let Some(timeout) = common.timeout.as_ref() {
+        let result = if let Some(timeout) = common.timeout.as_ref() {
             let vars = self.get_vars();
             let duration = crate::utils::parse_duration_with_context(
                 timeout,
@@ -388,14 +390,22 @@ impl<'a> TaskSupport<'a> {
             )?;
             match tokio::time::timeout(duration, runner.run(task_input, self)).await {
                 Ok(result) => result,
-                Err(_) => Err(WorkflowError::timeout(
-                    format!("task '{}' timed out after {:?}", task_name, duration),
-                    task_name,
-                )),
+                Err(_) => {
+                    tracing::warn!(task = %task_name, duration = ?duration, "task timed out");
+                    Err(WorkflowError::timeout(
+                        format!("task '{}' timed out after {:?}", task_name, duration),
+                        task_name,
+                    ))
+                }
             }
         } else {
             runner.run(task_input, self).await
+        };
+
+        if result.is_err() {
+            tracing::error!(task = %task_name, "task failed");
         }
+        result
     }
 }
 

@@ -520,13 +520,18 @@ impl WorkflowContext {
     // ---- Expression Engines ----
 
     /// Sets the expression engine registry
-    pub fn set_expression_engines(&mut self, engines: ExpressionEngineRegistry) {
+    pub(crate) fn set_expression_engines(&mut self, engines: ExpressionEngineRegistry) {
         self.expression_engines = engines;
     }
 
     /// Gets a reference to the expression engine registry
-    pub fn get_expression_engines(&self) -> &ExpressionEngineRegistry {
+    pub(crate) fn get_expression_engines(&self) -> &ExpressionEngineRegistry {
         &self.expression_engines
+    }
+
+    /// Clones the expression engine registry (for propagating to child runners)
+    pub(crate) fn clone_expression_engines(&self) -> ExpressionEngineRegistry {
+        self.expression_engines.clone()
     }
 
     // ---- Functions (Catalog) ----
