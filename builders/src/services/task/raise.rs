@@ -19,8 +19,8 @@ impl RaiseErrorDefinitionBuilder {
         self
     }
 
-    /// Sets the error status value.
-    pub fn with_status(&mut self, status: Value) -> &mut Self {
+    /// Sets the error status code (RFC 7807 integer).
+    pub fn with_status(&mut self, status: i32) -> &mut Self {
         self.error.status = status;
         self
     }

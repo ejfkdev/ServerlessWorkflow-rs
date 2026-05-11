@@ -71,7 +71,7 @@ mod unit_tests {
         let listen_task_name = "listen-task";
         let raise_task_name = "raise-task-name";
         let raise_error_type = "error-type";
-        let raise_error_status = json!(400);
+        let raise_error_status = 400;
         let raise_error_title = "error-title";
         let raise_error_detail = "error-detail";
         let raise_error_instance = "error-instance";
