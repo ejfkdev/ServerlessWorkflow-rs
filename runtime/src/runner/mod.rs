@@ -2,9 +2,10 @@ use crate::context::{SuspendState, WorkflowContext};
 use crate::error::{ErrorKind, WorkflowError, WorkflowResult};
 use crate::events::SharedEventBus;
 use crate::expression::{evaluate_value_expr, ExpressionEngine, ExpressionEngineRegistry};
-use crate::handler::{CallHandler, CustomTaskHandler, HandlerRegistry, RunHandler};
+use crate::handler::{CallHandler, CustomTaskHandler, HandlerRegistry, RunHandler, TaskHandler};
 use crate::json_schema::validate_schema;
 use crate::listener::{WorkflowEvent, WorkflowExecutionListener};
+use crate::resolver::WorkflowResolver;
 use crate::secret::SecretManager;
 use crate::status::StatusPhase;
 use crate::task_runner::{TaskRunner, TaskSupport};
@@ -75,6 +76,8 @@ pub struct WorkflowRunner {
     expression_engines: ExpressionEngineRegistry,
     custom_vars: HashMap<String, Value>,
     suspend_state: SuspendState,
+    workflow_resolver: Option<Arc<dyn WorkflowResolver>>,
+    workflow_call_stack: Option<Vec<String>>,
 }
 
 impl WorkflowRunner {
@@ -91,6 +94,8 @@ impl WorkflowRunner {
             expression_engines: ExpressionEngineRegistry::new(),
             custom_vars: HashMap::new(),
             suspend_state: SuspendState::new(),
+            workflow_resolver: None,
+            workflow_call_stack: None,
         })
     }
 
@@ -151,9 +156,34 @@ impl WorkflowRunner {
         self
     }
 
+    /// Registers a unified task handler for any handler type
+    pub fn with_handler(mut self, handler: std::sync::Arc<dyn TaskHandler>) -> Self {
+        self.handler_registry.register_handler(handler);
+        self
+    }
+
     /// Registers a custom task handler for a specific custom task type
     pub fn with_custom_task_handler(mut self, handler: Box<dyn CustomTaskHandler>) -> Self {
         self.handler_registry.register_custom_task_handler(handler);
+        self
+    }
+
+    /// Sets a dynamic workflow resolver for `run: workflow` tasks.
+    ///
+    /// The resolver is consulted when a sub-workflow is not found in the
+    /// pre-registered sub-workflow registry. This enables declarative
+    /// workflow references without pre-registering every sub-workflow.
+    pub fn with_workflow_resolver(mut self, resolver: Arc<dyn WorkflowResolver>) -> Self {
+        self.workflow_resolver = Some(resolver);
+        self
+    }
+
+    /// Sets the workflow call stack (inherited from parent for cycle detection).
+    ///
+    /// This is used internally when a sub-workflow runner needs to inherit
+    /// the parent's call stack for cycle detection across nested workflows.
+    pub fn with_workflow_call_stack(mut self, stack: Vec<String>) -> Self {
+        self.workflow_call_stack = Some(stack);
         self
     }
 
@@ -247,6 +277,23 @@ impl WorkflowRunner {
         // Share suspend/resume state with context
         context.set_suspend_state(self.suspend_state.clone());
 
+        // Set expression evaluation mode from workflow definition
+        if let Some(ref evaluate) = self.workflow.evaluate {
+            if let Some(ref mode) = evaluate.mode {
+                context.set_evaluate_mode(mode.clone());
+            }
+        }
+
+        // Set workflow resolver if configured
+        if let Some(ref resolver) = self.workflow_resolver {
+            context.set_workflow_resolver(resolver.clone());
+        }
+
+        // Inherit workflow call stack from parent (for cycle detection in nested workflows)
+        if let Some(ref stack) = self.workflow_call_stack {
+            context.set_workflow_call_stack(stack.clone());
+        }
+
         let instance_id = context.instance_id().to_string();
         tracing::info!(instance_id = %instance_id, "workflow started");
 
@@ -307,8 +354,13 @@ impl WorkflowRunner {
             do_runner.run(processed_input, &mut support).await
         };
 
+        // Handle WorkflowEnd signal (from `then: end`) — treat as normal completion
         let output = match run_result {
             Ok(output) => output,
+            Err(ref e) if e.is_workflow_end() => {
+                // Use the output captured at the point of 'then: end'
+                e.end_output().cloned().unwrap_or(Value::Null)
+            }
             Err(e) => {
                 support.context.set_status(StatusPhase::Faulted);
                 support.context.emit_event(WorkflowEvent::WorkflowFailed {

@@ -336,10 +336,12 @@ fn test_call_mcp() {
         result.err()
     );
     let call_task = result.unwrap();
-    if let CallTaskDefinition::Function(ref func_def) = call_task {
-        assert_eq!(func_def.call, "mcp");
+    if let CallTaskDefinition::MCP(ref mcp_def) = call_task {
+        assert_eq!(mcp_def.call, "mcp");
+        assert_eq!(mcp_def.with.method, "tools/call");
+        assert!(mcp_def.with.transport.stdio.is_some());
     } else {
-        panic!("Expected Function variant for mcp call");
+        panic!("Expected MCP variant for mcp call");
     }
 }
 

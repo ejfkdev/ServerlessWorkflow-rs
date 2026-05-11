@@ -1,6 +1,6 @@
 use crate::context::WorkflowContext;
 use crate::error::{WorkflowError, WorkflowResult};
-use crate::expression::{traverse_and_evaluate, traverse_and_evaluate_obj};
+use crate::expression::traverse_and_evaluate_obj_with_mode;
 use crate::handler::HandlerRegistry;
 use crate::json_schema::validate_schema;
 use crate::listener::WorkflowEvent;
@@ -180,7 +180,8 @@ impl<'a> TaskSupport<'a> {
     /// Recursively traverses a JSON structure and evaluates all runtime expressions in-place
     pub fn eval_traverse(&self, node: &mut Value, input: &Value) -> WorkflowResult<()> {
         let vars = self.get_vars();
-        traverse_and_evaluate(node, input, &vars)
+        let loose = self.context.is_loose_mode();
+        crate::expression::traverse_and_evaluate_with_mode(node, input, &vars, loose)
     }
 
     /// Evaluates an optional input `from` expression into a Value (for task input processing)
@@ -191,7 +192,8 @@ impl<'a> TaskSupport<'a> {
         task_name: &str,
     ) -> WorkflowResult<Value> {
         let vars = self.get_vars();
-        traverse_and_evaluate_obj(from, input, &vars, task_name)
+        let loose = self.context.is_loose_mode();
+        traverse_and_evaluate_obj_with_mode(from, input, &vars, task_name, loose)
     }
 
     /// Resolves a duration expression with current context vars
@@ -353,7 +355,7 @@ impl<'a> TaskSupport<'a> {
         Ok(output)
     }
 
-    /// Processes task input and handles timeout-wrapped execution.
+    /// Processes task input and handles timeout-wrapped execution with optional retry.
     /// Returns the raw task output (before output/export processing).
     pub async fn run_task_with_input_and_timeout(
         &mut self,
@@ -378,17 +380,40 @@ impl<'a> TaskSupport<'a> {
         // Process task input
         let task_input = self.process_task_input(common.input.as_ref(), input, task_name)?;
 
-        // Execute the task (with optional timeout)
-        let result = if let Some(timeout) = common.timeout.as_ref() {
+        // Execute with optional retry
+        let max_attempts = common.retry.as_ref().map(|r| r.max).unwrap_or(0);
+        let result = if max_attempts > 0 {
+            self.run_with_retry(task_name, common, &task_input, runner, max_attempts)
+                .await
+        } else {
+            self.run_single_attempt(task_name, common, &task_input, runner)
+                .await
+        };
+
+        if result.is_err() {
+            tracing::error!(task = %task_name, "task failed");
+        }
+        result
+    }
+
+    /// Runs a single task attempt with optional timeout
+    async fn run_single_attempt(
+        &mut self,
+        task_name: &str,
+        common: &TaskDefinitionFields,
+        task_input: &Value,
+        runner: &dyn TaskRunner,
+    ) -> WorkflowResult<Value> {
+        if let Some(timeout) = common.timeout.as_ref() {
             let vars = self.get_vars();
             let duration = crate::utils::parse_duration_with_context(
                 timeout,
-                &task_input,
+                task_input,
                 &vars,
                 task_name,
                 Some(self.workflow),
             )?;
-            match tokio::time::timeout(duration, runner.run(task_input, self)).await {
+            match tokio::time::timeout(duration, runner.run(task_input.clone(), self)).await {
                 Ok(result) => result,
                 Err(_) => {
                     tracing::warn!(task = %task_name, duration = ?duration, "task timed out");
@@ -399,13 +424,65 @@ impl<'a> TaskSupport<'a> {
                 }
             }
         } else {
-            runner.run(task_input, self).await
-        };
-
-        if result.is_err() {
-            tracing::error!(task = %task_name, "task failed");
+            runner.run(task_input.clone(), self).await
         }
-        result
+    }
+
+    /// Runs a task with transparent retry on failure
+    async fn run_with_retry(
+        &mut self,
+        task_name: &str,
+        common: &TaskDefinitionFields,
+        task_input: &Value,
+        runner: &dyn TaskRunner,
+        max_attempts: u32,
+    ) -> WorkflowResult<Value> {
+        let retry = common.retry.as_ref().unwrap();
+        let when = retry.when.as_deref(); // Option<&[String]>
+        let base_delay = retry.delay.as_deref();
+
+        for attempt in 0..=max_attempts {
+            match self
+                .run_single_attempt(task_name, common, task_input, runner)
+                .await
+            {
+                Ok(value) => return Ok(value),
+                Err(ref e) if e.is_workflow_end() => return Err(e.clone()),
+                Err(ref e) => {
+                    // Check if this error should be retried
+                    if !should_retry(e, when) {
+                        tracing::debug!(task = %task_name, "error not retryable, giving up");
+                        return Err(e.clone().with_retry_count(attempt));
+                    }
+
+                    if attempt < max_attempts {
+                        let delay = compute_retry_delay(base_delay, &retry.backoff, attempt);
+                        tracing::warn!(
+                            task = %task_name,
+                            attempt = attempt + 1,
+                            max = max_attempts,
+                            delay_ms = delay.as_millis(),
+                            "task failed, retrying"
+                        );
+                        if !delay.is_zero() {
+                            tokio::time::sleep(delay).await;
+                        }
+                    } else {
+                        tracing::error!(
+                            task = %task_name,
+                            attempts = max_attempts + 1,
+                            "task failed after all retry attempts"
+                        );
+                        return Err(e.clone().with_retry_count(max_attempts));
+                    }
+                }
+            }
+        }
+        // Unreachable, but needed for type checking
+        Err(WorkflowError::runtime_simple(
+            "retry loop exhausted".to_string(),
+            task_name,
+        ))
     }
 }
 
@@ -429,5 +506,141 @@ pub fn create_task_runner(
         TaskDefinition::Call(t) => Ok(Box::new(CallTaskRunner::new(name, t)?)),
         TaskDefinition::Run(t) => Ok(Box::new(RunTaskRunner::new(name, t)?)),
         TaskDefinition::Custom(t) => Ok(Box::new(CustomTaskRunner::new(name, t)?)),
+    }
+}
+
+/// Checks if an error matches the retry `when` conditions.
+/// If `when` is None or empty, all errors are retryable (except WorkflowEnd, handled separately).
+fn should_retry(error: &WorkflowError, when: Option<&[String]>) -> bool {
+    let conditions = match when {
+        None | Some([]) => return true,
+        Some(c) => c,
+    };
+
+    let kind_str = error.kind().as_str();
+    let status_val = error.status();
+
+    for condition in conditions {
+        // Match against ErrorKind (e.g., "communication", "timeout")
+        if kind_str == condition.as_str() {
+            return true;
+        }
+
+        // Match against HTTP status patterns (e.g., "5xx", "4xx", "429")
+        if let Some(status) = status_val {
+            if matches_status_pattern(status, condition) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Checks if a status value matches a pattern like "5xx", "4xx", or an exact code like "429"
+fn matches_status_pattern(status: &serde_json::Value, pattern: &str) -> bool {
+    let status_num = match status.as_u64() {
+        Some(n) => n,
+        None => return false,
+    };
+
+    // Exact match (e.g., "429")
+    if let Ok(exact) = pattern.parse::<u64>() {
+        return status_num == exact;
+    }
+
+    // Wildcard patterns (e.g., "5xx", "4xx")
+    let pattern_lower = pattern.to_lowercase();
+    if pattern_lower.len() == 3 && pattern_lower.ends_with("xx") {
+        if let Some(digit) = pattern_lower.as_bytes()[0].checked_sub(b'0') {
+            let category = digit as u64;
+            let status_category = status_num / 100;
+            return status_category == category;
+        }
+    }
+
+    false
+}
+
+/// Computes the delay for a retry attempt based on the backoff strategy
+fn compute_retry_delay(
+    base_delay: Option<&str>,
+    backoff: &Option<swf_core::models::task::TaskRetryBackoff>,
+    attempt: u32,
+) -> std::time::Duration {
+    let base = match base_delay {
+        Some(delay_str) => crate::utils::parse_iso8601_duration(delay_str)
+            .unwrap_or(std::time::Duration::from_secs(1)),
+        None => std::time::Duration::from_secs(1),
+    };
+
+    match backoff {
+        Some(swf_core::models::task::TaskRetryBackoff::Linear) => base * (attempt + 1),
+        Some(swf_core::models::task::TaskRetryBackoff::Exponential) => {
+            let multiplier = 2u32.pow(attempt);
+            base * multiplier
+        }
+        _ => base, // Fixed (default)
+    }
+}
+
+#[cfg(test)]
+mod retry_tests {
+    use super::*;
+
+    #[test]
+    fn test_should_retry_no_conditions() {
+        let err = WorkflowError::runtime_simple("test error", "task1");
+        assert!(should_retry(&err, None));
+        assert!(should_retry(&err, Some(&[])));
+    }
+
+    #[test]
+    fn test_should_retry_match_kind() {
+        let err = WorkflowError::communication("connection refused", "task1");
+        assert!(should_retry(&err, Some(&["communication".into()])));
+        assert!(!should_retry(&err, Some(&["timeout".into()])));
+    }
+
+    #[test]
+    fn test_should_retry_match_status_pattern() {
+        let err = WorkflowError::communication_with_status("server error", "task1", 500);
+        assert!(should_retry(&err, Some(&["5xx".into()])));
+        assert!(!should_retry(&err, Some(&["4xx".into()])));
+        assert!(should_retry(&err, Some(&["500".into()])));
+    }
+
+    #[test]
+    fn test_matches_status_pattern_exact() {
+        assert!(matches_status_pattern(&serde_json::json!(429), "429"));
+        assert!(!matches_status_pattern(&serde_json::json!(500), "429"));
+    }
+
+    #[test]
+    fn test_matches_status_pattern_wildcard() {
+        assert!(matches_status_pattern(&serde_json::json!(503), "5xx"));
+        assert!(matches_status_pattern(&serde_json::json!(429), "4xx"));
+        assert!(!matches_status_pattern(&serde_json::json!(200), "5xx"));
+    }
+
+    #[test]
+    fn test_compute_retry_delay_fixed() {
+        let delay = compute_retry_delay(Some("PT1S"), &None, 2);
+        assert_eq!(delay, std::time::Duration::from_secs(1));
+    }
+
+    #[test]
+    fn test_compute_retry_delay_linear() {
+        let backoff = Some(swf_core::models::task::TaskRetryBackoff::Linear);
+        let delay = compute_retry_delay(Some("PT1S"), &backoff, 2);
+        // attempt 2 → base * (2 + 1) = 3s
+        assert_eq!(delay, std::time::Duration::from_secs(3));
+    }
+
+    #[test]
+    fn test_compute_retry_delay_exponential() {
+        let backoff = Some(swf_core::models::task::TaskRetryBackoff::Exponential);
+        let delay = compute_retry_delay(Some("PT1S"), &backoff, 3);
+        // attempt 3 → base * 2^3 = 8s
+        assert_eq!(delay, std::time::Duration::from_secs(8));
     }
 }

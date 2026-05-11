@@ -113,8 +113,7 @@ impl DoTaskRunner {
             run_extension_before_tasks(task, &output, support).await?;
 
             // Restore main task context after before extensions
-            let task_value =
-                crate::error::serialize_to_value(task, "task", name)?;
+            let task_value = crate::error::serialize_to_value(task, "task", name)?;
             support.set_task_def(&task_value);
             support.set_task_reference_from_name(name)?;
 
@@ -167,7 +166,12 @@ impl DoTaskRunner {
                 FlowDirective::Continue => {
                     index += 1;
                 }
-                FlowDirective::End | FlowDirective::Exit => {
+                FlowDirective::End => {
+                    // Per spec: "end" terminates the entire workflow
+                    return Err(WorkflowError::workflow_end(&self.name, output));
+                }
+                FlowDirective::Exit => {
+                    // Per spec: "exit" exits the current composite task only
                     break;
                 }
                 FlowDirective::Goto(target) => match self.find_task_index(&target) {
@@ -506,7 +510,9 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         default_support!(workflow, context, support);
 
-        let output = runner.run(json!({}), &mut support).await.unwrap();
+        // then: end produces WorkflowEnd signal with the output
+        let result = runner.run(json!({}), &mut support).await;
+        let output = result.unwrap_err().end_output().unwrap().clone();
         assert_eq!(output["final"], json!(42));
         assert!(output.get("skipped").is_none());
     }
@@ -905,11 +911,11 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         default_support!(workflow, context, support);
 
-        // Test red path
-        let output = runner
+        // Test red path - then: end produces WorkflowEnd
+        let result = runner
             .run(json!({"color": "red", "colors": []}), &mut support)
-            .await
-            .unwrap();
+            .await;
+        let output = result.unwrap_err().end_output().unwrap().clone();
         assert_eq!(output["colors"], json!(["red"]));
     }
 
@@ -969,11 +975,11 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         default_support!(workflow, context, support);
 
-        // Test fallback (no matching case)
-        let output = runner
+        // Test fallback (no matching case) - then: end produces WorkflowEnd
+        let result = runner
             .run(json!({"color": "yellow", "colors": []}), &mut support)
-            .await
-            .unwrap();
+            .await;
+        let output = result.unwrap_err().end_output().unwrap().clone();
         assert_eq!(output["colors"], json!(["default"]));
     }
 
@@ -1101,7 +1107,7 @@ mod tests {
                     swf_core::models::error::ErrorDefinition::new(
                         "authorization",
                         "Authorization Error",
-                        json!(403),
+                        403,
                         Some("User is under the required age".to_string()),
                         None,
                     ),
@@ -1141,7 +1147,7 @@ mod tests {
                     swf_core::models::error::ErrorDefinition::new(
                         "authorization",
                         "Authorization Error",
-                        json!(403),
+                        403,
                         Some("User is under the required age".to_string()),
                         None,
                     ),
@@ -1293,7 +1299,9 @@ mod tests {
         let workflow = WorkflowDefinition::default();
         default_support!(workflow, context, support);
 
-        let output = runner.run(json!({}), &mut support).await.unwrap();
+        // then: end produces WorkflowEnd signal with the output
+        let result = runner.run(json!({}), &mut support).await;
+        let output = result.unwrap_err().end_output().unwrap().clone();
         assert_eq!(output["finalValue"], json!(20));
         assert!(output.get("skipped").is_none());
     }
@@ -1594,14 +1602,8 @@ mod tests {
         let ext = ExtensionDefinition {
             extend: "set".to_string(),
             when: None,
-            before: Some(vec![HashMap::from([(
-                "preTask".to_string(),
-                before_task,
-            )])]),
-            after: Some(vec![HashMap::from([(
-                "postTask".to_string(),
-                after_task,
-            )])]),
+            before: Some(vec![HashMap::from([("preTask".to_string(), before_task)])]),
+            after: Some(vec![HashMap::from([("postTask".to_string(), after_task)])]),
         };
 
         let workflow = make_workflow_with_extensions(
@@ -1635,10 +1637,7 @@ mod tests {
         let ext = ExtensionDefinition {
             extend: "set".to_string(),
             when: Some(".enabled".to_string()),
-            before: Some(vec![HashMap::from([(
-                "condTask".to_string(),
-                before_task,
-            )])]),
+            before: Some(vec![HashMap::from([("condTask".to_string(), before_task)])]),
             after: None,
         };
 
@@ -1675,10 +1674,7 @@ mod tests {
         let ext = ExtensionDefinition {
             extend: "set".to_string(),
             when: Some(".enabled".to_string()),
-            before: Some(vec![HashMap::from([(
-                "condTask".to_string(),
-                before_task,
-            )])]),
+            before: Some(vec![HashMap::from([("condTask".to_string(), before_task)])]),
             after: None,
         };
 
@@ -1717,10 +1713,7 @@ mod tests {
             extend: "all".to_string(),
             when: None,
             before: None,
-            after: Some(vec![HashMap::from([(
-                "logAfter".to_string(),
-                after_task,
-            )])]),
+            after: Some(vec![HashMap::from([("logAfter".to_string(), after_task)])]),
         };
 
         let workflow = make_workflow_with_extensions(

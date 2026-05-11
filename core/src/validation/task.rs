@@ -203,6 +203,22 @@ pub(crate) fn validate_call_task(
                 );
             }
         }
+        CallTaskDefinition::MCP(mcp) => {
+            if mcp.with.method.is_empty() {
+                result.add_error(
+                    &format!("{}.with.method", prefix),
+                    ValidationRule::Required,
+                    "MCP method is required",
+                );
+            }
+            if mcp.with.transport.http.is_none() && mcp.with.transport.stdio.is_none() {
+                result.add_error(
+                    &format!("{}.with.transport", prefix),
+                    ValidationRule::Required,
+                    "MCP transport must have either http or stdio configured",
+                );
+            }
+        }
         CallTaskDefinition::Function(func) => {
             if func.call.is_empty() {
                 result.add_error(

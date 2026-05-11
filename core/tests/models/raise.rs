@@ -45,7 +45,7 @@ fn test_raise_task_roundtrip_serialization() {
         OneOfErrorDefinitionOrReference::Error(ErrorDefinition::new(
             "http://example.com/error",
             "Internal Server Error",
-            serde_json::json!(500),
+            500,
             Some("An unexpected error occurred.".to_string()),
             None,
         )),
@@ -71,7 +71,7 @@ fn test_raise_task_definition() {
             swf_core::models::error::ErrorDefinition::new(
                 "https://example.com/errors",
                 "Bad Request",
-                serde_json::json!(400),
+                400,
                 Some("Error occurred".to_string()),
                 None,
             ),
@@ -91,7 +91,7 @@ fn test_raise_task_roundtrip() {
         error: OneOfErrorDefinitionOrReference::Error(ErrorDefinition::new(
             "https://example.com/errors",
             "Not Found",
-            serde_json::json!(404),
+            404,
             Some("Resource not found".to_string()),
             None,
         )),

@@ -11,6 +11,10 @@ pub struct ErrorFields {
     pub title: Option<String>,
     pub detail: Option<String>,
     pub original_type: Option<String>,
+    /// Runtime extension: number of retry attempts made before this error (swf.retryCount)
+    pub retry_count: u32,
+    /// Runtime extension: ISO 8601 timestamp when the error occurred (swf.timestamp)
+    pub timestamp: Option<String>,
 }
 
 impl ErrorFields {
@@ -27,6 +31,8 @@ impl ErrorFields {
             title: None,
             detail: None,
             original_type: None,
+            retry_count: 0,
+            timestamp: None,
         }
     }
 
@@ -70,6 +76,8 @@ pub enum ErrorKind {
     Authentication,
     Authorization,
     Configuration,
+    /// Special kind indicating the workflow should end (from `then: end`)
+    WorkflowEnd,
 }
 
 impl ErrorKind {
@@ -84,6 +92,7 @@ impl ErrorKind {
             ErrorKind::Authentication => "authentication",
             ErrorKind::Authorization => "authorization",
             ErrorKind::Configuration => "configuration",
+            ErrorKind::WorkflowEnd => "workflow-end",
         }
     }
 
@@ -105,6 +114,9 @@ impl ErrorKind {
             }
             ErrorKind::Configuration => {
                 "https://serverlessworkflow.io/spec/1.0.0/errors/configuration"
+            }
+            ErrorKind::WorkflowEnd => {
+                "https://serverlessworkflow.io/spec/1.0.0/errors/workflow-end"
             }
         }
     }
@@ -142,6 +154,8 @@ impl ErrorKind {
 pub struct WorkflowError {
     kind: ErrorKind,
     fields: ErrorFields,
+    /// For WorkflowEnd, carries the output at the point of termination
+    end_output: Option<Value>,
 }
 
 impl std::error::Error for WorkflowError {}
@@ -174,6 +188,7 @@ impl WorkflowError {
         Self {
             kind: ErrorKind::Validation,
             fields: ErrorFields::new(message, task, ""),
+            end_output: None,
         }
     }
 
@@ -182,6 +197,7 @@ impl WorkflowError {
         Self {
             kind: ErrorKind::Expression,
             fields: ErrorFields::new(message, task, ""),
+            end_output: None,
         }
     }
 
@@ -194,6 +210,7 @@ impl WorkflowError {
         Self {
             kind: ErrorKind::Runtime,
             fields: ErrorFields::new(message, task, instance),
+            end_output: None,
         }
     }
 
@@ -202,12 +219,34 @@ impl WorkflowError {
         Self::runtime(message, task, "")
     }
 
+    /// Creates a WorkflowEnd signal — not a real error, but a control flow mechanism
+    /// used when `then: end` is encountered. The workflow runner catches this
+    /// and returns the current output as the workflow result.
+    pub fn workflow_end(task: impl Into<String>, output: Value) -> Self {
+        Self {
+            kind: ErrorKind::WorkflowEnd,
+            fields: ErrorFields::new("workflow ended via 'then: end' directive", task, ""),
+            end_output: Some(output),
+        }
+    }
+
+    /// Returns the output captured at the point of WorkflowEnd, if any
+    pub fn end_output(&self) -> Option<&Value> {
+        self.end_output.as_ref()
+    }
+
+    /// Returns true if this error is a WorkflowEnd signal (not a real error)
+    pub fn is_workflow_end(&self) -> bool {
+        self.kind == ErrorKind::WorkflowEnd
+    }
+
     /// Creates a timeout error
     /// Per the Serverless Workflow spec, timeout errors have status 408
     pub fn timeout(message: impl Into<String>, task: impl Into<String>) -> Self {
         Self {
             kind: ErrorKind::Timeout,
             fields: ErrorFields::new(message, task, "").with_status(Some(json!(408))),
+            end_output: None,
         }
     }
 
@@ -216,6 +255,7 @@ impl WorkflowError {
         Self {
             kind: ErrorKind::Communication,
             fields: ErrorFields::new(message, task, ""),
+            end_output: None,
         }
     }
 
@@ -228,6 +268,7 @@ impl WorkflowError {
         Self {
             kind: ErrorKind::Communication,
             fields: ErrorFields::new(message, task, "").with_status(Some(Value::from(status_code))),
+            end_output: None,
         }
     }
 
@@ -253,7 +294,11 @@ impl WorkflowError {
 
         let kind = ErrorKind::from_type_str(error_type);
 
-        Self { kind, fields }
+        Self {
+            kind,
+            fields,
+            end_output: None,
+        }
     }
 
     /// Returns the error type as a full URI (prefers original type from DSL if available)
@@ -313,11 +358,29 @@ impl WorkflowError {
             map.insert("title".to_string(), Value::String(title.to_string()));
         }
         if let Some(detail) = self.detail() {
-            map.insert("details".to_string(), Value::String(detail.to_string()));
+            map.insert("detail".to_string(), Value::String(detail.to_string()));
         }
         if let Some(instance) = self.instance() {
             map.insert("instance".to_string(), Value::String(instance.to_string()));
         }
+
+        // Runtime extension fields under "swf" namespace
+        let mut swf = serde_json::Map::new();
+        swf.insert(
+            "kind".to_string(),
+            Value::String(self.kind.as_str().to_string()),
+        );
+        swf.insert(
+            "retryCount".to_string(),
+            Value::from(self.fields.retry_count),
+        );
+        let ts = match &self.fields.timestamp {
+            Some(ts) => ts.clone(),
+            None => chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+        };
+        swf.insert("timestamp".to_string(), Value::String(ts));
+        map.insert("swf".to_string(), Value::Object(swf));
+
         Value::Object(map)
     }
 
@@ -340,7 +403,34 @@ impl WorkflowError {
                 title: self.fields.title,
                 detail: self.fields.detail,
                 original_type: self.fields.original_type,
+                retry_count: self.fields.retry_count,
+                timestamp: self.fields.timestamp,
             },
+            end_output: self.end_output,
+        }
+    }
+
+    /// Sets the retry attempt count on this error (swf.retryCount)
+    pub fn with_retry_count(self, count: u32) -> Self {
+        Self {
+            kind: self.kind,
+            fields: ErrorFields {
+                retry_count: count,
+                ..self.fields
+            },
+            end_output: self.end_output,
+        }
+    }
+
+    /// Sets the ISO 8601 timestamp on this error (swf.timestamp)
+    pub fn with_timestamp(self, timestamp: impl Into<String>) -> Self {
+        Self {
+            kind: self.kind,
+            fields: ErrorFields {
+                timestamp: Some(timestamp.into()),
+                ..self.fields
+            },
+            end_output: self.end_output,
         }
     }
 }
@@ -463,12 +553,73 @@ mod tests {
         );
         assert_eq!(val["status"], 401);
         assert_eq!(val["title"], "Auth Error");
-        assert_eq!(val["details"], "Auth failed");
+        assert_eq!(val["detail"], "Auth failed");
     }
 
     #[test]
     fn test_error_kind() {
         let err = WorkflowError::timeout("timed out", "task1");
         assert_eq!(err.kind(), ErrorKind::Timeout);
+    }
+
+    #[test]
+    fn test_error_to_value_swf_namespace() {
+        let err = WorkflowError::communication_with_status("connection refused", "task1", 503);
+        let val = err.to_value();
+        // swf.kind should always be present
+        assert_eq!(val["swf"]["kind"], "communication");
+        // swf.retryCount defaults to 0
+        assert_eq!(val["swf"]["retryCount"], 0);
+        // swf.timestamp should be auto-generated (ISO 8601 format)
+        let ts = val["swf"]["timestamp"].as_str().unwrap();
+        assert!(ts.contains("T"), "timestamp should be ISO 8601: {}", ts);
+    }
+
+    #[test]
+    fn test_error_with_retry_count() {
+        let err = WorkflowError::timeout("timed out", "task1").with_retry_count(3);
+        let val = err.to_value();
+        assert_eq!(val["swf"]["kind"], "timeout");
+        assert_eq!(val["swf"]["retryCount"], 3);
+    }
+
+    #[test]
+    fn test_error_with_timestamp() {
+        let err =
+            WorkflowError::runtime("fail", "task1", "/").with_timestamp("2026-05-11T10:30:00.000Z");
+        let val = err.to_value();
+        assert_eq!(val["swf"]["timestamp"], "2026-05-11T10:30:00.000Z");
+    }
+
+    #[test]
+    fn test_error_swf_kind_variants() {
+        assert_eq!(
+            WorkflowError::validation("v", "t").to_value()["swf"]["kind"],
+            "validation"
+        );
+        assert_eq!(
+            WorkflowError::expression("e", "t").to_value()["swf"]["kind"],
+            "expression"
+        );
+        assert_eq!(
+            WorkflowError::runtime("r", "t", "/").to_value()["swf"]["kind"],
+            "runtime"
+        );
+        assert_eq!(
+            WorkflowError::timeout("t", "t").to_value()["swf"]["kind"],
+            "timeout"
+        );
+        assert_eq!(
+            WorkflowError::typed(
+                "https://serverlessworkflow.io/spec/1.0.0/errors/authentication",
+                "a".to_string(),
+                "t".to_string(),
+                "t".to_string(),
+                None,
+                None,
+            )
+            .to_value()["swf"]["kind"],
+            "authentication"
+        );
     }
 }

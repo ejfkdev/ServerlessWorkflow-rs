@@ -4,6 +4,10 @@ use super::{Map, TaskDefinition, TaskDefinitionFields};
 use crate::models::event::EventConsumptionStrategyDefinition;
 use crate::models::output::OutputDataModelDefinition;
 
+fn default_read_mode() -> Option<String> {
+    Some(super::constants::EventReadMode::DATA.to_string())
+}
+
 /// Represents the configuration of a task used to listen to specific events
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ListenTaskDefinition {
@@ -38,7 +42,12 @@ pub struct ListenerDefinition {
     pub to: EventConsumptionStrategyDefinition,
 
     /// Gets/sets a string that specifies how events are read during the listen operation
-    #[serde(rename = "read", skip_serializing_if = "Option::is_none")]
+    /// Defaults to "data" per spec 1.0.3
+    #[serde(
+        rename = "read",
+        default = "default_read_mode",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub read: Option<String>,
 }
 impl ListenerDefinition {

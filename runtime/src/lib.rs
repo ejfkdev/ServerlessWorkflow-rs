@@ -7,6 +7,7 @@ pub mod error;
 pub mod events;
 pub mod handler;
 pub mod listener;
+pub mod resolver;
 pub mod runner;
 pub mod secret;
 pub mod status;
@@ -25,10 +26,14 @@ pub use context::WorkflowContext;
 pub use error::{ErrorFields, WorkflowError, WorkflowResult};
 pub use events::{CloudEvent, EventBus, EventSubscription, InMemoryEventBus, SharedEventBus};
 pub use expression::{ExpressionEngine, ExpressionEngineRegistry};
-pub use handler::{CallHandler, CustomTaskHandler, HandlerContext, HandlerRegistry, RunHandler};
+pub use handler::{
+    CallHandler, CustomTaskHandler, HandlerContext, HandlerRegistry, RunHandler, TaskHandler,
+    TypedCustomTaskHandler,
+};
 pub use listener::{
     CollectingListener, MultiListener, NoOpListener, WorkflowEvent, WorkflowExecutionListener,
 };
+pub use resolver::{CachingWorkflowResolver, MapWorkflowResolver, WorkflowResolver};
 pub use runner::{ScheduledWorkflow, WorkflowHandle, WorkflowRunner};
 pub use secret::{EnvSecretManager, MapSecretManager, SecretManager};
 pub use status::{StatusPhase, StatusPhaseLog};

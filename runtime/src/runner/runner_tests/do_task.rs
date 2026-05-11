@@ -361,8 +361,10 @@ do:
         reached: true
 "#;
     let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-    // then:end in inner do exits only the inner do, outer tasks continue
-    assert_eq!(output["reached"], json!(true));
+    // then:end terminates the entire workflow per spec 1.0.3
+    // afterInner should NOT run
+    assert_eq!(output["value"], json!(42));
+    assert!(output.get("reached").is_none());
 }
 
 // === Expression: string multiplication (repeat) ===
@@ -552,9 +554,10 @@ do:
         result: "${ .inner }"
 "#;
     let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
-    // then:end exits inner do, outer tasks continue
-    assert_eq!(output["outer"], json!(true));
-    assert_eq!(output["result"], json!(1));
+    // then:end terminates the entire workflow per spec 1.0.3
+    // inner2 and afterOuter should NOT run
+    assert_eq!(output["inner"], json!(1));
+    assert!(output.get("outer").is_none());
 }
 
 // === Expression: string comparisons ===

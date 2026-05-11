@@ -2,8 +2,21 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+use super::constants::{ContainerCleanupPolicy, ProcessReturnType};
 use super::TaskDefinitionFields;
 use crate::models::resource::ExternalResourceDefinition;
+
+fn default_await() -> Option<bool> {
+    Some(true)
+}
+
+fn default_return_type() -> Option<String> {
+    Some(ProcessReturnType::STDOUT.to_string())
+}
+
+fn default_cleanup() -> String {
+    ContainerCleanupPolicy::ALWAYS.to_string()
+}
 
 /// Represents the configuration of a task used to run a given process
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
@@ -46,12 +59,20 @@ pub struct ProcessTypeDefinition {
     pub workflow: Option<WorkflowProcessDefinition>,
 
     /// Gets/sets a boolean indicating whether or not to await the process completion before continuing. Defaults to 'true'
-    #[serde(rename = "await", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "await",
+        default = "default_await",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub await_: Option<bool>,
 
     /// Gets/sets the configuration of the process output. Defaults to 'stdout'.
     /// Possible values: 'stdout', 'stderr', 'code', 'all', 'none'
-    #[serde(rename = "return", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "return",
+        default = "default_return_type",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub return_: Option<String>,
 }
 impl ProcessTypeDefinition {
@@ -110,8 +131,8 @@ impl ProcessTypeDefinition {
 /// Represents the configuration of a container's lifetime
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContainerLifetimeDefinition {
-    /// Gets/sets the container cleanup policy to use
-    #[serde(rename = "cleanup")]
+    /// Gets/sets the container cleanup policy to use. Defaults to "always" per spec 1.0.3
+    #[serde(rename = "cleanup", default = "default_cleanup")]
     pub cleanup: String,
 
     /// Gets/sets the duration after which to cleanup the container, in case the cleanup policy has been set to 'eventually'
@@ -282,6 +303,10 @@ pub struct ShellProcessDefinition {
     #[serde(rename = "command")]
     pub command: String,
 
+    /// Gets/sets the data to pass to the shell command via stdin
+    #[serde(rename = "stdin", skip_serializing_if = "Option::is_none")]
+    pub stdin: Option<String>,
+
     /// Gets/sets the arguments of the shell command to run (supports both array and map forms, matches Go SDK's RunArguments)
     #[serde(rename = "arguments", skip_serializing_if = "Option::is_none")]
     pub arguments: Option<OneOfRunArguments>,
@@ -293,11 +318,13 @@ pub struct ShellProcessDefinition {
 impl ShellProcessDefinition {
     pub fn new(
         command: &str,
+        stdin: Option<String>,
         arguments: Option<OneOfRunArguments>,
         environment: Option<HashMap<String, String>>,
     ) -> Self {
         Self {
             command: command.to_string(),
+            stdin,
             arguments,
             environment,
         }

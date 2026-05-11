@@ -129,6 +129,11 @@ impl ForkTaskRunner {
                     set.abort_all();
                     return Ok(value);
                 }
+                Ok(Err(ref e)) if e.is_workflow_end() => {
+                    // WorkflowEnd must propagate immediately
+                    set.abort_all();
+                    return Err(e.clone());
+                }
                 Ok(Err(_)) | Err(_) => {
                     // This branch failed, continue waiting for others
                     continue;

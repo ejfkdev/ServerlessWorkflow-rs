@@ -92,19 +92,20 @@ impl TaskRunner for RaiseTaskRunner {
                     .as_deref()
                     .map(|t| eval_strict_expr(t, &input, support, &self.name));
 
-                // Use error definition's instance if set, otherwise task reference
+                // Use error definition's instance if set, otherwise task reference.
+                // Instance can be a runtime expression per spec.
                 let instance = def
                     .instance
                     .as_deref()
-                    .unwrap_or_else(|| support.get_task_reference().unwrap_or("/"))
-                    .to_string();
+                    .map(|i| eval_strict_expr(i, &input, support, &self.name))
+                    .unwrap_or_else(|| support.get_task_reference().unwrap_or("/").to_string());
 
                 let err = WorkflowError::typed(
                     def.type_.as_str(),
                     detail_str,
                     self.name.clone(),
                     instance,
-                    Some(def.status.clone()),
+                    Some(serde_json::json!(def.status)),
                     title_str,
                 );
 
@@ -139,7 +140,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             ErrorTypes::VALIDATION,
             "Validation Error",
-            json!(400),
+            400,
             Some("Invalid input data".to_string()),
             None,
         );
@@ -160,7 +161,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             ErrorTypes::TIMEOUT,
             "Timeout Error",
-            json!(408),
+            408,
             Some("${ .timeoutMessage }".to_string()),
             None,
         );
@@ -205,7 +206,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             ErrorTypes::COMMUNICATION,
             "Communication Error",
-            json!(500),
+            500,
             Some("Service unavailable".to_string()),
             None,
         );
@@ -225,7 +226,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             ErrorTypes::RUNTIME,
             "Runtime Error",
-            json!(500),
+            500,
             Some("Unexpected failure".to_string()),
             Some("/task_runtime".to_string()),
         );
@@ -247,7 +248,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             "https://serverlessworkflow.io/errors/not-implemented",
             "Not Implemented",
-            json!(500),
+            500,
             Some("Feature not available".to_string()),
             None,
         );
@@ -286,7 +287,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             "https://serverlessworkflow.io/errors/not-implemented",
             "Not Implemented",
-            json!(500),
+            500,
             Some("The workflow is a work in progress".to_string()),
             None,
         );
@@ -310,7 +311,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             "https://serverlessworkflow.io/spec/1.0.0/errors/authentication",
             "Authentication Error",
-            json!(401),
+            401,
             Some("${ \"User authentication failed: \\(.reason)\" }".to_string()),
             None,
         );
@@ -364,7 +365,7 @@ mod tests {
         let error_def = ErrorDefinition::new(
             "https://serverlessworkflow.io/spec/1.0.0/errors/validation",
             "Validation Error",
-            json!(400),
+            400,
             Some("${ \"Invalid input provided to workflow \\($workflow.definition.document.name)\" }".to_string()),
             None,
         );
@@ -390,5 +391,31 @@ mod tests {
         assert!(err.error_type().contains("validation"));
         // The detail should contain the workflow name
         assert!(err.to_string().contains("raise-inline"));
+    }
+
+    #[tokio::test]
+    async fn test_raise_instance_as_runtime_expression() {
+        // Spec 1.0.3: instance can be a runtime expression that should be evaluated
+        let error_def = ErrorDefinition::new(
+            ErrorTypes::VALIDATION,
+            "Validation Error",
+            400,
+            Some("Invalid input".to_string()),
+            Some("${ .errorPath }".to_string()),
+        );
+        let task = RaiseTaskDefinition {
+            raise: RaiseErrorDefinition::new(OneOfErrorDefinitionOrReference::Error(error_def)),
+            common: TaskDefinitionFields::new(),
+        };
+
+        let workflow = WorkflowDefinition::default();
+        default_support!(workflow, context, support);
+        let runner = RaiseTaskRunner::new("testInstanceExpr", &task, &workflow).unwrap();
+
+        let input = json!({"errorPath": "/api/users/123"});
+        let result = runner.run(input, &mut support).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.instance(), Some("/api/users/123"));
     }
 }

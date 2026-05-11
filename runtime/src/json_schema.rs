@@ -1,8 +1,13 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use serde_json::Value;
+use swf_core::models::resource::OneOfEndpointDefinitionOrUri;
 use swf_core::models::schema::SchemaDefinition;
 
-/// Validates JSON data against a SchemaDefinition
+/// Validates JSON data against a SchemaDefinition.
+///
+/// Supports both inline `document` schemas and external `resource` schemas.
+/// For external resources, the schema is fetched via HTTP GET from the
+/// resource's endpoint URI.
 pub fn validate_schema(
     data: &Value,
     schema: &SchemaDefinition,
@@ -14,15 +19,49 @@ pub fn validate_schema(
 
     let schema_json = if let Some(ref doc) = schema.document {
         doc.clone()
+    } else if let Some(ref resource) = schema.resource {
+        fetch_external_schema(&resource.endpoint)?
     } else {
-        // External resource references are not yet supported
-        return Err(WorkflowError::validation(
-            "external schema resources are not yet supported",
-            task_name,
-        ));
+        return Ok(());
     };
 
     validate_json_schema(data, &schema_json, task_name)
+}
+
+/// Fetches an external JSON Schema document from a remote endpoint.
+fn fetch_external_schema(endpoint: &OneOfEndpointDefinitionOrUri) -> WorkflowResult<Value> {
+    let uri = match endpoint {
+        OneOfEndpointDefinitionOrUri::Uri(uri) => uri.clone(),
+        OneOfEndpointDefinitionOrUri::Endpoint(ep) => ep.uri.clone(),
+    };
+
+    let rt = tokio::runtime::Handle::try_current().map_err(|_| {
+        WorkflowError::runtime_simple(
+            "no tokio runtime available for fetching external schema",
+            "schema",
+        )
+    })?;
+
+    rt.block_on(async {
+        let response = reqwest::get(&uri).await.map_err(|e| {
+            WorkflowError::runtime_simple(
+                format!("failed to fetch external schema from '{}': {}", uri, e),
+                "schema",
+            )
+        })?;
+
+        let schema_json: Value = response.json().await.map_err(|e| {
+            WorkflowError::runtime_simple(
+                format!(
+                    "failed to parse external schema response from '{}': {}",
+                    uri, e
+                ),
+                "schema",
+            )
+        })?;
+
+        Ok(schema_json)
+    })
 }
 
 /// Validates JSON data against a raw JSON Schema

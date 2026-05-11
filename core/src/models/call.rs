@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
+fn default_http_output() -> Option<String> {
+    Some("content".to_string())
+}
+
 string_constants! {
     /// Enumerates all supported call types
     CallType {
@@ -13,6 +17,7 @@ string_constants! {
         HTTP => "http",
         OPENAPI => "openapi",
         A2A => "a2a",
+        MCP => "mcp",
     }
 }
 
@@ -73,6 +78,8 @@ pub enum CallTaskDefinition {
     OpenAPI(CallOpenAPIDefinition),
     /// Variant holding the definition of an A2A call
     A2A(CallA2ADefinition),
+    /// Variant holding the definition of an MCP call (spec 1.0.3)
+    MCP(CallMCPDefinition),
     /// Variant holding the definition of a function call
     Function(CallFunctionDefinition),
 }
@@ -86,6 +93,7 @@ impl CallTaskDefinition {
             CallTaskDefinition::OpenAPI(t) => &t.common,
             CallTaskDefinition::AsyncAPI(t) => &t.common,
             CallTaskDefinition::A2A(t) => &t.common,
+            CallTaskDefinition::MCP(t) => &t.common,
             CallTaskDefinition::Function(t) => &t.common,
         }
     }
@@ -99,6 +107,7 @@ impl CallTaskDefinition {
             CallTaskDefinition::OpenAPI(_) => "openapi",
             CallTaskDefinition::AsyncAPI(_) => "asyncapi",
             CallTaskDefinition::A2A(_) => "a2a",
+            CallTaskDefinition::MCP(_) => "mcp",
             CallTaskDefinition::Function(_) => "function",
         }
     }
@@ -134,6 +143,7 @@ impl<'de> serde::Deserialize<'de> for CallTaskDefinition {
             "http" => try_call!(HTTP, CallHTTPDefinition),
             "openapi" => try_call!(OpenAPI, CallOpenAPIDefinition),
             "a2a" => try_call!(A2A, CallA2ADefinition),
+            "mcp" => try_call!(MCP, CallMCPDefinition),
             _ => try_call!(Function, CallFunctionDefinition),
         }
     }
@@ -161,7 +171,10 @@ pub struct HTTPArguments {
     pub query: Option<OneOfQueryOrExpression>,
 
     /// Gets/sets the http call output format. Defaults to 'content'
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default = "default_http_output",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub output: Option<String>,
 
     /// Gets/sets whether redirection status codes (300-399) should be treated as errors
@@ -278,7 +291,10 @@ pub struct OpenAPIArguments {
     pub authentication: Option<ReferenceableAuthenticationPolicy>,
 
     /// Gets/sets the http call output format. Defaults to 'content'
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default = "default_http_output",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub output: Option<String>,
 
     /// Gets/sets whether redirection status codes (300-399) should be treated as errors
@@ -457,6 +473,133 @@ pub struct A2AArguments {
 define_call_definition!(
     /// Represents the definition of an A2A call task
     CallA2ADefinition, A2AArguments
+);
+
+// ============== MCP Call Type (spec 1.0.3) ==============
+
+string_constants! {
+    /// Enumerates all supported MCP methods
+    McpMethod {
+        TOOLS_LIST => "tools/list",
+        TOOLS_CALL => "tools/call",
+        PROMPTS_LIST => "prompts/list",
+        PROMPTS_GET => "prompts/get",
+        RESOURCES_LIST => "resources/list",
+        RESOURCES_READ => "resources/read",
+        RESOURCES_TEMPLATES_LIST => "resources/templates/list",
+    }
+}
+
+/// Represents a value that can be either an object (map) or a runtime expression string
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum OneOfMcpMethodParametersOrExpression {
+    /// A key/value mapping of parameters
+    Map(HashMap<String, Value>),
+    /// A runtime expression
+    Expression(String),
+}
+
+impl Default for OneOfMcpMethodParametersOrExpression {
+    fn default() -> Self {
+        OneOfMcpMethodParametersOrExpression::Map(HashMap::new())
+    }
+}
+
+/// Represents the HTTP transport configuration for an MCP call
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpHttpTransport {
+    /// Gets/sets the endpoint of the MCP server
+    pub endpoint: OneOfEndpointDefinitionOrUri,
+
+    /// Gets/sets the headers, if any, for the HTTP transport
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
+}
+
+/// Represents the STDIO transport configuration for an MCP call
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpStdioTransport {
+    /// Gets/sets the command to run the MCP server
+    pub command: String,
+
+    /// Gets/sets the arguments for the STDIO command
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<Vec<String>>,
+
+    /// Gets/sets the environment variables for the STDIO command
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub environment: Option<HashMap<String, String>>,
+}
+
+/// Represents the transport configuration for an MCP call
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct McpCallTransport {
+    /// Gets/sets the HTTP transport configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http: Option<McpHttpTransport>,
+
+    /// Gets/sets the STDIO transport configuration
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stdio: Option<McpStdioTransport>,
+
+    /// Gets/sets additional transport options
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<HashMap<String, String>>,
+}
+
+/// Represents the client configuration for an MCP call
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct McpClient {
+    /// Gets/sets the name of the MCP client
+    pub name: String,
+
+    /// Gets/sets the version of the MCP client
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+
+    /// Gets/sets the description of the MCP client
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Represents the arguments for an MCP call
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MCPArguments {
+    /// Gets/sets the MCP protocol version. Defaults to '2025-06-18'
+    #[serde(
+        rename = "protocolVersion",
+        default = "default_mcp_protocol_version",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub protocol_version: Option<String>,
+
+    /// Gets/sets the MCP method to invoke
+    pub method: String,
+
+    /// Gets/sets the parameters for the MCP method
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameters: Option<OneOfMcpMethodParametersOrExpression>,
+
+    /// Gets/sets the timeout for the MCP call
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout: Option<crate::models::duration::OneOfDurationOrIso8601Expression>,
+
+    /// Gets/sets the transport configuration for the MCP call
+    pub transport: McpCallTransport,
+
+    /// Gets/sets the client configuration for the MCP call
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client: Option<McpClient>,
+}
+
+fn default_mcp_protocol_version() -> Option<String> {
+    Some("2025-06-18".to_string())
+}
+
+define_call_definition!(
+    /// Represents the definition of an MCP call task (spec 1.0.3)
+    CallMCPDefinition, MCPArguments
 );
 
 /// Represents the definition of a function call task

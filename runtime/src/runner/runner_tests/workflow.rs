@@ -585,4 +585,219 @@ async fn test_runner_sub_workflow_read_context_from_fixtures() {
     assert!(detail.unwrap().contains("1.0.0"));
 }
 
+// ---- WorkflowResolver Tests ----
+
+#[tokio::test]
+async fn test_runner_sub_workflow_via_resolver() {
+    let child_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: resolved-child
+  version: '1.0.0'
+do:
+  - doubleIt:
+      set:
+        result: '${ .value * 2 }'
+"#;
+    let parent_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: resolver-parent
+  version: '1.0.0'
+do:
+  - callChild:
+      run:
+        workflow:
+          namespace: test
+          name: resolved-child
+          version: '1.0.0'
+"#;
+
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+
+    let mut resolver = crate::resolver::MapWorkflowResolver::new();
+    resolver.add("test/resolved-child/1.0.0", child);
+
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_workflow_resolver(std::sync::Arc::new(resolver));
+
+    let output = runner.run(json!({"value": 21})).await.unwrap();
+    assert_eq!(output["result"], json!(42));
+}
+
+#[tokio::test]
+async fn test_runner_sub_workflow_resolver_not_found() {
+    let parent_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: resolver-parent-notfound
+  version: '1.0.0'
+do:
+  - callChild:
+      run:
+        workflow:
+          namespace: test
+          name: missing-child
+          version: '1.0.0'
+"#;
+
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+
+    let resolver = crate::resolver::MapWorkflowResolver::new();
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_workflow_resolver(std::sync::Arc::new(resolver));
+
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("not found in registry or resolver"),
+        "Expected resolver not found error, got: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_runner_sub_workflow_resolver_fallback_to_registry() {
+    // When sub-workflow is in registry, resolver should NOT be used
+    let child_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: registry-child
+  version: '1.0.0'
+do:
+  - setFromRegistry:
+      set:
+        source: registry
+"#;
+    let parent_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: fallback-parent
+  version: '1.0.0'
+do:
+  - callChild:
+      run:
+        workflow:
+          namespace: test
+          name: registry-child
+          version: '1.0.0'
+"#;
+
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+
+    // Resolver returns a different workflow, but registry should take priority
+    let wrong_child_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: registry-child
+  version: '1.0.0'
+do:
+  - setFromResolver:
+      set:
+        source: resolver
+"#;
+    let wrong_child: WorkflowDefinition = serde_yaml::from_str(wrong_child_yaml).unwrap();
+    let mut resolver = crate::resolver::MapWorkflowResolver::new();
+    resolver.add("test/registry-child/1.0.0", wrong_child);
+
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_sub_workflow(child)
+        .with_workflow_resolver(std::sync::Arc::new(resolver));
+
+    let output = runner.run(json!({})).await.unwrap();
+    // Registry takes priority over resolver
+    assert_eq!(output["source"], json!("registry"));
+}
+
+#[tokio::test]
+async fn test_runner_sub_workflow_cycle_detection() {
+    // Self-referencing workflow should detect a cycle
+    let yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: self-referencing
+  version: '1.0.0'
+do:
+  - callSelf:
+      run:
+        workflow:
+          namespace: test
+          name: self-referencing
+          version: '1.0.0'
+"#;
+
+    let workflow: WorkflowDefinition = serde_yaml::from_str(yaml).unwrap();
+    let mut resolver = crate::resolver::MapWorkflowResolver::new();
+    resolver.add("test/self-referencing/1.0.0", workflow.clone());
+
+    let runner = WorkflowRunner::new(workflow)
+        .unwrap()
+        .with_workflow_resolver(std::sync::Arc::new(resolver));
+
+    let result = runner.run(json!({})).await;
+    assert!(result.is_err());
+    let err = result.unwrap_err().to_string();
+    assert!(
+        err.contains("cycle detected"),
+        "Expected cycle detection error, got: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_runner_sub_workflow_caching_resolver() {
+    let child_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: cached-child
+  version: '1.0.0'
+do:
+  - setResult:
+      set:
+        resolved: true
+"#;
+    let parent_yaml = r#"
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: caching-parent
+  version: '1.0.0'
+do:
+  - callChild:
+      run:
+        workflow:
+          namespace: test
+          name: cached-child
+          version: '1.0.0'
+"#;
+
+    let parent: WorkflowDefinition = serde_yaml::from_str(parent_yaml).unwrap();
+    let child: WorkflowDefinition = serde_yaml::from_str(child_yaml).unwrap();
+
+    let mut inner = crate::resolver::MapWorkflowResolver::new();
+    inner.add("test/cached-child/1.0.0", child);
+    let caching = crate::resolver::CachingWorkflowResolver::new(std::sync::Arc::new(inner));
+
+    let runner = WorkflowRunner::new(parent)
+        .unwrap()
+        .with_workflow_resolver(std::sync::Arc::new(caching));
+
+    let output = runner.run(json!({})).await.unwrap();
+    assert_eq!(output["resolved"], json!(true));
+}
+
 // ---- CallHandler and RunHandler Tests ----

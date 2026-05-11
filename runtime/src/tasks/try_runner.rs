@@ -43,6 +43,11 @@ impl TaskRunner for TryTaskRunner {
         match self.try_runner.run(input.clone(), support).await {
             Ok(output) => Ok(output),
             Err(error) => {
+                // WorkflowEnd must always propagate — never caught by try/catch
+                if error.is_workflow_end() {
+                    return Err(error);
+                }
+
                 // Check if the error matches the catch filter
                 if !self.matches_catch_filter(&error) {
                     return Err(error);
@@ -66,16 +71,13 @@ impl TaskRunner for TryTaskRunner {
                     return self.handle_retry(input, support, retry).await;
                 }
 
-                // Set error variable if catch.as is configured
-                let error_var_key = self
-                    .catch
-                    .as_
-                    .as_deref()
-                    .map(|name| crate::utils::ensure_dollar_prefix(name, name));
+                // Set error variable — defaults to "$error" per spec 1.0.3
+                let var_name = self.catch.as_.as_deref().unwrap_or("error");
+                let error_var_key = crate::utils::ensure_dollar_prefix(var_name, var_name);
 
-                if let Some(ref var_key) = error_var_key {
+                {
                     let mut error_vars = HashMap::new();
-                    error_vars.insert(var_key.clone(), error_value);
+                    error_vars.insert(error_var_key.clone(), error_value);
                     support.add_local_expr_vars(error_vars);
                 }
 
@@ -90,9 +92,7 @@ impl TaskRunner for TryTaskRunner {
                 };
 
                 // Clean up error variable
-                if let Some(ref var_key) = error_var_key {
-                    support.remove_local_expr_vars(&[var_key]);
-                }
+                support.remove_local_expr_vars(&[&error_var_key]);
 
                 result
             }
@@ -230,11 +230,11 @@ impl TryTaskRunner {
                         policy.except_when.as_deref(),
                         &error_value,
                     ) {
-                        return Err(e);
+                        return Err(e.with_retry_count(attempt));
                     }
 
                     if attempt == max_attempts {
-                        return Err(e);
+                        return Err(e.with_retry_count(attempt));
                     }
                     // Continue to next attempt
                 }
@@ -397,7 +397,7 @@ mod tests {
     fn make_raise_task_with_status(error_type: &str, status: u16) -> TaskDefinition {
         TaskDefinition::Raise(RaiseTaskDefinition {
             raise: RaiseErrorDefinition::new(OneOfErrorDefinitionOrReference::Error(
-                ErrorDefinition::new(error_type, "Test Error", json!(status), None, None),
+                ErrorDefinition::new(error_type, "Test Error", status as i32, None, None),
             )),
             common: TaskDefinitionFields::new(),
         })
@@ -790,7 +790,7 @@ mod tests {
                         ErrorDefinition::new(
                             "runtime",
                             "Test Error",
-                            json!(500),
+                            500,
                             Some("Enforcement Failure".to_string()),
                             None,
                         ),
@@ -838,7 +838,7 @@ mod tests {
                         ErrorDefinition::new(
                             "runtime",
                             "Test Error",
-                            json!(500),
+                            500,
                             Some("Enforcement Failure".to_string()),
                             None,
                         ),
@@ -926,7 +926,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_try_catch_with_as_variable_details() {
-        // Matches Java SDK's try-catch-error-variable - using $caughtError.details
+        // Matches Java SDK's try-catch-error-variable - using $caughtError.detail
         let catch = ErrorCatcherDefinition {
             errors: None,
             when: None,
@@ -936,7 +936,7 @@ mod tests {
             do_: Some({
                 let entries = vec![(
                     "handleError".to_string(),
-                    make_set_task("errorMessage", json!("${ $caughtError.details }")),
+                    make_set_task("errorMessage", json!("${ $caughtError.detail }")),
                 )];
                 Map { entries }
             }),
@@ -951,7 +951,7 @@ mod tests {
                         ErrorDefinition::new(
                             "runtime",
                             "Test Error",
-                            json!(503),
+                            503,
                             Some("Javierito was here!".to_string()),
                             None,
                         ),

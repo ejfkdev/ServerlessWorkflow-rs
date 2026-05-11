@@ -104,7 +104,7 @@ fn test_for_task_minimal() {
     }"#;
     let task: ForTaskDefinition = serde_json::from_str(json).unwrap();
     assert_eq!(task.for_.each, "item");
-    assert!(task.for_.at.is_none());
+    assert_eq!(task.for_.at.as_deref(), Some("index"));
     assert!(task.while_.is_none());
 }
 
@@ -1985,7 +1985,7 @@ fn test_run_task_with_await() {
 
 #[test]
 fn test_run_task_without_await() {
-    // await defaults to None when not specified
+    // await defaults to true per spec 1.0.3
     let json = r#"{
         "run": {
             "shell": {
@@ -1994,7 +1994,9 @@ fn test_run_task_without_await() {
         }
     }"#;
     let task: RunTaskDefinition = serde_json::from_str(json).unwrap();
-    assert_eq!(task.run.await_, None);
+    assert_eq!(task.run.await_, Some(true));
+    // return defaults to "stdout" per spec 1.0.3
+    assert_eq!(task.run.return_.as_deref(), Some("stdout"));
 }
 
 #[test]
@@ -2034,4 +2036,128 @@ fn test_container_pull_policy_deserialize() {
     }"#;
     let container: ContainerProcessDefinition = serde_json::from_str(json).unwrap();
     assert_eq!(container.pull_policy, Some("always".to_string()));
+}
+
+// === Spec 1.0.3 Default Value Tests ===
+
+#[test]
+fn test_for_task_defaults_each_and_at() {
+    // Spec 1.0.3: "each" defaults to "item", "at" defaults to "index"
+    let json = r#"{
+        "for": {"in": "${ .items }"},
+        "do": [{"step": {"set": {"x": 1}}}]
+    }"#;
+    let task: ForTaskDefinition = serde_json::from_str(json).unwrap();
+    assert_eq!(task.for_.each, "item");
+    assert_eq!(task.for_.at.as_deref(), Some("index"));
+}
+
+#[test]
+fn test_fork_task_compete_defaults_to_false() {
+    // Spec 1.0.3: "compete" defaults to false
+    let json = r#"{
+        "fork": {
+            "branches": [{"b1": {"set": {"x": 1}}}]
+        }
+    }"#;
+    let task: ForkTaskDefinition = serde_json::from_str(json).unwrap();
+    assert!(!task.fork.compete);
+}
+
+#[test]
+fn test_listen_task_read_defaults_to_data() {
+    // Spec 1.0.3: "read" defaults to "data"
+    let json = r#"{"listen": {"to": {"one": {"with": {"type": "test.event"}}}}}"#;
+    let task: ListenTaskDefinition = serde_json::from_str(json).unwrap();
+    assert_eq!(task.listen.read.as_deref(), Some("data"));
+}
+
+#[test]
+fn test_try_task_catch_as_defaults_to_error() {
+    // Spec 1.0.3: catch "as" defaults to "error"
+    let json = r#"{
+        "try": [{"step": {"set": {"x": 1}}}],
+        "catch": {
+            "do": [{"handle": {"set": {"ok": true}}}]
+        }
+    }"#;
+    let task: TryTaskDefinition = serde_json::from_str(json).unwrap();
+    assert_eq!(task.catch.as_.as_deref(), Some("error"));
+}
+
+#[test]
+fn test_run_task_defaults_await_and_return() {
+    // Spec 1.0.3: "await" defaults to true, "return" defaults to "stdout"
+    let json = r#"{
+        "run": {
+            "shell": {"command": "ls"}
+        }
+    }"#;
+    let task: RunTaskDefinition = serde_json::from_str(json).unwrap();
+    assert_eq!(task.run.await_, Some(true));
+    assert_eq!(task.run.return_.as_deref(), Some("stdout"));
+}
+
+#[test]
+fn test_container_lifetime_cleanup_defaults_to_always() {
+    // Spec 1.0.3: container lifetime "cleanup" defaults to "always"
+    let json = r#"{
+        "run": {
+            "container": {"image": "nginx", "lifetime": {}}
+        }
+    }"#;
+    let task: RunTaskDefinition = serde_json::from_str(json).unwrap();
+    let container = task.run.container.as_ref().unwrap();
+    let lifetime = container.lifetime.as_ref().unwrap();
+    assert_eq!(lifetime.cleanup, "always");
+}
+
+#[test]
+fn test_extension_target_mcp_constant() {
+    // Spec 1.0.3: "mcp" is a valid extension target
+    assert_eq!(constants::ExtensionTarget::MCP, "mcp");
+}
+
+#[test]
+fn test_http_call_output_defaults_to_content() {
+    // Spec 1.0.3: HTTP call "output" defaults to "content"
+    let json = r#"{
+        "call": "http",
+        "with": {
+            "method": "GET",
+            "endpoint": "http://example.com"
+        }
+    }"#;
+    let task: TaskDefinition = serde_json::from_str(json).unwrap();
+    match task {
+        TaskDefinition::Call(call_task) => match &*call_task {
+            crate::models::task::CallTaskDefinition::HTTP(http) => {
+                assert_eq!(http.with.output.as_deref(), Some("content"));
+            }
+            _ => panic!("Expected HTTP variant"),
+        },
+        _ => panic!("Expected Call variant"),
+    }
+}
+
+#[test]
+fn test_openapi_call_output_defaults_to_content() {
+    // Spec 1.0.3: OpenAPI call "output" defaults to "content"
+    let json = r#"{
+        "call": "openapi",
+        "with": {
+            "document": {"name": "doc1", "endpoint": "http://example.com/openapi.json"},
+            "operationId": "op1"
+        }
+    }"#;
+    let task: TaskDefinition = serde_json::from_str(json).unwrap();
+    match task {
+        TaskDefinition::Call(call_task) => match &*call_task {
+            crate::models::task::CallTaskDefinition::OpenAPI(openapi) => {
+                assert_eq!(openapi.with.output.as_deref(), Some("content"));
+            }
+            _ => panic!("Expected OpenAPI variant"),
+        },
+        _ => panic!("Expected Call variant"),
+    }
 }

@@ -59,17 +59,20 @@ impl RunTaskRunner {
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let handler = support.get_handler_registry().get_run_handler(run_type);
-        match handler {
-            Some(handler) => {
-                let ctx = HandlerContext::from_vars(&support.get_vars());
-                handler.handle(&self.name, config, input, &ctx).await
-            }
-            None => Err(WorkflowError::runtime_simple(
-                format!("{} process requires a custom RunHandler (register one via WorkflowRunner::with_run_handler())", run_type),
-                &self.name,
-            )),
+        let ctx = HandlerContext::from_vars(&support.get_vars());
+
+        // Try unified handler registry first, then fall back to legacy run handler
+        if let Some(handler) = support.get_handler_registry().get_handler(run_type) {
+            return handler.handle(&self.name, config, input, &ctx).await;
         }
+        if let Some(handler) = support.get_handler_registry().get_run_handler(run_type) {
+            return handler.handle(&self.name, config, input, &ctx).await;
+        }
+
+        Err(WorkflowError::runtime_simple(
+            format!("{} process requires a custom RunHandler (register one via WorkflowRunner::with_run_handler())", run_type),
+            &self.name,
+        ))
     }
 
     async fn run_workflow(
@@ -78,23 +81,44 @@ impl RunTaskRunner {
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        // Look up the sub-workflow from the registry
-        let child_workflow = support
+        let workflow_key = format!(
+            "{}/{}/{}",
+            workflow_def.namespace, workflow_def.name, workflow_def.version
+        );
+
+        // Look up the sub-workflow from the registry, then fall back to resolver
+        let child_workflow = match support.context.get_sub_workflow(
+            &workflow_def.namespace,
+            &workflow_def.name,
+            &workflow_def.version,
+        ) {
+            Some(wf) => wf.clone(),
+            None => {
+                // Try the dynamic workflow resolver
+                match support.context.get_workflow_resolver() {
+                    Some(resolver) => resolver.resolve(&workflow_key).ok_or_else(|| {
+                        WorkflowError::runtime_simple(
+                            format!(
+                                "sub-workflow '{}' not found in registry or resolver",
+                                workflow_key
+                            ),
+                            &self.name,
+                        )
+                    })?,
+                    None => {
+                        return Err(WorkflowError::runtime_simple(
+                            format!("sub-workflow '{}' not found in registry", workflow_key),
+                            &self.name,
+                        ));
+                    }
+                }
+            }
+        };
+
+        // Cycle detection: check if this workflow is already on the call stack
+        support
             .context
-            .get_sub_workflow(
-                &workflow_def.namespace,
-                &workflow_def.name,
-                &workflow_def.version,
-            )
-            .ok_or_else(|| {
-                WorkflowError::runtime_simple(
-                    format!(
-                        "sub-workflow '{}/{}/{}' not found in registry",
-                        workflow_def.namespace, workflow_def.name, workflow_def.version
-                    ),
-                    &self.name,
-                )
-            })?;
+            .push_workflow_call(&workflow_key, &self.name)?;
 
         // Determine sub-workflow input: use workflow.input if provided, otherwise pass current input
         let sub_input = if let Some(ref workflow_input) = workflow_def.input {
@@ -105,7 +129,7 @@ impl RunTaskRunner {
         };
 
         // Create a child WorkflowRunner and execute the sub-workflow
-        let child_runner = crate::runner::WorkflowRunner::new(child_workflow.clone())?;
+        let child_runner = crate::runner::WorkflowRunner::new(child_workflow)?;
 
         // Propagate secret manager and listener to child runner
         let mut child_runner = child_runner;
@@ -126,9 +150,26 @@ impl RunTaskRunner {
         child_runner = child_runner.with_handler_registry(support.context.clone_handler_registry());
 
         // Propagate expression engines for sub-workflows (e.g., cel: prefix support)
-        child_runner = child_runner.with_expression_engine_registry(support.context.clone_expression_engines());
+        child_runner = child_runner
+            .with_expression_engine_registry(support.context.clone_expression_engines());
 
-        child_runner.run(sub_input).await
+        // Propagate workflow resolver for dynamic sub-workflow resolution
+        if let Some(resolver) = support.context.clone_workflow_resolver() {
+            child_runner = child_runner.with_workflow_resolver(resolver);
+        }
+
+        // Propagate the current call stack to the child runner for cycle detection
+        // The child context will inherit the stack (including this workflow_key)
+        // so if the child tries to call back into this workflow, it'll be detected
+        child_runner =
+            child_runner.with_workflow_call_stack(support.context.clone_workflow_call_stack());
+
+        let result = child_runner.run(sub_input).await;
+
+        // Pop from call stack regardless of success/failure
+        support.context.pop_workflow_call();
+
+        result
     }
 
     async fn run_shell(
@@ -200,6 +241,17 @@ impl RunTaskRunner {
 
         let mut cmd = tokio::process::Command::new("sh");
         cmd.arg("-c").arg(&full_command);
+        cmd.stdout(std::process::Stdio::piped());
+        cmd.stderr(std::process::Stdio::piped());
+
+        // Evaluate stdin expression if provided
+        let stdin_data = match shell.stdin {
+            Some(ref stdin_str) => {
+                cmd.stdin(std::process::Stdio::piped());
+                Some(support.eval_str(stdin_str, input, &self.name)?)
+            }
+            None => None,
+        };
 
         // Add environment variables
         if let Some(ref env) = shell.environment {
@@ -216,7 +268,31 @@ impl RunTaskRunner {
             }
         }
 
-        let output = cmd.output().await.map_err(|e| {
+        let mut child = cmd.spawn().map_err(|e| {
+            WorkflowError::runtime_simple(
+                format!("failed to execute shell command '{}': {}", command, e),
+                &self.name,
+            )
+        })?;
+
+        // Write stdin if provided
+        if let Some(ref data) = stdin_data {
+            if let Some(mut stdin_pipe) = child.stdin.take() {
+                use tokio::io::AsyncWriteExt;
+                stdin_pipe.write_all(data.as_bytes()).await.map_err(|e| {
+                    WorkflowError::runtime_simple(
+                        format!(
+                            "failed to write stdin to shell command '{}': {}",
+                            command, e
+                        ),
+                        &self.name,
+                    )
+                })?;
+                drop(stdin_pipe);
+            }
+        }
+
+        let output = child.wait_with_output().await.map_err(|e| {
             WorkflowError::runtime_simple(
                 format!("failed to execute shell command '{}': {}", command, e),
                 &self.name,
@@ -301,6 +377,7 @@ mod tests {
             run: ProcessTypeDefinition {
                 shell: Some(ShellProcessDefinition {
                     command: command.to_string(),
+                    stdin: None,
                     arguments: None,
                     environment: None,
                 }),

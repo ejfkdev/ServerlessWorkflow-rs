@@ -48,7 +48,7 @@ fn test_error_definition() {
     let error = ErrorDefinition::new(
         "https://example.com/errors",
         "Bad Request",
-        serde_json::json!(400),
+        400,
         Some("Error occurred".to_string()),
         None,
     );
@@ -63,7 +63,7 @@ fn test_error_definition_roundtrip() {
     let error = ErrorDefinition::new(
         "https://example.com/errors",
         "Not Found",
-        serde_json::json!(404),
+        404,
         Some("Resource not found".to_string()),
         Some("/instance/123".to_string()),
     );
@@ -171,7 +171,7 @@ fn test_error_definition_reference() {
 
 #[test]
 fn test_error_definition_with_string_status() {
-    // Test ErrorDefinition with string status
+    // Test ErrorDefinition rejects string status (spec 1.0.3 requires integer)
     use swf_core::models::error::ErrorDefinition;
 
     let error_json = json!({
@@ -181,9 +181,9 @@ fn test_error_definition_with_string_status() {
     });
     let result: Result<ErrorDefinition, _> = serde_json::from_value(error_json);
     assert!(
-        result.is_ok(),
-        "Failed to deserialize error with string status: {:?}",
-        result.err()
+        result.is_err(),
+        "String status should be rejected, expected integer: {:?}",
+        result
     );
 }
 

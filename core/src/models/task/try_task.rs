@@ -4,6 +4,10 @@ use serde_json::Value;
 use super::{Map, TaskDefinition, TaskDefinitionFields};
 use crate::models::retry::OneOfRetryPolicyDefinitionOrReference;
 
+fn default_catch_as() -> Option<String> {
+    Some("error".to_string())
+}
+
 /// Represents the definition of a task used to try one or more subtasks, and to catch/handle the errors that can potentially be raised during execution
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TryTaskDefinition {
@@ -38,7 +42,11 @@ pub struct ErrorCatcherDefinition {
     pub errors: Option<ErrorFilterDefinition>,
 
     /// Gets/sets the name of the runtime expression variable to save the error as. Defaults to 'error'.
-    #[serde(rename = "as", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "as",
+        default = "default_catch_as",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub as_: Option<String>,
 
     /// Gets/sets a runtime expression used to determine whether or not to catch the filtered error
@@ -85,7 +93,7 @@ pub struct ErrorFilterProperties {
     #[serde(rename = "title", skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 
-    /// Gets/sets the error details to filter by
-    #[serde(rename = "details", skip_serializing_if = "Option::is_none")]
+    /// Gets/sets the error detail to filter by
+    #[serde(rename = "detail", skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }

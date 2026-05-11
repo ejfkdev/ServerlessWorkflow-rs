@@ -18,7 +18,7 @@ do:
           with:
             type: https://example.com/errors/transient
             status: 503
-            details: Enforcement Failure - invalid email
+            detail: Enforcement Failure - invalid email
         do:
           - handleError:
               set:

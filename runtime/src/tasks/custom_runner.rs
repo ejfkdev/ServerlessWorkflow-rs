@@ -18,21 +18,27 @@ define_simple_task_runner!(
 impl TaskRunner for CustomTaskRunner {
     async fn run(&self, input: Value, support: &mut TaskSupport<'_>) -> WorkflowResult<Value> {
         let task_type = self.task.type_.as_deref().unwrap_or("unknown");
+        let config =
+            crate::error::serialize_to_value(&self.task, "custom task config", &self.name)?;
+        let ctx = HandlerContext::from_vars(&support.get_vars());
 
-        let handler = support
-            .get_handler_registry()
-            .get_custom_task_handler(task_type);
-        match handler {
-            Some(handler) => {
-                let config = crate::error::serialize_to_value(&self.task, "custom task config", &self.name)?;
-                let ctx = HandlerContext::from_vars(&support.get_vars());
-                handler.handle(&self.name, task_type, &config, &input, &ctx).await
-            }
-            None => Err(WorkflowError::runtime_simple(
-                format!("custom task '{}' requires a CustomTaskHandler (register one via WorkflowRunner::with_custom_task_handler())", task_type),
-                &self.name,
-            )),
+        // Try unified handler registry first, then fall back to legacy custom handler
+        if let Some(handler) = support.get_handler_registry().get_handler(task_type) {
+            return handler.handle(&self.name, &config, &input, &ctx).await;
         }
+        if let Some(handler) = support
+            .get_handler_registry()
+            .get_custom_task_handler(task_type)
+        {
+            return handler
+                .handle(&self.name, task_type, &config, &input, &ctx)
+                .await;
+        }
+
+        Err(WorkflowError::runtime_simple(
+            format!("custom task '{}' requires a CustomTaskHandler (register one via WorkflowRunner::with_custom_task_handler())", task_type),
+            &self.name,
+        ))
     }
 
     task_name_impl!();

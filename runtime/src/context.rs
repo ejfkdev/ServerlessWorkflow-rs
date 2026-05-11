@@ -165,6 +165,12 @@ pub struct WorkflowContext {
     vars_cache: Mutex<Option<HashMap<String, Value>>>,
     /// Whether vars_cache is stale and needs rebuilding
     vars_dirty: AtomicBool,
+    /// Expression evaluation mode: "strict" or "loose". Defaults to "strict".
+    evaluate_mode: String,
+    /// Dynamic workflow resolver for run: workflow tasks
+    workflow_resolver: Option<Arc<dyn crate::resolver::WorkflowResolver>>,
+    /// Call stack for cycle detection in nested workflow execution
+    workflow_call_stack: Vec<String>,
 }
 
 impl Clone for WorkflowContext {
@@ -191,6 +197,9 @@ impl Clone for WorkflowContext {
             iterations: self.iterations.clone(),
             vars_cache: Mutex::new(self.vars_cache.lock().unwrap().clone()),
             vars_dirty: AtomicBool::new(self.vars_dirty.load(Ordering::Acquire)),
+            evaluate_mode: self.evaluate_mode.clone(),
+            workflow_resolver: self.workflow_resolver.clone(),
+            workflow_call_stack: self.workflow_call_stack.clone(),
         }
     }
 }
@@ -257,6 +266,9 @@ impl WorkflowContext {
             iterations: HashMap::new(),
             vars_cache: Mutex::new(None),
             vars_dirty: AtomicBool::new(true),
+            evaluate_mode: "strict".to_string(),
+            workflow_resolver: None,
+            workflow_call_stack: Vec::new(),
         };
         ctx.set_status(StatusPhase::Pending);
         Ok(ctx)
@@ -544,6 +556,77 @@ impl WorkflowContext {
     /// Looks up a registered function definition by name
     pub fn get_function(&self, name: &str) -> Option<&TaskDefinition> {
         self.functions.get(name)
+    }
+
+    // ---- Evaluate Mode ----
+
+    /// Sets the expression evaluation mode ("strict" or "loose")
+    pub fn set_evaluate_mode(&mut self, mode: String) {
+        self.evaluate_mode = mode;
+    }
+
+    /// Returns the expression evaluation mode
+    pub fn evaluate_mode(&self) -> &str {
+        &self.evaluate_mode
+    }
+
+    /// Returns true if the evaluate mode is "loose"
+    pub fn is_loose_mode(&self) -> bool {
+        self.evaluate_mode == "loose"
+    }
+
+    // ---- Workflow Resolver ----
+
+    /// Sets the dynamic workflow resolver
+    pub fn set_workflow_resolver(&mut self, resolver: Arc<dyn crate::resolver::WorkflowResolver>) {
+        self.workflow_resolver = Some(resolver);
+    }
+
+    /// Gets a reference to the workflow resolver, if set
+    pub fn get_workflow_resolver(&self) -> Option<&dyn crate::resolver::WorkflowResolver> {
+        self.workflow_resolver.as_deref()
+    }
+
+    /// Clones the workflow resolver Arc (for propagating to child runners)
+    pub fn clone_workflow_resolver(&self) -> Option<Arc<dyn crate::resolver::WorkflowResolver>> {
+        self.workflow_resolver.clone()
+    }
+
+    /// Pushes a workflow name onto the call stack and checks for cycles.
+    /// Returns an error if the workflow is already on the stack (cycle detected).
+    pub fn push_workflow_call(
+        &mut self,
+        workflow_key: &str,
+        task_name: &str,
+    ) -> crate::error::WorkflowResult<()> {
+        if self.workflow_call_stack.iter().any(|k| k == workflow_key) {
+            return Err(crate::error::WorkflowError::runtime(
+                format!(
+                    "cycle detected: workflow '{}' is already in the call stack [{}]",
+                    workflow_key,
+                    self.workflow_call_stack.join(" -> ")
+                ),
+                task_name,
+                task_name,
+            ));
+        }
+        self.workflow_call_stack.push(workflow_key.to_string());
+        Ok(())
+    }
+
+    /// Pops a workflow name from the call stack
+    pub fn pop_workflow_call(&mut self) {
+        self.workflow_call_stack.pop();
+    }
+
+    /// Returns a clone of the current workflow call stack (for propagating to child runners)
+    pub fn clone_workflow_call_stack(&self) -> Vec<String> {
+        self.workflow_call_stack.clone()
+    }
+
+    /// Sets the workflow call stack (used when propagating from parent to child context)
+    pub fn set_workflow_call_stack(&mut self, stack: Vec<String>) {
+        self.workflow_call_stack = stack;
     }
 
     // ---- Cancellation ----

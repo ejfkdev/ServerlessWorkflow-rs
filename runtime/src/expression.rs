@@ -220,27 +220,56 @@ pub fn evaluate_jq(
     }
 }
 
-/// Recursively traverses a JSON structure and evaluates all runtime expressions
+/// Recursively traverses a JSON structure and evaluates all runtime expressions.
+/// Convenience wrapper that uses strict mode. For loose mode support, use
+/// `traverse_and_evaluate_with_mode`.
+#[allow(dead_code)]
 pub fn traverse_and_evaluate(
     node: &mut Value,
     input: &Value,
     vars: &HashMap<String, Value>,
 ) -> WorkflowResult<()> {
+    traverse_and_evaluate_with_mode(node, input, vars, false)
+}
+
+/// Recursively traverses a JSON structure and evaluates all runtime expressions
+/// with support for strict/loose evaluation mode.
+///
+/// In strict mode (default): only evaluates strings enclosed in `${ }`.
+/// In loose mode: attempts to evaluate any string as an expression; if evaluation fails,
+/// the original string is kept as-is.
+pub fn traverse_and_evaluate_with_mode(
+    node: &mut Value,
+    input: &Value,
+    vars: &HashMap<String, Value>,
+    loose: bool,
+) -> WorkflowResult<()> {
     match node {
         Value::Object(map) => {
             for (_key, value) in map.iter_mut() {
-                traverse_and_evaluate(value, input, vars)?;
+                traverse_and_evaluate_with_mode(value, input, vars, loose)?;
             }
         }
         Value::Array(arr) => {
             for item in arr.iter_mut() {
-                traverse_and_evaluate(item, input, vars)?;
+                traverse_and_evaluate_with_mode(item, input, vars, loose)?;
             }
         }
         Value::String(s) if is_strict_expr(s) => {
             let expr = sanitize_expr(s);
             let result = evaluate_jq(&expr, input, vars)?;
             *node = result;
+        }
+        Value::String(s) if loose && !s.is_empty() => {
+            // In loose mode, try to evaluate any non-empty string as JQ
+            let normalized = swf_core::models::expression::normalize_expr(s);
+            let sanitized = sanitize_expr(&normalized);
+            match evaluate_jq(&sanitized, input, vars) {
+                Ok(result) => *node = result,
+                Err(_) => {
+                    // Evaluation failed in loose mode: keep the original string
+                }
+            }
         }
         _ => {}
     }
@@ -280,11 +309,22 @@ pub fn traverse_and_evaluate_obj(
     vars: &HashMap<String, Value>,
     task_name: &str,
 ) -> WorkflowResult<Value> {
+    traverse_and_evaluate_obj_with_mode(obj, input, vars, task_name, false)
+}
+
+/// Evaluates an optional runtime expression object with strict/loose mode support.
+pub fn traverse_and_evaluate_obj_with_mode(
+    obj: Option<&Value>,
+    input: &Value,
+    vars: &HashMap<String, Value>,
+    task_name: &str,
+    loose: bool,
+) -> WorkflowResult<Value> {
     match obj {
         None => Ok(input.clone()),
         Some(value) => {
             let mut result = value.clone();
-            traverse_and_evaluate(&mut result, input, vars)
+            traverse_and_evaluate_with_mode(&mut result, input, vars, loose)
                 .map_err(|e| WorkflowError::expression(format!("{}", e), task_name))?;
             Ok(result)
         }

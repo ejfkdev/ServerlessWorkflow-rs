@@ -59,28 +59,29 @@ impl CallTaskRunner {
         input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let handler = support.get_handler_registry().get_call_handler(call_type);
-        match handler {
-            Some(handler) => {
-                let config = crate::error::serialize_to_value(task, "call config", &self.name)?;
-                let ctx = HandlerContext::from_vars(&support.get_vars());
-                handler.handle(&self.name, &config, input, &ctx).await
-            }
-            None => Err(WorkflowError::runtime_simple(
-                format!("{} calls require a custom CallHandler (register one via WorkflowRunner::with_call_handler())", call_type),
-                &self.name,
-            )),
+        let config = crate::error::serialize_to_value(task, "call config", &self.name)?;
+        let ctx = HandlerContext::from_vars(&support.get_vars());
+
+        // Try unified handler registry first, then fall back to legacy call handler
+        if let Some(handler) = support.get_handler_registry().get_handler(call_type) {
+            return handler.handle(&self.name, &config, input, &ctx).await;
         }
+        if let Some(handler) = support.get_handler_registry().get_call_handler(call_type) {
+            return handler.handle(&self.name, &config, input, &ctx).await;
+        }
+
+        Err(WorkflowError::runtime_simple(
+            format!("{} calls require a custom CallHandler (register one via WorkflowRunner::with_call_handler())", call_type),
+            &self.name,
+        ))
     }
 
     /// Runs a function call by looking up the function definition
     ///
     /// Resolution order:
-    /// 1. Registered functions in WorkflowContext (catalog mechanism via with_function())
-    /// 2. Workflow's use_.functions definitions
-    ///
-    /// Supports `functionName@catalogName` syntax where the catalog name is ignored
-    /// (the function name before '@' is used for lookup).
+    /// 1. Registered functions in WorkflowContext (via with_function())
+    /// 2. Remote catalog resolution (functionName:version@catalogName)
+    /// 3. Workflow's use_.functions definitions
     async fn run_function(
         &self,
         func_task: &swf_core::models::call::CallFunctionDefinition,
@@ -88,23 +89,30 @@ impl CallTaskRunner {
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
         let raw_name = &func_task.call;
-        // Strip catalog reference: "myFunc@catalog" -> "myFunc"
-        let func_name = raw_name.split('@').next().unwrap_or(raw_name);
 
-        // 1. Look up in registered functions (catalog mechanism)
-        let func_def = if let Some(registered) = support.context.get_function(func_name) {
+        // Parse catalog reference: "funcName:version@catalogName" or "funcName@catalogName" or "funcName"
+        let (func_key, catalog_name) = match raw_name.rfind('@') {
+            Some(pos) => (&raw_name[..pos], Some(&raw_name[pos + 1..])),
+            None => (raw_name.as_str(), None),
+        };
+
+        // 1. Look up in registered functions
+        let func_def = if let Some(registered) = support.context.get_function(func_key) {
             registered.clone()
+        } else if catalog_name.is_some() || func_key.contains(':') {
+            // 2. Try remote catalog resolution
+            resolve_catalog_function(func_key, catalog_name, support.workflow).await?
         } else {
-            // 2. Look up in workflow.use_.functions
+            // 3. Look up in workflow.use_.functions
             support
                 .workflow
                 .use_
                 .as_ref()
                 .and_then(|u| u.functions.as_ref())
-                .and_then(|fns| fns.get(func_name))
+                .and_then(|fns| fns.get(func_key))
                 .ok_or_else(|| {
                     WorkflowError::runtime_simple(
-                        format!("function '{}' not found in workflow definitions or registered catalogs", func_name),
+                        format!("function '{}' not found in workflow definitions or registered catalogs", func_key),
                         &self.name,
                     )
                 })?
@@ -129,8 +137,7 @@ impl CallTaskRunner {
         };
 
         // Create a runner for the resolved task definition and execute it
-        let runner =
-            crate::task_runner::create_task_runner(func_name, &func_def, support.workflow)?;
+        let runner = crate::task_runner::create_task_runner(func_key, &func_def, support.workflow)?;
         runner.run(func_input, support).await
     }
 
@@ -476,4 +483,107 @@ fn extract_response_headers(response: &reqwest::Response) -> Value {
         }
     }
     Value::Object(headers)
+}
+
+/// Resolves a function definition from a remote catalog.
+///
+/// Parses `functionName:version` and looks up the catalog endpoint from
+/// `use.catalogs[catalogName]`. Constructs the remote URI using the
+/// catalog path convention: `{endpoint}/main/functions/{name}/{version}/function.yaml`
+async fn resolve_catalog_function(
+    func_key: &str,
+    catalog_name: Option<&str>,
+    workflow: &swf_core::models::workflow::WorkflowDefinition,
+) -> WorkflowResult<swf_core::models::task::TaskDefinition> {
+    // Determine catalog base URI
+    let base_uri = if let Some(name) = catalog_name {
+        // Look up the catalog endpoint from use.catalogs
+        workflow
+            .use_
+            .as_ref()
+            .and_then(|u| u.catalogs.as_ref())
+            .and_then(|catalogs| catalogs.get(name))
+            .map(|catalog| match &catalog.endpoint {
+                swf_core::models::resource::OneOfEndpointDefinitionOrUri::Uri(uri) => uri.clone(),
+                swf_core::models::resource::OneOfEndpointDefinitionOrUri::Endpoint(ep) => {
+                    ep.uri.clone()
+                }
+            })
+            .ok_or_else(|| {
+                WorkflowError::runtime_simple(
+                    format!("catalog '{}' not found in use.catalogs", name),
+                    "catalog",
+                )
+            })?
+    } else {
+        // No catalog name specified — fall back to inline functions
+        return Err(WorkflowError::runtime_simple(
+            format!("function '{}' not found and no catalog specified", func_key),
+            "catalog",
+        ));
+    };
+
+    // Build path from function name and version: "log:1.0.0" -> "main/functions/log/1.0.0/function.yaml"
+    let func_path = build_catalog_function_path(func_key);
+
+    // Construct full URI
+    let full_uri = format!("{}/{}", base_uri.trim_end_matches('/'), func_path);
+
+    // Fetch the function definition from the remote catalog
+    let response = reqwest::get(&full_uri).await.map_err(|e| {
+        WorkflowError::runtime_simple(
+            format!(
+                "failed to fetch function from catalog '{}': {}",
+                full_uri, e
+            ),
+            "catalog",
+        )
+    })?;
+
+    if !response.status().is_success() {
+        return Err(WorkflowError::runtime_simple(
+            format!(
+                "catalog returned status {} for '{}'",
+                response.status(),
+                full_uri
+            ),
+            "catalog",
+        ));
+    }
+
+    let body = response.text().await.map_err(|e| {
+        WorkflowError::runtime_simple(format!("failed to read catalog response: {}", e), "catalog")
+    })?;
+
+    // Parse the function definition — try YAML first (canonical format), then JSON
+    let task_def: swf_core::models::task::TaskDefinition = serde_yaml::from_str(&body)
+        .or_else(|_| serde_json::from_str(&body))
+        .map_err(|e| {
+            WorkflowError::runtime_simple(
+                format!(
+                    "failed to parse function definition from catalog '{}': {}",
+                    full_uri, e
+                ),
+                "catalog",
+            )
+        })?;
+
+    Ok(task_def)
+}
+
+/// Builds the catalog path for a function definition.
+///
+/// Converts "log:1.0.0" into "main/functions/log/1.0.0/function.yaml"
+fn build_catalog_function_path(func_key: &str) -> String {
+    match func_key.find(':') {
+        Some(pos) => {
+            let name = &func_key[..pos];
+            let version = &func_key[pos + 1..];
+            format!("main/functions/{}/{}/function.yaml", name, version)
+        }
+        None => {
+            // No version specified — try without version path
+            format!("main/functions/{}/function.yaml", func_key)
+        }
+    }
 }

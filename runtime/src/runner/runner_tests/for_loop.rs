@@ -941,9 +941,10 @@ do:
     let output = run_workflow_yaml(&yaml_str, json!({"items": [5], "total": 0}))
         .await
         .unwrap();
-    // then:end should end the for loop, then afterLoop should execute
+    // then:end terminates the entire workflow per spec 1.0.3
+    // afterLoop should NOT run
     assert_eq!(output["total"], json!(5));
-    assert_eq!(output["done"], json!(true));
+    assert!(output.get("done").is_none());
 }
 
 // For: for loop accumulating sum

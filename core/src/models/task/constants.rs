@@ -87,6 +87,7 @@ string_constants! {
         SWITCH => "switch",
         TRY => "try",
         WAIT => "wait",
+        MCP => "mcp",
         A2A => "a2a",
         ALL => "all",
     }

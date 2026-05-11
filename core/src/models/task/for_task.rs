@@ -3,6 +3,14 @@ use serde::{Deserialize, Serialize};
 use super::{Map, TaskDefinition, TaskDefinitionFields};
 use crate::models::input::InputDataModelDefinition;
 
+fn default_for_at() -> Option<String> {
+    Some("index".to_string())
+}
+
+fn default_for_each() -> String {
+    "item".to_string()
+}
+
 /// Represents the definition of a task that executes a set of subtasks iteratively for each element in a collection
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForTaskDefinition {
@@ -42,7 +50,8 @@ impl ForTaskDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForLoopDefinition {
     /// Gets/sets the name of the variable that represents each element in the collection during iteration
-    #[serde(rename = "each")]
+    /// Defaults to "item" per spec 1.0.3
+    #[serde(rename = "each", default = "default_for_each")]
     pub each: String,
 
     /// Gets/sets the runtime expression used to get the collection to iterate over
@@ -50,7 +59,12 @@ pub struct ForLoopDefinition {
     pub in_: String,
 
     /// Gets/sets the name of the variable used to hold the index of each element in the collection during iteration
-    #[serde(rename = "at", skip_serializing_if = "Option::is_none")]
+    /// Defaults to "index" per spec 1.0.3
+    #[serde(
+        rename = "at",
+        default = "default_for_at",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub at: Option<String>,
 
     /// Gets/sets the definition of the data, if any, to pass to iterations to run

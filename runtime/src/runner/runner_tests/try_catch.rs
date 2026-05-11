@@ -731,7 +731,7 @@ do:
           - logError:
               set:
                 errorTitle: '${ $err.title }'
-                errorDetail: '${ $err.details }'
+                errorDetail: '${ $err.detail }'
 "#;
     let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
     assert_eq!(output["errorTitle"], json!("Bad Request"));
@@ -1369,7 +1369,7 @@ do:
 #[tokio::test]
 async fn test_runner_try_catch_error_variable_java_pattern() {
     // Matches Java SDK's try-catch-error-variable.yaml
-    // catch with as: caughtError, then use $caughtError.details in set
+    // catch with as: caughtError, then use $caughtError.detail in set
     let yaml_str = r#"
 document:
   dsl: '1.0.0'
@@ -1390,7 +1390,7 @@ do:
         do:
           - handleError:
               set:
-                errorMessage: '${$caughtError.details}'
+                errorMessage: '${$caughtError.detail}'
 "#;
     let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
     assert_eq!(output["errorMessage"], json!("Javierito was here!"));
@@ -1480,7 +1480,7 @@ do:
           with:
             type: https://example.com/errors/transient
             status: 503
-            details: Enforcement Failure - invalid email
+            detail: Enforcement Failure - invalid email
         do:
           - handleError:
               set:
@@ -1493,7 +1493,7 @@ do:
 #[tokio::test]
 async fn test_runner_try_catch_not_match_details_java_pattern() {
     // Matches Java SDK's try-catch-not-match-details.yaml
-    // catch with errors.with.details that doesn't match the actual error detail
+    // catch with errors.with.detail that doesn't match the actual error detail
     let yaml_str = r#"
 document:
   dsl: '1.0.0'
@@ -1514,7 +1514,7 @@ do:
           with:
             type: https://example.com/errors/security
             status: 403
-            details: User not found in tenant catalog
+            detail: User not found in tenant catalog
         do:
           - handleError:
               set:
@@ -1628,7 +1628,7 @@ do:
         do:
           - handleError:
               set:
-                errorMessage: '${ $caughtError.details }'
+                errorMessage: '${ $caughtError.detail }'
 "#;
     let output = run_workflow_yaml(&yaml_str, json!({})).await.unwrap();
     assert_eq!(output["errorMessage"], json!("test error occurred"));

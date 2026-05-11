@@ -195,6 +195,10 @@ pub struct TaskDefinitionFields {
     /// Gets/sets a key/value mapping of additional information associated with the task
     #[serde(rename = "metadata", skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, Value>>,
+
+    /// Gets/sets the retry policy for this task (transparent retries on failure)
+    #[serde(rename = "retry", skip_serializing_if = "Option::is_none")]
+    pub retry: Option<TaskRetryPolicy>,
 }
 impl Default for TaskDefinitionFields {
     fn default() -> Self {
@@ -212,6 +216,48 @@ impl TaskDefinitionFields {
             timeout: None,
             then: None,
             metadata: None,
+            retry: None,
         }
     }
+}
+
+/// Retry policy for individual tasks — transparent retries on failure,
+/// independent of try/catch retry mechanisms.
+///
+/// Unlike `catch.retry` which wraps an entire try block and exposes
+/// errors to catch logic, `TaskRetryPolicy` performs transparent
+/// retries: if the task succeeds within the retry limit, the failure
+/// is invisible to the workflow.
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TaskRetryPolicy {
+    /// Maximum number of retry attempts
+    #[serde(rename = "max")]
+    pub max: u32,
+
+    /// Delay between retries. Supports ISO 8601 duration strings (e.g., "PT1S", "PT5M")
+    /// or runtime expressions (e.g., "${ .retryDelay }")
+    #[serde(rename = "delay", skip_serializing_if = "Option::is_none")]
+    pub delay: Option<String>,
+
+    /// Backoff strategy: "fixed" (default), "linear", or "exponential"
+    #[serde(rename = "backoff", default, skip_serializing_if = "Option::is_none")]
+    pub backoff: Option<TaskRetryBackoff>,
+
+    /// Conditions under which to retry. Matches against error kind
+    /// (e.g., "communication", "timeout") or HTTP status patterns (e.g., "5xx", "429").
+    /// If empty, retries on all errors.
+    #[serde(rename = "when", default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<Vec<String>>,
+}
+
+/// Backoff strategy for task retries
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TaskRetryBackoff {
+    /// Fixed delay between retries (default)
+    #[default]
+    Fixed,
+    /// Linearly increasing delay (delay * attempt_number)
+    Linear,
+    /// Exponentially increasing delay (delay * 2^attempt_number)
+    Exponential,
 }

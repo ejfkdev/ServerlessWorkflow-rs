@@ -23,10 +23,16 @@ fn default_namespace() -> String {
 }
 
 /// Gets the latest ServerlessWorkflow DSL version to use by default for workflow definitions
-pub const LATEST_DSL_VERSION: &str = "1.0.1";
+pub const LATEST_DSL_VERSION: &str = "1.0.3";
 // Provides the latest ServerlessWorkflow DSL version
 fn default_dsl_version() -> String {
     LATEST_DSL_VERSION.to_string()
+}
+
+/// Gets the default version for workflow definitions per spec 1.0.3
+pub const DEFAULT_WORKFLOW_VERSION: &str = "1.0.0";
+fn default_workflow_version() -> String {
+    DEFAULT_WORKFLOW_VERSION.to_string()
 }
 
 // Provides the default runtime expression language
@@ -98,6 +104,8 @@ impl WorkflowDefinition {
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkflowDefinitionMetadata {
     /// Gets/sets the version of the DSL used to define the workflow
+    /// Defaults to "1.0.3" per spec
+    #[serde(default = "default_dsl_version")]
     pub dsl: String,
 
     /// Gets/sets the workflow's namespace
@@ -109,7 +117,8 @@ pub struct WorkflowDefinitionMetadata {
     /// Gets/sets the workflow's name
     pub name: String,
 
-    /// Gets/sets the workflow's semantic version
+    /// Gets/sets the workflow's semantic version. Defaults to "1.0.0" per spec 1.0.3
+    #[serde(default = "default_workflow_version")]
     pub version: String,
 
     /// Gets/sets the workflow's title, if any
@@ -215,7 +224,9 @@ pub struct RuntimeExpressionEvaluationConfiguration {
     #[serde(default = "default_runtime_expression_language")]
     pub language: String,
 
-    /// Gets/sets the evaluation mode used for runtime expressions. Defaults to 'loose'.
+    /// Gets/sets the evaluation mode used for runtime expressions. Defaults to 'strict'.
+    /// - `strict`: requires all expressions to be enclosed within `${ }` for proper identification and evaluation.
+    /// - `loose`: evaluates any value provided. If the evaluation fails, it results in a string with the expression as its content.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
 }

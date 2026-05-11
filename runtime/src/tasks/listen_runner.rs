@@ -72,12 +72,38 @@ impl ListenTaskRunner {
         true
     }
 
+    /// Returns the read mode for this listen task
+    fn read_mode(&self) -> &str {
+        self.task
+            .listen
+            .read
+            .as_deref()
+            .unwrap_or(swf_core::models::task::constants::EventReadMode::DATA)
+    }
+
+    /// Extracts event data according to the read mode
+    fn event_to_output(&self, event: &CloudEvent) -> Value {
+        match self.read_mode() {
+            swf_core::models::task::constants::EventReadMode::ENVELOPE => event.to_json_value(),
+            swf_core::models::task::constants::EventReadMode::RAW => {
+                // Raw: the serialized JSON string of the full event, wrapped as a string value
+                Value::String(event.to_json_value().to_string())
+            }
+            _ => event.data.clone(), // "data" (default)
+        }
+    }
+
     /// Converts consumed events to a JSON Value for expression evaluation
-    fn events_to_value(consumed_events: &[CloudEvent]) -> Value {
+    fn events_to_value(&self, consumed_events: &[CloudEvent]) -> Value {
         if consumed_events.len() == 1 {
-            consumed_events[0].data.clone()
+            self.event_to_output(&consumed_events[0])
         } else {
-            Value::Array(consumed_events.iter().map(|e| e.to_json_value()).collect())
+            Value::Array(
+                consumed_events
+                    .iter()
+                    .map(|e| self.event_to_output(e))
+                    .collect(),
+            )
         }
     }
 
@@ -92,7 +118,7 @@ impl ListenTaskRunner {
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(false) => Ok(false),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Bool(true) => Ok(true),
             OneOfEventConsumptionStrategyDefinitionOrExpression::Expression(expr) => {
-                let events_ctx = Self::events_to_value(consumed_events);
+                let events_ctx = self.events_to_value(consumed_events);
                 support.eval_bool(expr, &events_ctx)
             }
             OneOfEventConsumptionStrategyDefinitionOrExpression::Strategy(strategy) => {
@@ -259,17 +285,19 @@ impl ListenTaskRunner {
         _input: &Value,
         support: &mut TaskSupport<'_>,
     ) -> WorkflowResult<Value> {
-        let output = Value::Array(consumed_events.iter().map(|e| e.to_json_value()).collect());
+        let output = self.events_to_value(consumed_events);
 
         // Process foreach iterator if defined
         if let Some(ref foreach) = self.task.foreach {
-            self.process_foreach(&output, foreach, support).await
+            let foreach_input = Value::Array(
+                consumed_events
+                    .iter()
+                    .map(|e| self.event_to_output(e))
+                    .collect(),
+            );
+            self.process_foreach(&foreach_input, foreach, support).await
         } else {
-            if consumed_events.len() == 1 {
-                Ok(consumed_events[0].data.clone())
-            } else {
-                Ok(output)
-            }
+            Ok(output)
         }
     }
 
@@ -285,8 +313,10 @@ impl ListenTaskRunner {
             None => vec![events_array.clone()],
         };
 
-        let item_var = foreach.item.as_deref().unwrap_or("$item");
-        let at_var = foreach.at.as_deref().unwrap_or("$index");
+        let item_var =
+            crate::utils::ensure_dollar_prefix(foreach.item.as_deref().unwrap_or("item"), "$item");
+        let at_var =
+            crate::utils::ensure_dollar_prefix(foreach.at.as_deref().unwrap_or("index"), "$index");
         let mut results = Vec::new();
 
         if let Some(ref tasks) = foreach.do_ {
@@ -327,7 +357,7 @@ impl ListenTaskRunner {
                 results.push(current_output);
 
                 // Clean up iterator variables
-                support.remove_local_expr_vars(&[item_var, at_var]);
+                support.remove_local_expr_vars(&[&item_var, &at_var]);
             }
         }
 
@@ -815,5 +845,146 @@ mod tests {
 
         let output = runner.run(json!({}), &mut support).await.unwrap();
         assert_eq!(output["matched"], true);
+    }
+
+    #[tokio::test]
+    async fn test_listen_read_mode_data() {
+        let bus = Arc::new(InMemoryEventBus::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.test"));
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: None,
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let mut listener = ListenerDefinition::new(strategy);
+        listener.read = Some("data".to_string());
+        let listen_def = ListenTaskDefinition {
+            listen: listener,
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenReadData", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        let bus_clone = bus.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            bus_clone
+                .publish(
+                    CloudEvent::new("com.example.test", json!({"msg": "hello"}))
+                        .with_source("https://example.com"),
+                )
+                .await;
+        });
+
+        let output = runner.run(json!({}), &mut support).await.unwrap();
+        // "data" mode: only the data payload
+        assert_eq!(output["msg"], "hello");
+        assert!(output.get("type").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_listen_read_mode_envelope() {
+        let bus = Arc::new(InMemoryEventBus::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.test"));
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: None,
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let mut listener = ListenerDefinition::new(strategy);
+        listener.read = Some("envelope".to_string());
+        let listen_def = ListenTaskDefinition {
+            listen: listener,
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenReadEnvelope", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        let bus_clone = bus.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            bus_clone
+                .publish(
+                    CloudEvent::new("com.example.test", json!({"msg": "hello"}))
+                        .with_source("https://example.com"),
+                )
+                .await;
+        });
+
+        let output = runner.run(json!({}), &mut support).await.unwrap();
+        // "envelope" mode: full CloudEvent envelope
+        assert_eq!(output["type"], "com.example.test");
+        assert_eq!(output["source"], "https://example.com");
+        assert_eq!(output["data"]["msg"], "hello");
+    }
+
+    #[tokio::test]
+    async fn test_listen_read_mode_raw() {
+        let bus = Arc::new(InMemoryEventBus::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.test"));
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: None,
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let mut listener = ListenerDefinition::new(strategy);
+        listener.read = Some("raw".to_string());
+        let listen_def = ListenTaskDefinition {
+            listen: listener,
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenReadRaw", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        let bus_clone = bus.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            bus_clone
+                .publish(
+                    CloudEvent::new("com.example.test", json!({"msg": "hello"}))
+                        .with_source("https://example.com"),
+                )
+                .await;
+        });
+
+        let output = runner.run(json!({}), &mut support).await.unwrap();
+        // "raw" mode: serialized JSON string
+        let raw_str = output.as_str().expect("expected string output");
+        let parsed: Value = serde_json::from_str(raw_str).expect("expected valid JSON");
+        assert_eq!(parsed["type"], "com.example.test");
+        assert_eq!(parsed["data"]["msg"], "hello");
     }
 }

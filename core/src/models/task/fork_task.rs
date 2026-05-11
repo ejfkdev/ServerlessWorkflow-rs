@@ -30,8 +30,8 @@ pub struct BranchingDefinition {
     #[serde(rename = "branches")]
     pub branches: Map<String, TaskDefinition>,
 
-    /// Gets/sets a boolean indicating whether or not the branches should compete each other. If `true` and if a branch completes, it will cancel all other branches then it will return its output as the task's output
-    #[serde(rename = "compete")]
+    /// Gets/sets a boolean indicating whether or not the branches should compete each other. If `true` and if a branch completes, it will cancel all other branches then it will return its output as the task's output. Defaults to false per spec 1.0.3
+    #[serde(rename = "compete", default)]
     pub compete: bool,
 }
 impl BranchingDefinition {
