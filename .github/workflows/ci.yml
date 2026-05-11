@@ -18,7 +18,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-key: "v2-lockfile"
+          key: "v2-lockfile"
       - run: cargo test --workspace
 
   clippy:
@@ -30,7 +30,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-key: "v2-lockfile"
+          key: "v2-lockfile"
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
   fmt:
@@ -49,7 +49,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-key: "v2-lockfile"
+          key: "v2-lockfile"
       - run: cargo doc --workspace --no-deps
         env:
           RUSTDOCFLAGS: "-D warnings"
@@ -61,7 +61,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
         with:
-          cache-key: "v2-lockfile"
+          key: "v2-lockfile"
       - run: cargo check --workspace
 
   audit:
