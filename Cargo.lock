@@ -1792,7 +1792,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "swf-builders"
-version = "1.0.0-alpha9"
+version = "1.0.0-alpha10"
 dependencies = [
  "serde_json",
  "swf-core",
@@ -1800,7 +1800,7 @@ dependencies = [
 
 [[package]]
 name = "swf-cli"
-version = "1.0.0-alpha9"
+version = "1.0.0-alpha10"
 dependencies = [
  "serde_json",
  "serde_yaml",
@@ -1811,7 +1811,7 @@ dependencies = [
 
 [[package]]
 name = "swf-core"
-version = "1.0.0-alpha9"
+version = "1.0.0-alpha10"
 dependencies = [
  "regex",
  "serde",
@@ -1821,7 +1821,7 @@ dependencies = [
 
 [[package]]
 name = "swf-runtime"
-version = "1.0.0-alpha9"
+version = "1.0.0-alpha10"
 dependencies = [
  "async-trait",
  "base64 0.22.1",

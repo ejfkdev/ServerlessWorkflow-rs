@@ -331,6 +331,10 @@ impl ShellProcessDefinition {
     }
 }
 
+fn default_workflow_version() -> String {
+    "latest".to_string()
+}
+
 /// Represents the definition of a (sub)workflow process
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WorkflowProcessDefinition {
@@ -342,8 +346,8 @@ pub struct WorkflowProcessDefinition {
     #[serde(rename = "name")]
     pub name: String,
 
-    /// Gets/sets the version of the workflow to run
-    #[serde(rename = "version")]
+    /// Gets/sets the version of the workflow to run. Defaults to 'latest'
+    #[serde(rename = "version", default = "default_workflow_version")]
     pub version: String,
 
     /// Gets/sets the data, if any, to pass as input to the workflow to execute. The value should be validated against the target workflow's input schema, if specified
@@ -352,10 +356,15 @@ pub struct WorkflowProcessDefinition {
 }
 impl WorkflowProcessDefinition {
     pub fn new(namespace: &str, name: &str, version: &str, input: Option<Value>) -> Self {
+        let version = if version.is_empty() {
+            default_workflow_version()
+        } else {
+            version.to_string()
+        };
         Self {
             namespace: namespace.to_string(),
             name: name.to_string(),
-            version: version.to_string(),
+            version,
             input,
         }
     }

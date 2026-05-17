@@ -57,6 +57,17 @@ pub enum WorkflowEvent {
     },
     /// Workflow status changed
     WorkflowStatusChanged { instance_id: String, status: String },
+    /// Task created (before execution starts)
+    TaskCreated {
+        instance_id: String,
+        task_name: String,
+    },
+    /// Task status changed
+    TaskStatusChanged {
+        instance_id: String,
+        task_name: String,
+        status: String,
+    },
 }
 
 impl WorkflowEvent {
@@ -76,6 +87,9 @@ impl WorkflowEvent {
     pub const TASK_CANCELLED_TYPE: &'static str = "io.serverlessworkflow.task.cancelled.v1";
     pub const WORKFLOW_STATUS_CHANGED_TYPE: &'static str =
         "io.serverlessworkflow.workflow.status-changed.v1";
+    pub const TASK_CREATED_TYPE: &'static str = "io.serverlessworkflow.task.created.v1";
+    pub const TASK_STATUS_CHANGED_TYPE: &'static str =
+        "io.serverlessworkflow.task.status-changed.v1";
 
     /// Converts this WorkflowEvent to a CloudEvent for publishing to the EventBus
     pub fn to_cloud_event(&self) -> CloudEvent {
@@ -218,6 +232,30 @@ impl WorkflowEvent {
                 Self::WORKFLOW_STATUS_CHANGED_TYPE,
                 serde_json::json!({
                     "instanceId": instance_id,
+                    "changedAt": now_millis(),
+                    "status": status,
+                }),
+            ),
+            WorkflowEvent::TaskCreated {
+                instance_id,
+                task_name,
+            } => CloudEvent::new(
+                Self::TASK_CREATED_TYPE,
+                serde_json::json!({
+                    "instanceId": instance_id,
+                    "taskName": task_name,
+                    "createdAt": now_millis(),
+                }),
+            ),
+            WorkflowEvent::TaskStatusChanged {
+                instance_id,
+                task_name,
+                status,
+            } => CloudEvent::new(
+                Self::TASK_STATUS_CHANGED_TYPE,
+                serde_json::json!({
+                    "instanceId": instance_id,
+                    "taskName": task_name,
                     "changedAt": now_millis(),
                     "status": status,
                 }),

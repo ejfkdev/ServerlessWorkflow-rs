@@ -370,6 +370,11 @@ impl<'a> TaskSupport<'a> {
         self.set_task_name(task_name);
         self.inc_iteration(task_name);
 
+        self.emit_event(WorkflowEvent::TaskCreated {
+            instance_id: self.context.instance_id().to_string(),
+            task_name: task_name.to_string(),
+        });
+
         self.emit_event(WorkflowEvent::TaskStarted {
             instance_id: self.context.instance_id().to_string(),
             task_name: task_name.to_string(),
@@ -464,6 +469,11 @@ impl<'a> TaskSupport<'a> {
                             delay_ms = delay.as_millis(),
                             "task failed, retrying"
                         );
+                        self.emit_event(WorkflowEvent::TaskRetried {
+                            instance_id: self.context.instance_id().to_string(),
+                            task_name: task_name.to_string(),
+                            attempt: attempt + 1,
+                        });
                         if !delay.is_zero() {
                             tokio::time::sleep(delay).await;
                         }

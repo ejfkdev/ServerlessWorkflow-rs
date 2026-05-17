@@ -268,6 +268,18 @@ impl OAuth2AuthenticationSchemeDefinitionBuilder {
         self
     }
 
+    /// Sets the OAuth2 audiences
+    pub fn with_audiences(&mut self, audiences: Vec<String>) -> &mut Self {
+        self.scheme.audiences = Some(audiences);
+        self
+    }
+
+    /// Sets the OAuth2 resources
+    pub fn with_resources(&mut self, resources: Vec<String>) -> &mut Self {
+        self.scheme.resources = Some(resources);
+        self
+    }
+
     /// Builds the configured AuthenticationPolicyDefinition
     pub fn build(self) -> AuthenticationPolicyDefinition {
         AuthenticationPolicyDefinition {
@@ -325,6 +337,18 @@ impl OidcAuthenticationSchemeDefinitionBuilder {
     /// Sets the OIDC scopes
     pub fn with_scopes(&mut self, scopes: Vec<String>) -> &mut Self {
         self.scheme.scopes = Some(scopes);
+        self
+    }
+
+    /// Sets the OIDC audiences
+    pub fn with_audiences(&mut self, audiences: Vec<String>) -> &mut Self {
+        self.scheme.audiences = Some(audiences);
+        self
+    }
+
+    /// Sets the OIDC resources
+    pub fn with_resources(&mut self, resources: Vec<String>) -> &mut Self {
+        self.scheme.resources = Some(resources);
         self
     }
 

@@ -249,6 +249,10 @@ macro_rules! oauth2_like_auth_scheme {
             #[serde(skip_serializing_if = "Option::is_none")]
             pub audiences: Option<Vec<String>>,
 
+            /// Gets/sets the resources to request the token for.
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub resources: Option<Vec<String>>,
+
             /// Gets/sets the username to use (for Password grant).
             #[serde(skip_serializing_if = "Option::is_none")]
             pub username: Option<String>,
@@ -279,7 +283,11 @@ oauth2_like_auth_scheme!(
 
 oauth2_like_auth_scheme!(
     /// Represents the definition of an OpenIDConnect authentication scheme
-    OpenIDConnectSchemeDefinition {}
+    OpenIDConnectSchemeDefinition {
+        /// Gets/sets the configuration of the OIDC endpoints to use
+        #[serde(skip_serializing_if = "Option::is_none")]
+        pub endpoints: Option<OAuth2AuthenticationEndpointsDefinition>,
+    }
 );
 
 #[cfg(test)]
