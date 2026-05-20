@@ -26,7 +26,7 @@ jsonschema = "0.18"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "process", "sync", "io-util"] }
 tokio-util = "0.7"
 chrono = "0.4"
-cron = "0.15"
+cron = "0.16"
 tracing = "0.1"
 async-trait = "0.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
