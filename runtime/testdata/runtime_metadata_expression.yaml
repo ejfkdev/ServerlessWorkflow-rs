@@ -1,0 +1,13 @@
+document:
+  dsl: '1.0.0'
+  namespace: test
+  name: runtime-metadata-expression
+  version: '0.1.0'
+do:
+  - useExpression:
+      set:
+        build: ${$runtime.metadata.build}
+        primaryRegion: ${$runtime.metadata.region.primary}
+        fallbackRegion: ${$runtime.metadata.region.fallback}
+        runtimeName: ${$runtime.name}
+        runtimeVersion: ${$runtime.version}

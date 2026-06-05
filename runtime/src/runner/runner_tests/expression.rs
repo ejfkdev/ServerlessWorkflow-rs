@@ -13,6 +13,35 @@ async fn test_runner_runtime_expression() {
     assert!(!output["version"].as_str().unwrap().is_empty());
 }
 
+#[tokio::test]
+async fn test_runner_runtime_metadata_expression() {
+    // Load workflow that uses $runtime.metadata fields
+    let yaml_str = std::fs::read_to_string(testdata("runtime_metadata_expression.yaml")).unwrap();
+    let workflow = serde_yaml::from_str(&yaml_str).unwrap();
+
+    let mut metadata = std::collections::HashMap::new();
+    metadata.insert("build".to_string(), json!("ci-2026-06-04"));
+    metadata.insert(
+        "region".to_string(),
+        json!({"primary": "us-east-1", "fallback": "eu-west-1"}),
+    );
+
+    let runner = WorkflowRunner::new(workflow)
+        .unwrap()
+        .with_runtime_metadata(metadata);
+
+    let output = runner.run(json!({})).await.unwrap();
+
+    // $runtime.metadata.build is exposed in JQ
+    assert_eq!(output["build"], json!("ci-2026-06-04"));
+    assert_eq!(output["primaryRegion"], json!("us-east-1"));
+    assert_eq!(output["fallbackRegion"], json!("eu-west-1"));
+    // $runtime.name and $runtime.version still available alongside metadata
+    assert!(output["runtimeName"].is_string());
+    assert!(!output["runtimeName"].as_str().unwrap().is_empty());
+    assert!(output["runtimeVersion"].is_string());
+}
+
 // === For Loop: with while condition ===
 
 #[tokio::test]

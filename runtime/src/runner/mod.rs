@@ -78,6 +78,7 @@ pub struct WorkflowRunner {
     suspend_state: SuspendState,
     workflow_resolver: Option<Arc<dyn WorkflowResolver>>,
     workflow_call_stack: Option<Vec<String>>,
+    runtime_metadata: HashMap<String, Value>,
 }
 
 impl WorkflowRunner {
@@ -96,6 +97,7 @@ impl WorkflowRunner {
             suspend_state: SuspendState::new(),
             workflow_resolver: None,
             workflow_call_stack: None,
+            runtime_metadata: HashMap::new(),
         })
     }
 
@@ -227,6 +229,27 @@ impl WorkflowRunner {
         self
     }
 
+    /// Sets custom runtime metadata, exposed as `$runtime.metadata` in JQ expressions
+    /// (per the DSL 1.0.0 spec's Runtime Descriptor).
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use swf_runtime::WorkflowRunner;
+    /// use std::collections::HashMap;
+    /// use serde_json::json;
+    ///
+    /// let mut metadata = HashMap::new();
+    /// metadata.insert("build".to_string(), json!("ci-2026-06-04"));
+    /// let runner = WorkflowRunner::new(workflow)
+    ///     .expect("failed to create runner")
+    ///     .with_runtime_metadata(metadata);
+    /// ```
+    pub fn with_runtime_metadata(mut self, metadata: HashMap<String, Value>) -> Self {
+        self.runtime_metadata = metadata;
+        self
+    }
+
     /// Runs the workflow with the given input and returns the output
     pub async fn run(&self, input: Value) -> WorkflowResult<Value> {
         let span = tracing::info_span!(
@@ -267,6 +290,11 @@ impl WorkflowRunner {
         // Inject custom variables into the JQ context
         if !self.custom_vars.is_empty() {
             context.add_local_expr_vars(self.custom_vars.clone());
+        }
+
+        // Inject custom runtime metadata into $runtime.metadata
+        if !self.runtime_metadata.is_empty() {
+            context.set_runtime_metadata(self.runtime_metadata.clone());
         }
 
         // Set registered function definitions
@@ -469,6 +497,8 @@ impl WorkflowRunner {
                         let delay_std = delay.to_std().unwrap_or(Duration::ZERO);
                         if delay_std.is_zero() {
                             let _ = self.run(input.clone()).await;
+                            // Prevent busy loop: yield to the runtime before checking next cron time
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                             continue;
                         }
                         tokio::select! {

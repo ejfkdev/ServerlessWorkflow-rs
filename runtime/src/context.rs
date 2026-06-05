@@ -107,18 +107,6 @@ pub mod vars {
 pub mod runtime_info {
     pub const NAME: &str = "CNCF Serverless Workflow Specification Rust SDK";
     pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
-    /// Cached runtime info JSON value (constructed once)
-    static RUNTIME_INFO: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
-        serde_json::json!({
-            "name": NAME,
-            "version": VERSION,
-        })
-    });
-
-    pub fn runtime_info_value() -> &'static serde_json::Value {
-        &RUNTIME_INFO
-    }
 }
 
 /// Holds the runtime context for a workflow execution
@@ -171,6 +159,8 @@ pub struct WorkflowContext {
     workflow_resolver: Option<Arc<dyn crate::resolver::WorkflowResolver>>,
     /// Call stack for cycle detection in nested workflow execution
     workflow_call_stack: Vec<String>,
+    /// Optional custom metadata exposed via $runtime.metadata in expressions
+    runtime_metadata: HashMap<String, Value>,
 }
 
 impl Clone for WorkflowContext {
@@ -200,6 +190,7 @@ impl Clone for WorkflowContext {
             evaluate_mode: self.evaluate_mode.clone(),
             workflow_resolver: self.workflow_resolver.clone(),
             workflow_call_stack: self.workflow_call_stack.clone(),
+            runtime_metadata: self.runtime_metadata.clone(),
         }
     }
 }
@@ -222,6 +213,7 @@ impl std::fmt::Debug for WorkflowContext {
             .field("status_log", &self.status_log)
             .field("task_status", &self.task_status)
             .field("iterations", &self.iterations)
+            .field("runtime_metadata", &self.runtime_metadata)
             .finish()
     }
 }
@@ -269,6 +261,7 @@ impl WorkflowContext {
             evaluate_mode: "strict".to_string(),
             workflow_resolver: None,
             workflow_call_stack: Vec::new(),
+            runtime_metadata: HashMap::new(),
         };
         ctx.set_status(StatusPhase::Pending);
         Ok(ctx)
@@ -710,6 +703,15 @@ impl WorkflowContext {
         self.invalidate_vars_cache();
     }
 
+    // ---- Runtime Metadata ----
+
+    /// Sets the runtime metadata, exposed via `$runtime.metadata` in expressions
+    /// (per the DSL 1.0.0 spec's Runtime Descriptor).
+    pub fn set_runtime_metadata(&mut self, metadata: HashMap<String, Value>) {
+        self.runtime_metadata = metadata;
+        self.invalidate_vars_cache();
+    }
+
     // ---- Local Expression Variables ----
 
     /// Sets local expression variables (replaces all)
@@ -764,10 +766,19 @@ impl WorkflowContext {
                 vars::WORKFLOW.to_string(),
                 (*self.workflow_descriptor).clone(),
             );
-            vars.insert(
-                vars::RUNTIME.to_string(),
-                runtime_info::runtime_info_value().clone(),
-            );
+            let mut runtime_value = serde_json::json!({
+                "name": runtime_info::NAME,
+                "version": runtime_info::VERSION,
+            });
+            if !self.runtime_metadata.is_empty() {
+                runtime_value["metadata"] = serde_json::Value::Object(
+                    self.runtime_metadata
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect(),
+                );
+            }
+            vars.insert(vars::RUNTIME.to_string(), runtime_value);
 
             if let Some(ref mgr) = self.secret_manager {
                 vars.insert(vars::SECRET.to_string(), mgr.get_all_secrets());
@@ -863,6 +874,57 @@ mod tests {
         assert!(vars.contains_key(vars::RUNTIME));
         assert!(vars.contains_key(vars::WORKFLOW));
         assert!(vars.contains_key(vars::TASK));
+    }
+
+    #[test]
+    fn test_context_runtime_metadata_default_empty() {
+        let ctx = new_context();
+        let vars = ctx.get_vars();
+        let runtime = vars.get(vars::RUNTIME).expect("$runtime present");
+        // Default (no metadata set) should NOT include a metadata key
+        assert!(
+            !runtime.as_object().unwrap().contains_key("metadata"),
+            "runtime should not contain 'metadata' key by default, got: {}",
+            runtime
+        );
+        // name and version are still present
+        assert_eq!(runtime["name"], json!(runtime_info::NAME));
+        assert_eq!(runtime["version"], json!(runtime_info::VERSION));
+    }
+
+    #[test]
+    fn test_context_set_runtime_metadata_appears_in_vars() {
+        let mut ctx = new_context();
+        let mut metadata = HashMap::new();
+        metadata.insert("build".to_string(), json!("ci-2026-06-04"));
+        metadata.insert(
+            "region".to_string(),
+            json!({"primary": "us-east-1", "fallback": "eu-west-1"}),
+        );
+        ctx.set_runtime_metadata(metadata.clone());
+
+        let vars = ctx.get_vars();
+        let runtime = vars.get(vars::RUNTIME).expect("$runtime present");
+        let runtime_obj = runtime.as_object().unwrap();
+        assert!(runtime_obj.contains_key("metadata"));
+        let meta = runtime_obj.get("metadata").unwrap();
+        assert_eq!(meta["build"], json!("ci-2026-06-04"));
+        assert_eq!(meta["region"]["primary"], json!("us-east-1"));
+        assert_eq!(runtime["name"], json!(runtime_info::NAME));
+        assert_eq!(runtime["version"], json!(runtime_info::VERSION));
+    }
+
+    #[test]
+    fn test_context_clone_preserves_runtime_metadata() {
+        let mut ctx = new_context();
+        let mut metadata = HashMap::new();
+        metadata.insert("env".to_string(), json!("production"));
+        ctx.set_runtime_metadata(metadata);
+
+        let cloned = ctx.clone();
+        let vars = cloned.get_vars();
+        let runtime = vars.get(vars::RUNTIME).unwrap();
+        assert_eq!(runtime["metadata"]["env"], json!("production"));
     }
 
     #[test]
