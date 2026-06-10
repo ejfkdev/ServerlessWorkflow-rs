@@ -10,23 +10,124 @@ permissions:
   packages: write
 
 jobs:
-  publish-crates:
-    name: Publish crates
+  publish-core:
+    name: Publish swf-core
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-      - name: Publish crates
+      - name: Publish swf-core
         shell: bash
         run: |
-          # Publish in dependency order: core → builders → runtime → cli
-          for crate in swf-core swf-builders swf-runtime swf-cli; do
-            echo "Publishing $crate..."
-            cargo publish -p "$crate" --registry crates-io --allow-dirty
-            echo "Waiting for index to sync..."
-            sleep 30
+          # Idempotent: skip if version is already published
+          if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha12"; then
+            echo "swf-core 1.0.0-alpha12 is already published, skipping"
+            exit 0
+          fi
+          cargo publish -p swf-core --registry crates-io --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Wait for crates.io index to sync
+        shell: bash
+        run: |
+          # Poll until swf-core alpha12 is visible in the local cargo index
+          for i in {1..60}; do
+            if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha12"; then
+              echo "swf-core alpha12 is available in the local index"
+              exit 0
+            fi
+            echo "Waiting for index sync... ($i/60)"
+            sleep 10
           done
+          echo "Timed out waiting for index sync"
+          exit 1
+
+  publish-builders:
+    name: Publish swf-builders
+    needs: publish-core
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish swf-builders
+        shell: bash
+        run: |
+          if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha12"; then
+            echo "swf-builders 1.0.0-alpha12 is already published, skipping"
+            exit 0
+          fi
+          cargo publish -p swf-builders --registry crates-io --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Wait for crates.io index to sync
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha12"; then
+              echo "swf-builders alpha12 is available in the local index"
+              exit 0
+            fi
+            echo "Waiting for index sync... ($i/60)"
+            sleep 10
+          done
+          echo "Timed out waiting for index sync"
+          exit 1
+
+  publish-runtime:
+    name: Publish swf-runtime
+    needs: publish-builders
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish swf-runtime
+        shell: bash
+        run: |
+          if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha12"; then
+            echo "swf-runtime 1.0.0-alpha12 is already published, skipping"
+            exit 0
+          fi
+          cargo publish -p swf-runtime --registry crates-io --allow-dirty
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Wait for crates.io index to sync
+        shell: bash
+        run: |
+          for i in {1..60}; do
+            if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha12"; then
+              echo "swf-runtime alpha12 is available in the local index"
+              exit 0
+            fi
+            echo "Waiting for index sync... ($i/60)"
+            sleep 10
+          done
+          echo "Timed out waiting for index sync"
+          exit 1
+
+  publish-cli:
+    name: Publish swf-cli
+    needs: publish-runtime
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish swf-cli
+        shell: bash
+        run: |
+          # swf-cli may be multiple versions behind; check the *latest* version on crates.io
+          # against the one we're trying to publish, only skip if alpha12 is already there
+          if cargo search --limit 1 swf-cli 2>/dev/null | grep -q "1.0.0-alpha12"; then
+            echo "swf-cli 1.0.0-alpha12 is already published, skipping"
+            exit 0
+          fi
+          cargo publish -p swf-cli --registry crates-io --allow-dirty
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
