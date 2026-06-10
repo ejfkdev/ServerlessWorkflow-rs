@@ -1,9 +1,11 @@
 use crate::error::{WorkflowError, WorkflowResult};
 use crate::events::{CloudEvent, EventBus};
+use crate::listener::WorkflowEvent;
 use crate::task_runner::{TaskRunner, TaskSupport};
 use crate::tasks::define_simple_task_runner;
 use crate::tasks::task_name_impl;
 use serde_json::Value;
+use std::collections::HashMap;
 use swf_core::models::event::{
     EventConsumptionStrategyDefinition, EventFilterDefinition,
     OneOfEventConsumptionStrategyDefinitionOrExpression,
@@ -186,6 +188,58 @@ impl ListenTaskRunner {
         let mut consumed_events: Vec<CloudEvent> = Vec::new();
         let cancel_token = support.context.cancellation_token();
 
+        // Emit correlation-started lifecycle event (spec 1.0.3 requirement)
+        let correlation_keys = collect_correlation_keys(filters);
+        let instance_id = support.context.instance_id().to_string();
+        support
+            .context
+            .emit_event(WorkflowEvent::WorkflowCorrelationStarted {
+                instance_id: instance_id.clone(),
+                correlation_keys: correlation_keys.clone(),
+            });
+
+        let result = self
+            .run_listen_inner_loop(
+                filters,
+                mode,
+                event_bus,
+                &mut subscription,
+                &mut consumed_events,
+                &cancel_token,
+                support,
+            )
+            .await;
+
+        // Emit correlation-completed lifecycle event regardless of how the loop exits
+        support
+            .context
+            .emit_event(WorkflowEvent::WorkflowCorrelationCompleted {
+                instance_id: instance_id.clone(),
+                correlation_keys: extract_resolved_correlation_keys(
+                    filters,
+                    &consumed_events,
+                    &correlation_keys,
+                ),
+            });
+
+        event_bus.unsubscribe(subscription).await;
+
+        result?;
+        self.build_output(&consumed_events, input, support).await
+    }
+
+    /// Inner loop body, separated so correlation-completed can fire on every exit path
+    #[allow(clippy::too_many_arguments)]
+    async fn run_listen_inner_loop(
+        &self,
+        filters: &[EventFilterDefinition],
+        mode: ListenMode,
+        event_bus: &dyn EventBus,
+        subscription: &mut crate::events::EventSubscription,
+        consumed_events: &mut Vec<CloudEvent>,
+        cancel_token: &tokio_util::sync::CancellationToken,
+        support: &mut TaskSupport<'_>,
+    ) -> WorkflowResult<()> {
         loop {
             // For "all" mode, check if all filters are already satisfied before waiting
             if matches!(mode, ListenMode::All) && !consumed_events.is_empty() {
@@ -197,20 +251,17 @@ impl ListenTaskRunner {
                 });
                 if all_satisfied {
                     if let Some(ref until) = self.task.listen.to.until {
-                        if self
-                            .evaluate_until(until, &consumed_events, support)
-                            .await?
-                        {
-                            break;
+                        if self.evaluate_until(until, consumed_events, support).await? {
+                            return Ok(());
                         }
                     } else {
-                        break;
+                        return Ok(());
                     }
                 }
             }
 
             tokio::select! {
-                event = event_bus.recv(&mut subscription) => {
+                event = event_bus.recv(subscription) => {
                     match event {
                         Some(event) => {
                             // Skip lifecycle events (internal to the runtime)
@@ -246,13 +297,13 @@ impl ListenTaskRunner {
                                 };
 
                                 if should_complete {
-                                    break;
+                                    return Ok(());
                                 }
 
                                 // Check until condition
                                 if let Some(ref until) = self.task.listen.to.until {
-                                    if self.evaluate_until(until, &consumed_events, support).await? {
-                                        break;
+                                    if self.evaluate_until(until, consumed_events, support).await? {
+                                        return Ok(());
                                     }
                                 }
                             }
@@ -273,9 +324,6 @@ impl ListenTaskRunner {
                 }
             }
         }
-
-        event_bus.unsubscribe(subscription).await;
-        self.build_output(&consumed_events, input, support).await
     }
 
     /// Builds the output from consumed events, applying foreach iterator if defined
@@ -448,6 +496,94 @@ fn values_match(actual: &Value, expected: &Value) -> bool {
         (Value::Null, Value::Null) => true,
         _ => actual == expected,
     }
+}
+
+/// Collects the declared correlation key names from all filters
+fn collect_correlation_keys(filters: &[EventFilterDefinition]) -> HashMap<String, Value> {
+    let mut keys = HashMap::new();
+    for filter in filters {
+        if let Some(ref correlate_map) = filter.correlate {
+            for name in correlate_map.keys() {
+                keys.entry(name.clone()).or_insert(Value::Null);
+            }
+        }
+    }
+    keys
+}
+
+/// Resolves correlation keys by extracting their values from the consumed events
+fn extract_resolved_correlation_keys(
+    filters: &[EventFilterDefinition],
+    consumed_events: &[CloudEvent],
+    declared_keys: &HashMap<String, Value>,
+) -> HashMap<String, Value> {
+    if declared_keys.is_empty() {
+        return HashMap::new();
+    }
+
+    let mut resolved: HashMap<String, Value> = HashMap::new();
+    for filter in filters {
+        if let Some(ref correlate_map) = filter.correlate {
+            for (name, def) in correlate_map {
+                if resolved.contains_key(name) {
+                    continue;
+                }
+                // Find the first consumed event that matches this filter and extract
+                // the correlation value via the runtime expression in `from`.
+                for event in consumed_events {
+                    if !event_matches_filter_with(event, filter) {
+                        continue;
+                    }
+                    let extracted = evaluate_correlation_from(&def.from, event);
+                    if let Some(value) = extracted {
+                        resolved.insert(name.clone(), value);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    resolved
+}
+
+/// Synchronous filter check used during correlation-key resolution (no JQ evaluation needed
+/// beyond a basic attribute-with match — sufficient for resolving the first matching event).
+fn event_matches_filter_with(event: &CloudEvent, filter: &EventFilterDefinition) -> bool {
+    let Some(ref with) = filter.with else {
+        return true;
+    };
+    for (k, expected) in with {
+        let actual = match k.as_str() {
+            "type" => Some(Value::String(event.event_type.clone())),
+            "source" => event.source.as_ref().map(|s| Value::String(s.clone())),
+            "data" => Some(event.data.clone()),
+            _ => event.attributes.get(k).cloned(),
+        };
+        match actual {
+            Some(actual_val) if &actual_val == expected => continue,
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Evaluates a `from` runtime expression against an event's data.
+/// Supports simple `.{path}` expressions on the event's `data` field.
+fn evaluate_correlation_from(expr: &str, event: &CloudEvent) -> Option<Value> {
+    let path = expr.trim().trim_start_matches('$').trim_start_matches('.');
+    if path.is_empty() {
+        return Some(event.data.clone());
+    }
+    let mut current: Option<&Value> = Some(&event.data);
+    for seg in path.split('.') {
+        match current {
+            Some(Value::Object(map)) => {
+                current = map.get(seg);
+            }
+            _ => return None,
+        }
+    }
+    current.cloned()
 }
 
 #[cfg(test)]
@@ -986,5 +1122,333 @@ mod tests {
         let parsed: Value = serde_json::from_str(raw_str).expect("expected valid JSON");
         assert_eq!(parsed["type"], "com.example.test");
         assert_eq!(parsed["data"]["msg"], "hello");
+    }
+
+    // ===== Correlation lifecycle event tests (spec 1.0.3) =====
+
+    #[tokio::test]
+    async fn test_correlation_events_emitted_without_keys() {
+        use crate::listener::CollectingListener;
+
+        let bus = Arc::new(InMemoryEventBus::new());
+        let listener = Arc::new(CollectingListener::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.signal"));
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: None,
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let listen_def = ListenTaskDefinition {
+            listen: ListenerDefinition::new(strategy),
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenWithCorrelation", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        context.set_listener(listener.clone());
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        let bus_clone = bus.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            bus_clone
+                .publish(CloudEvent::new("com.example.signal", json!({"id": "abc"})))
+                .await;
+        });
+
+        let _ = runner.run(json!({}), &mut support).await.unwrap();
+
+        let events = listener.events();
+        // Should have at least one started and one completed correlation event
+        let started_count = events
+            .iter()
+            .filter(|e| matches!(e, WorkflowEvent::WorkflowCorrelationStarted { .. }))
+            .count();
+        let completed_count = events
+            .iter()
+            .filter(|e| matches!(e, WorkflowEvent::WorkflowCorrelationCompleted { .. }))
+            .count();
+        assert_eq!(
+            started_count, 1,
+            "expected exactly one CorrelationStarted event"
+        );
+        assert_eq!(
+            completed_count, 1,
+            "expected exactly one CorrelationCompleted event"
+        );
+
+        // No correlation keys are declared — both events should carry empty maps
+        for event in &events {
+            match event {
+                WorkflowEvent::WorkflowCorrelationStarted {
+                    correlation_keys, ..
+                }
+                | WorkflowEvent::WorkflowCorrelationCompleted {
+                    correlation_keys, ..
+                } => {
+                    assert!(
+                        correlation_keys.is_empty(),
+                        "expected no declared correlation keys"
+                    );
+                }
+                _ => {}
+            }
+        }
+
+        // Ensure the started event was emitted BEFORE completed
+        let started_idx = events
+            .iter()
+            .position(|e| matches!(e, WorkflowEvent::WorkflowCorrelationStarted { .. }))
+            .unwrap();
+        let completed_idx = events
+            .iter()
+            .position(|e| matches!(e, WorkflowEvent::WorkflowCorrelationCompleted { .. }))
+            .unwrap();
+        assert!(
+            started_idx < completed_idx,
+            "CorrelationStarted should be emitted before CorrelationCompleted"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_correlation_events_with_resolved_keys() {
+        use crate::listener::CollectingListener;
+        use swf_core::models::event::CorrelationKeyDefinition;
+
+        let bus = Arc::new(InMemoryEventBus::new());
+        let listener = Arc::new(CollectingListener::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.order"));
+        let mut correlate = HashMap::new();
+        correlate.insert(
+            "orderId".to_string(),
+            CorrelationKeyDefinition::new(".orderId", None),
+        );
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: Some(correlate),
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let listen_def = ListenTaskDefinition {
+            listen: ListenerDefinition::new(strategy),
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenResolveKeys", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        context.set_listener(listener.clone());
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        let bus_clone = bus.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2)).await;
+            bus_clone
+                .publish(CloudEvent::new(
+                    "com.example.order",
+                    json!({"orderId": "ORD-42", "amount": 100}),
+                ))
+                .await;
+        });
+
+        let _ = runner.run(json!({}), &mut support).await.unwrap();
+
+        let events = listener.events();
+        // CorrelationStarted: declared key with Null value (not yet resolved)
+        let started = events
+            .iter()
+            .find_map(|e| match e {
+                WorkflowEvent::WorkflowCorrelationStarted {
+                    correlation_keys, ..
+                } => Some(correlation_keys.clone()),
+                _ => None,
+            })
+            .expect("CorrelationStarted event missing");
+        assert!(
+            started.contains_key("orderId"),
+            "orderId should be declared"
+        );
+        assert_eq!(
+            started.get("orderId"),
+            Some(&Value::Null),
+            "started key value should be null before resolution"
+        );
+
+        // CorrelationCompleted: resolved key value extracted from the consumed event
+        let completed = events
+            .iter()
+            .find_map(|e| match e {
+                WorkflowEvent::WorkflowCorrelationCompleted {
+                    correlation_keys, ..
+                } => Some(correlation_keys.clone()),
+                _ => None,
+            })
+            .expect("CorrelationCompleted event missing");
+        assert_eq!(
+            completed.get("orderId"),
+            Some(&json!("ORD-42")),
+            "orderId should be resolved from the matched event"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_correlation_completed_emitted_on_cancellation() {
+        use crate::listener::CollectingListener;
+
+        let bus = Arc::new(InMemoryEventBus::new());
+        let listener = Arc::new(CollectingListener::new());
+
+        let mut with = HashMap::new();
+        with.insert("type".to_string(), json!("com.example.never-fires"));
+        let strategy = EventConsumptionStrategyDefinition {
+            any: Some(vec![EventFilterDefinition {
+                with: Some(with),
+                correlate: None,
+            }]),
+            all: None,
+            one: None,
+            until: None,
+        };
+        let listen_def = ListenTaskDefinition {
+            listen: ListenerDefinition::new(strategy),
+            foreach: None,
+            common: TaskDefinitionFields::new(),
+        };
+        let runner = ListenTaskRunner::new("listenCancelled", &listen_def).unwrap();
+
+        let workflow = WorkflowDefinition::default();
+        let mut context = WorkflowContext::new(&workflow).unwrap();
+        context.set_event_bus(bus.clone());
+        context.set_listener(listener.clone());
+        let cancel_token = context.cancellation_token();
+        let mut support = TaskSupport::new(&workflow, &mut context);
+
+        // Cancel after a short delay so the listen loop exits via the cancel branch
+        let cancel_clone = cancel_token.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            cancel_clone.cancel();
+        });
+
+        let result = runner.run(json!({}), &mut support).await;
+        assert!(result.is_err(), "expected cancellation error");
+
+        let events = listener.events();
+        // CorrelationCompleted MUST be emitted even if the loop exits with an error
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, WorkflowEvent::WorkflowCorrelationStarted { .. })),
+            "CorrelationStarted should fire even on cancellation"
+        );
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, WorkflowEvent::WorkflowCorrelationCompleted { .. })),
+            "CorrelationCompleted should fire on cancellation path"
+        );
+    }
+
+    #[test]
+    fn test_correlation_event_to_cloud_event_payload() {
+        // Spec 1.0.3: started event must carry `name` and `startedAt`
+        let started = WorkflowEvent::WorkflowCorrelationStarted {
+            instance_id: "wf-instance-1".to_string(),
+            correlation_keys: HashMap::new(),
+        };
+        let started_ce = started.to_cloud_event();
+        assert_eq!(
+            started_ce.event_type,
+            WorkflowEvent::WORKFLOW_CORRELATION_STARTED_TYPE
+        );
+        assert_eq!(started_ce.data["name"], "wf-instance-1");
+        assert!(started_ce.data.get("startedAt").is_some());
+        // No correlation keys → field should be absent
+        assert!(started_ce.data.get("correlationKeys").is_none());
+
+        // Spec 1.0.3: completed event must carry `name`, `completedAt`, and optional `correlationKeys`
+        let mut keys = HashMap::new();
+        keys.insert("orderId".to_string(), json!("ORD-42"));
+        let completed = WorkflowEvent::WorkflowCorrelationCompleted {
+            instance_id: "wf-instance-1".to_string(),
+            correlation_keys: keys,
+        };
+        let completed_ce = completed.to_cloud_event();
+        assert_eq!(
+            completed_ce.event_type,
+            WorkflowEvent::WORKFLOW_CORRELATION_COMPLETED_TYPE
+        );
+        assert_eq!(completed_ce.data["name"], "wf-instance-1");
+        assert!(completed_ce.data.get("completedAt").is_some());
+        assert_eq!(completed_ce.data["correlationKeys"]["orderId"], "ORD-42");
+    }
+
+    #[test]
+    fn test_collect_correlation_keys_helper() {
+        use swf_core::models::event::CorrelationKeyDefinition;
+
+        let mut correlate_a = HashMap::new();
+        correlate_a.insert("k1".to_string(), CorrelationKeyDefinition::new(".a", None));
+        let mut correlate_b = HashMap::new();
+        correlate_b.insert("k2".to_string(), CorrelationKeyDefinition::new(".b", None));
+        correlate_b.insert("k1".to_string(), CorrelationKeyDefinition::new(".a", None));
+
+        let filters = vec![
+            EventFilterDefinition {
+                with: None,
+                correlate: Some(correlate_a),
+            },
+            EventFilterDefinition {
+                with: None,
+                correlate: Some(correlate_b),
+            },
+        ];
+
+        let collected = collect_correlation_keys(&filters);
+        assert_eq!(collected.len(), 2, "should dedupe k1");
+        assert!(collected.contains_key("k1"));
+        assert!(collected.contains_key("k2"));
+        // Initially, all declared keys should map to Null
+        assert_eq!(collected.get("k1"), Some(&Value::Null));
+    }
+
+    #[test]
+    fn test_evaluate_correlation_from_helper() {
+        let event = CloudEvent::new(
+            "com.example.test",
+            json!({"orderId": "ORD-42", "nested": {"value": 99}}),
+        );
+
+        assert_eq!(
+            evaluate_correlation_from(".orderId", &event),
+            Some(json!("ORD-42"))
+        );
+        assert_eq!(
+            evaluate_correlation_from(".nested.value", &event),
+            Some(json!(99))
+        );
+        // Empty path returns the whole data
+        assert_eq!(
+            evaluate_correlation_from("", &event),
+            Some(json!({"orderId": "ORD-42", "nested": {"value": 99}}))
+        );
+        // Missing path returns None
+        assert_eq!(evaluate_correlation_from(".missing", &event), None);
     }
 }

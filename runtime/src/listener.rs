@@ -68,6 +68,16 @@ pub enum WorkflowEvent {
         task_name: String,
         status: String,
     },
+    /// Workflow started correlating events (spec 1.0.3)
+    WorkflowCorrelationStarted {
+        instance_id: String,
+        correlation_keys: std::collections::HashMap<String, Value>,
+    },
+    /// Workflow completed correlating events (spec 1.0.3)
+    WorkflowCorrelationCompleted {
+        instance_id: String,
+        correlation_keys: std::collections::HashMap<String, Value>,
+    },
 }
 
 impl WorkflowEvent {
@@ -90,6 +100,10 @@ impl WorkflowEvent {
     pub const TASK_CREATED_TYPE: &'static str = "io.serverlessworkflow.task.created.v1";
     pub const TASK_STATUS_CHANGED_TYPE: &'static str =
         "io.serverlessworkflow.task.status-changed.v1";
+    pub const WORKFLOW_CORRELATION_STARTED_TYPE: &'static str =
+        "io.serverlessworkflow.workflow.correlation-started.v1";
+    pub const WORKFLOW_CORRELATION_COMPLETED_TYPE: &'static str =
+        "io.serverlessworkflow.workflow.correlation-completed.v1";
 
     /// Converts this WorkflowEvent to a CloudEvent for publishing to the EventBus
     pub fn to_cloud_event(&self) -> CloudEvent {
@@ -260,6 +274,42 @@ impl WorkflowEvent {
                     "status": status,
                 }),
             ),
+            WorkflowEvent::WorkflowCorrelationStarted {
+                instance_id,
+                correlation_keys,
+            } => {
+                let mut payload = serde_json::json!({
+                    "name": instance_id,
+                    "startedAt": now_millis(),
+                });
+                if !correlation_keys.is_empty() {
+                    payload["correlationKeys"] = serde_json::Value::Object(
+                        correlation_keys
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect(),
+                    );
+                }
+                CloudEvent::new(Self::WORKFLOW_CORRELATION_STARTED_TYPE, payload)
+            }
+            WorkflowEvent::WorkflowCorrelationCompleted {
+                instance_id,
+                correlation_keys,
+            } => {
+                let mut payload = serde_json::json!({
+                    "name": instance_id,
+                    "completedAt": now_millis(),
+                });
+                if !correlation_keys.is_empty() {
+                    payload["correlationKeys"] = serde_json::Value::Object(
+                        correlation_keys
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect(),
+                    );
+                }
+                CloudEvent::new(Self::WORKFLOW_CORRELATION_COMPLETED_TYPE, payload)
+            }
         }
     }
 }

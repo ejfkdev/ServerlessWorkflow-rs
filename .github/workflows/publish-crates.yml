@@ -22,8 +22,8 @@ jobs:
         shell: bash
         run: |
           # Idempotent: skip if version is already published
-          if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha12"; then
-            echo "swf-core 1.0.0-alpha12 is already published, skipping"
+          if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha13"; then
+            echo "swf-core 1.0.0-alpha13 is already published, skipping"
             exit 0
           fi
           cargo publish -p swf-core --registry crates-io --allow-dirty
@@ -32,10 +32,10 @@ jobs:
       - name: Wait for crates.io index to sync
         shell: bash
         run: |
-          # Poll until swf-core alpha12 is visible in the local cargo index
+          # Poll until swf-core alpha13 is visible in the local cargo index
           for i in {1..60}; do
-            if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha12"; then
-              echo "swf-core alpha12 is available in the local index"
+            if cargo search --limit 1 swf-core 2>/dev/null | grep -q "1.0.0-alpha13"; then
+              echo "swf-core alpha13 is available in the local index"
               exit 0
             fi
             echo "Waiting for index sync... ($i/60)"
@@ -56,8 +56,8 @@ jobs:
       - name: Publish swf-builders
         shell: bash
         run: |
-          if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha12"; then
-            echo "swf-builders 1.0.0-alpha12 is already published, skipping"
+          if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha13"; then
+            echo "swf-builders 1.0.0-alpha13 is already published, skipping"
             exit 0
           fi
           cargo publish -p swf-builders --registry crates-io --allow-dirty
@@ -67,8 +67,8 @@ jobs:
         shell: bash
         run: |
           for i in {1..60}; do
-            if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha12"; then
-              echo "swf-builders alpha12 is available in the local index"
+            if cargo search --limit 1 swf-builders 2>/dev/null | grep -q "1.0.0-alpha13"; then
+              echo "swf-builders alpha13 is available in the local index"
               exit 0
             fi
             echo "Waiting for index sync... ($i/60)"
@@ -89,8 +89,8 @@ jobs:
       - name: Publish swf-runtime
         shell: bash
         run: |
-          if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha12"; then
-            echo "swf-runtime 1.0.0-alpha12 is already published, skipping"
+          if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha13"; then
+            echo "swf-runtime 1.0.0-alpha13 is already published, skipping"
             exit 0
           fi
           cargo publish -p swf-runtime --registry crates-io --allow-dirty
@@ -100,8 +100,8 @@ jobs:
         shell: bash
         run: |
           for i in {1..60}; do
-            if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha12"; then
-              echo "swf-runtime alpha12 is available in the local index"
+            if cargo search --limit 1 swf-runtime 2>/dev/null | grep -q "1.0.0-alpha13"; then
+              echo "swf-runtime alpha13 is available in the local index"
               exit 0
             fi
             echo "Waiting for index sync... ($i/60)"
@@ -123,9 +123,9 @@ jobs:
         shell: bash
         run: |
           # swf-cli may be multiple versions behind; check the *latest* version on crates.io
-          # against the one we're trying to publish, only skip if alpha12 is already there
-          if cargo search --limit 1 swf-cli 2>/dev/null | grep -q "1.0.0-alpha12"; then
-            echo "swf-cli 1.0.0-alpha12 is already published, skipping"
+          # against the one we're trying to publish, only skip if alpha13 is already there
+          if cargo search --limit 1 swf-cli 2>/dev/null | grep -q "1.0.0-alpha13"; then
+            echo "swf-cli 1.0.0-alpha13 is already published, skipping"
             exit 0
           fi
           cargo publish -p swf-cli --registry crates-io --allow-dirty
